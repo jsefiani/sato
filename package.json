@@ -8,7 +8,11 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check-types": "turbo run check-types",
-    "web:dev": "pnpm --filter web dev"
+    "web:dev": "pnpm --filter web dev",
+    "db:start": "cd apps/web && docker compose up -d",
+    "db:stop": "cd apps/web && docker compose down",
+    "db:studio": "pnpm --filter web db:studio",
+    "db:push": "pnpm --filter web db:push"
   },
   "devDependencies": {
     "prettier": "^3.7.4",
