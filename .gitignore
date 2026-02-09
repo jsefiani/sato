@@ -25,6 +25,14 @@ coverage
 out/
 build
 dist
+dist-ssr
+*.local
+.output
+.vinxi
+.nitro
+.tanstack
+.wrangler
+.vite
 
 
 # Debug
