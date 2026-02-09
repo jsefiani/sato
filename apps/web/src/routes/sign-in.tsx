@@ -1,5 +1,4 @@
-import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useState } from 'react'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { authClient } from '@/lib/auth-client'
 
 export const Route = createFileRoute('/sign-in')({
@@ -9,33 +8,10 @@ export const Route = createFileRoute('/sign-in')({
 function SignIn() {
   const navigate = useNavigate()
   const { data: session, isPending: sessionPending } = authClient.useSession()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
 
   if (!sessionPending && session?.user) {
     navigate({ to: '/' })
     return null
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
-
-    try {
-      const result = await authClient.signIn.email({ email, password })
-      if (result.error) {
-        setError(result.error.message || 'Sign in failed')
-      } else {
-        navigate({ to: '/' })
-      }
-    } catch {
-      setError('An unexpected error occurred')
-    } finally {
-      setLoading(false)
-    }
   }
 
   const handleGoogleSignIn = async () => {
@@ -47,11 +23,11 @@ function SignIn() {
 
   return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center px-4">
-      <div className="w-full max-w-md p-8 space-y-6">
+      <div className="w-full max-w-sm p-8 space-y-6">
         <div className="space-y-2 text-center">
-          <h1 className="text-2xl font-bold text-white">Sign in</h1>
+          <h1 className="text-2xl font-bold text-white">Sign in to Sato</h1>
           <p className="text-sm text-gray-400">
-            Enter your email below to sign in to your account
+            Continue with your Google account
           </p>
         </div>
 
@@ -78,88 +54,8 @@ function SignIn() {
               fill="#EA4335"
             />
           </svg>
-          Sign in with Google
+          Continue with Google
         </button>
-
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t border-gray-700" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-gray-900 px-2 text-gray-500">
-              Or continue with
-            </span>
-          </div>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <label
-              htmlFor="email"
-              className="text-sm font-medium text-gray-300"
-            >
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="flex h-10 w-full rounded-lg border border-gray-700 bg-gray-800 px-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-gray-500"
-              placeholder="you@example.com"
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label
-              htmlFor="password"
-              className="text-sm font-medium text-gray-300"
-            >
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="flex h-10 w-full rounded-lg border border-gray-700 bg-gray-800 px-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-gray-500"
-              required
-              minLength={8}
-            />
-          </div>
-
-          {error && (
-            <div className="bg-red-900/20 border border-red-800 rounded-lg p-3">
-              <p className="text-sm text-red-400">{error}</p>
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full h-10 px-4 text-sm font-medium text-white bg-cyan-600 hover:bg-cyan-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? (
-              <span className="flex items-center justify-center gap-2">
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-cyan-300 border-t-white" />
-                Signing in...
-              </span>
-            ) : (
-              'Sign in'
-            )}
-          </button>
-        </form>
-
-        <p className="text-center text-sm text-gray-400">
-          Don't have an account?{' '}
-          <Link
-            to="/sign-up"
-            className="text-cyan-400 hover:text-cyan-300 font-medium"
-          >
-            Sign up
-          </Link>
-        </p>
       </div>
     </div>
   )
