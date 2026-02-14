@@ -23,7 +23,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
         content: 'width=device-width, initial-scale=1',
       },
       {
-        title: 'TanStack Start Starter',
+        title: 'Sato - Your personal AI assistant',
       },
     ],
     links: [
