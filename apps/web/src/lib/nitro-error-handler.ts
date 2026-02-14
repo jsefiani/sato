@@ -126,39 +126,56 @@ const errorHandler: NitroErrorHandler = async (
   event,
   { defaultHandler },
 ) => {
-  const url = new URL(event.req.url)
+  try {
+    const reqUrl = event.req.url
+    const isApiRoute =
+      reqUrl.startsWith('/api/') ||
+      (() => {
+        try {
+          return new URL(reqUrl).pathname.startsWith('/api/')
+        } catch {
+          return reqUrl.includes('/api/')
+        }
+      })()
 
-  if (url.pathname.startsWith('/api/')) {
-    const res = await defaultHandler(error, event)
+    if (isApiRoute) {
+      const res = await defaultHandler(error, event)
+      return new Response(
+        typeof res.body === 'string'
+          ? res.body
+          : JSON.stringify(res.body, null, 2),
+        res,
+      )
+    }
+
+    const status = error.status || 500
+    const is404 = status === 404
+
     return new Response(
-      typeof res.body === 'string'
-        ? res.body
-        : JSON.stringify(res.body, null, 2),
-      res,
+      renderPage({
+        status,
+        title: is404 ? 'Page not found' : 'Something went wrong',
+        description: is404
+          ? "The page you're looking for doesn't exist or has been moved."
+          : 'An unexpected error occurred. Please try again or return to the home page.',
+      }),
+      {
+        status,
+        headers: {
+          'content-type': 'text/html; charset=utf-8',
+          'x-content-type-options': 'nosniff',
+          'x-frame-options': 'DENY',
+          'referrer-policy': 'strict-origin-when-cross-origin',
+          'cache-control': 'no-cache',
+        },
+      },
+    )
+  } catch {
+    return new Response(
+      '<!DOCTYPE html><html><head><title>Error - Sato</title></head><body style="background:#09090b;color:#a1a1aa;display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:system-ui"><div style="text-align:center"><h1 style="color:#f4f4f5;margin-bottom:.5rem">Something went wrong</h1><p>An unexpected error occurred.</p><br><a href="/" style="color:#f4f4f5">Go home</a></div></body></html>',
+      { status: 500, headers: { 'content-type': 'text/html; charset=utf-8' } },
     )
   }
-
-  const status = error.status || 500
-  const is404 = status === 404
-
-  const html = renderPage({
-    status,
-    title: is404 ? 'Page not found' : 'Something went wrong',
-    description: is404
-      ? "The page you're looking for doesn't exist or has been moved."
-      : 'An unexpected error occurred. Please try again or return to the home page.',
-  })
-
-  return new Response(html, {
-    status,
-    headers: {
-      'content-type': 'text/html; charset=utf-8',
-      'x-content-type-options': 'nosniff',
-      'x-frame-options': 'DENY',
-      'referrer-policy': 'strict-origin-when-cross-origin',
-      'cache-control': 'no-cache',
-    },
-  })
 }
 
 export default errorHandler
