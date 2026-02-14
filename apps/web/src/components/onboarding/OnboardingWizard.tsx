@@ -41,18 +41,22 @@ export default function OnboardingWizard({
       if (!res.ok) throw new Error('Failed to load status')
       return res.json() as Promise<DashboardState>
     },
-    refetchInterval: (query) => {
-      const data = query.state.data
-      if (!data?.vps) return false
-      const { status } = data.vps
-      const ready = data.openClawReady
-      if (status === 'provisioning' || status === 'bootstrapping') return 5000
-      if (status === 'active' && ready === false) return 5000
-      return false
-    },
   })
 
   const state = dashboardQuery.data ?? null
+
+  const needsStatusStream =
+    !!state?.vps &&
+    (state.vps.status === 'provisioning' ||
+      state.vps.status === 'bootstrapping' ||
+      (state.vps.status === 'active' && state.openClawReady === false))
+
+  useEventStream({
+    url: '/api/vps/status-stream',
+    enabled: needsStatusStream,
+    queryKey: ['dashboard-status'],
+    merge: true,
+  })
   const hasFreshDashboardState =
     !dashboardQuery.data || dashboardQuery.isFetchedAfterMount
   const telegramSetup =

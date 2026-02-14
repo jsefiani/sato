@@ -5,12 +5,14 @@ interface UseEventStreamOptions {
   url: string
   enabled: boolean
   queryKey: ReadonlyArray<unknown>
+  merge?: boolean
 }
 
 export function useEventStream({
   url,
   enabled,
   queryKey,
+  merge = false,
 }: UseEventStreamOptions) {
   const queryClient = useQueryClient()
   const [isConnected, setIsConnected] = useState(false)
@@ -32,7 +34,15 @@ export function useEventStream({
     eventSource.addEventListener('message', (event) => {
       try {
         const parsed = JSON.parse(event.data)
-        queryClient.setQueryData(queryKeyRef.current, parsed)
+        if (merge) {
+          queryClient.setQueryData(queryKeyRef.current, (old: unknown) =>
+            old && typeof old === 'object'
+              ? { ...(old as Record<string, unknown>), ...parsed }
+              : old,
+          )
+        } else {
+          queryClient.setQueryData(queryKeyRef.current, parsed)
+        }
       } catch {
         // ignore malformed events
       }
@@ -46,7 +56,7 @@ export function useEventStream({
       eventSource.close()
       setIsConnected(false)
     }
-  }, [url, enabled, queryClient])
+  }, [url, enabled, merge, queryClient])
 
   return { isConnected }
 }

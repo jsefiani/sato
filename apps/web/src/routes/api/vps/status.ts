@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { eq } from 'drizzle-orm'
 import type { UserChannelSetupSummary } from '@/lib/channel-connections'
 import { db } from '@/db'
-import { provisioningJob, vpsInstance } from '@/db/schema'
+import { provisioningJob, user, vpsInstance } from '@/db/schema'
 import { getUserAccessState } from '@/lib/access-control'
 import { safeApiResponse } from '@/lib/api-error'
 import {
@@ -60,194 +60,29 @@ export const Route = createFileRoute('/api/vps/status')({
 
           triggerUserCreditSyncIfStale(userId)
 
-          const [instanceRow, latestProvisionJob] = await Promise.all([
-            db.query.vpsInstance.findFirst({
-              where: eq(vpsInstance.userId, userId),
-              columns: {
-                status: true,
-                ipv4Address: true,
-                tailscaleIp: true,
-                tailscaleHostname: true,
-                region: true,
-                serverType: true,
-                provisionedAt: true,
-                updatedAt: true,
-              },
-            }),
-            db.query.provisioningJob.findFirst({
-              where: eq(provisioningJob.userId, userId),
-              orderBy: (job, { desc }) => desc(job.updatedAt),
-              columns: {
-                status: true,
-                errorMessage: true,
-                updatedAt: true,
-              },
-            }),
-          ])
-
-          let instance: typeof instanceRow | null = instanceRow ?? null
-          let openClawReady = false
-          let bootstrapError: string | null = null
-          let vpsFailureReason = normalizeFailureReason(
-            latestProvisionJob?.errorMessage,
-          )
-
-          if (instance?.status === 'terminated') {
-            instance = null
-          }
-
-          const vpsProbe = (async () => {
-            if (!instance?.ipv4Address) return
-
-            if (
-              !instance.tailscaleIp &&
-              instance.tailscaleHostname &&
-              (instance.status === 'bootstrapping' ||
-                instance.status === 'active')
-            ) {
-              try {
-                const discoveredIp = await findDeviceTailscaleIp({
-                  hostname: instance.tailscaleHostname,
-                })
-                if (discoveredIp) {
-                  await db
-                    .update(vpsInstance)
-                    .set({ tailscaleIp: discoveredIp, updatedAt: new Date() })
-                    .where(eq(vpsInstance.userId, userId))
-                  instance = { ...instance, tailscaleIp: discoveredIp }
-                }
-              } catch {
-                // Tailscale API unavailable — continue without discovery
-              }
-            }
-
-            openClawReady = instance.ipv4Address
-              ? await probeOpenClawGateway(instance.ipv4Address)
-              : false
-
-            if (
-              !openClawReady &&
-              instance.tailscaleIp &&
-              (instance.status === 'provisioning' ||
-                instance.status === 'bootstrapping')
-            ) {
-              bootstrapError = await probeBootstrapErrorWithCooldown(
-                instance.tailscaleIp,
-              )
-
-              if (bootstrapError) {
-                await db
-                  .update(vpsInstance)
-                  .set({
-                    status: 'failed',
-                    updatedAt: new Date(),
-                  })
-                  .where(eq(vpsInstance.userId, userId))
-
-                await db
-                  .update(provisioningJob)
-                  .set({
-                    status: 'failed',
-                    errorMessage: bootstrapError,
-                    updatedAt: new Date(),
-                  })
-                  .where(eq(provisioningJob.userId, userId))
-
-                instance = {
-                  ...instance,
-                  status: 'failed',
-                }
-                vpsFailureReason = bootstrapError
-              }
-            }
-
-            if (
-              !openClawReady &&
-              !bootstrapError &&
-              instance.status === 'bootstrapping' &&
-              Date.now() - new Date(instance.updatedAt).getTime() >
-                BOOTSTRAP_TIMEOUT_MS
-            ) {
-              const timeoutMessage =
-                'Your assistant took too long to start and may have encountered an issue. Please retry setup.'
-
-              await db
-                .update(vpsInstance)
-                .set({
-                  status: 'failed',
-                  updatedAt: new Date(),
-                })
-                .where(eq(vpsInstance.userId, userId))
-
-              await db
-                .update(provisioningJob)
-                .set({
-                  status: 'failed',
-                  errorMessage: timeoutMessage,
-                  updatedAt: new Date(),
-                })
-                .where(eq(provisioningJob.userId, userId))
-
-              instance = {
-                ...instance,
-                status: 'failed',
-              }
-              vpsFailureReason = timeoutMessage
-            }
-
-            if (
-              openClawReady &&
-              (instance.status === 'provisioning' ||
-                instance.status === 'bootstrapping')
-            ) {
-              await db
-                .update(vpsInstance)
-                .set({
-                  status: 'active',
-                  provisionedAt: new Date(),
-                  updatedAt: new Date(),
-                })
-                .where(eq(vpsInstance.userId, userId))
-
-              instance = {
-                ...instance,
-                status: 'active',
-              }
-            }
-          })()
-
-          const [, access, credits, channelSetup] = await Promise.all([
-            vpsProbe,
+          const [vpsState, access, credits, channelSetup] = await Promise.all([
+            computeVpsProbeState({ userId }),
             getUserAccessState(userId),
             getUserCreditStateSnapshot(userId),
             getUserChannelSetupSummary(userId),
           ])
-          const effectiveChannelSetup = normalizeChannelSetupForCurrentInstance(
-            channelSetup,
-            instance?.provisionedAt ?? null,
-          )
 
-          if (instance?.status === 'failed' && !vpsFailureReason) {
-            vpsFailureReason =
-              'Assistant setup failed on the server. Please retry provisioning.'
-          }
-
-          const topupPacks = getTopupPacks().map((pack) => ({
-            id: pack.id,
-            label: pack.label,
-            credits: pack.credits,
-          }))
+          const { provisionedAt, ...vpsPayload } = vpsState
 
           return Response.json({
+            ...vpsPayload,
             access,
             credits,
-            topupPacks,
+            topupPacks: getTopupPacks().map((pack) => ({
+              id: pack.id,
+              label: pack.label,
+              credits: pack.credits,
+            })),
             openClawGatewayPort: OPENCLAW_GATEWAY_PORT,
-            openClawReady,
-            bootstrappingError: bootstrapError,
-            vpsFailureReason,
-            vps: instance ?? null,
-            channelSetup: effectiveChannelSetup,
+            channelSetup: normalizeChannelSetupForCurrentInstance(
+              channelSetup,
+              provisionedAt,
+            ),
           })
         } catch (error) {
           return safeApiResponse(error)
@@ -256,6 +91,186 @@ export const Route = createFileRoute('/api/vps/status')({
     },
   },
 })
+
+export async function computeVpsProbeState({ userId }: { userId: string }) {
+  const userWithVps = await db.query.user.findFirst({
+    where: eq(user.id, userId),
+    columns: {},
+    with: {
+      vpsInstance: {
+        columns: {
+          status: true,
+          ipv4Address: true,
+          tailscaleIp: true,
+          tailscaleHostname: true,
+          region: true,
+          serverType: true,
+          provisionedAt: true,
+          updatedAt: true,
+        },
+      },
+      provisioningJobs: {
+        columns: {
+          status: true,
+          errorMessage: true,
+          updatedAt: true,
+        },
+        orderBy: (job, { desc }) => desc(job.updatedAt),
+        limit: 1,
+      },
+    },
+  })
+
+  const instanceRow = userWithVps?.vpsInstance ?? null
+  const latestProvisionJob = userWithVps?.provisioningJobs[0] ?? null
+
+  let instance: typeof instanceRow | null = instanceRow
+  let openClawReady = false
+  let bootstrapError: string | null = null
+  let vpsFailureReason = normalizeFailureReason(
+    latestProvisionJob?.errorMessage,
+  )
+
+  if (instance?.status === 'terminated') {
+    instance = null
+  }
+
+  if (instance?.ipv4Address) {
+    if (
+      !instance.tailscaleIp &&
+      instance.tailscaleHostname &&
+      (instance.status === 'bootstrapping' || instance.status === 'active')
+    ) {
+      try {
+        const discoveredIp = await findDeviceTailscaleIp({
+          hostname: instance.tailscaleHostname,
+        })
+        if (discoveredIp) {
+          await db
+            .update(vpsInstance)
+            .set({ tailscaleIp: discoveredIp, updatedAt: new Date() })
+            .where(eq(vpsInstance.userId, userId))
+          instance = { ...instance, tailscaleIp: discoveredIp }
+        }
+      } catch {
+        // Tailscale API unavailable — continue without discovery
+      }
+    }
+
+    openClawReady = instance.ipv4Address
+      ? await probeOpenClawGateway(instance.ipv4Address)
+      : false
+
+    if (
+      !openClawReady &&
+      instance.tailscaleIp &&
+      (instance.status === 'provisioning' ||
+        instance.status === 'bootstrapping')
+    ) {
+      bootstrapError = await probeBootstrapErrorWithCooldown(
+        instance.tailscaleIp,
+      )
+
+      if (bootstrapError) {
+        await db
+          .update(vpsInstance)
+          .set({
+            status: 'failed',
+            updatedAt: new Date(),
+          })
+          .where(eq(vpsInstance.userId, userId))
+
+        await db
+          .update(provisioningJob)
+          .set({
+            status: 'failed',
+            errorMessage: bootstrapError,
+            updatedAt: new Date(),
+          })
+          .where(eq(provisioningJob.userId, userId))
+
+        instance = {
+          ...instance,
+          status: 'failed',
+        }
+        vpsFailureReason = bootstrapError
+      }
+    }
+
+    if (
+      !openClawReady &&
+      !bootstrapError &&
+      instance.status === 'bootstrapping' &&
+      Date.now() - new Date(instance.updatedAt).getTime() > BOOTSTRAP_TIMEOUT_MS
+    ) {
+      const timeoutMessage =
+        'Your assistant took too long to start and may have encountered an issue. Please retry setup.'
+
+      await db
+        .update(vpsInstance)
+        .set({
+          status: 'failed',
+          updatedAt: new Date(),
+        })
+        .where(eq(vpsInstance.userId, userId))
+
+      await db
+        .update(provisioningJob)
+        .set({
+          status: 'failed',
+          errorMessage: timeoutMessage,
+          updatedAt: new Date(),
+        })
+        .where(eq(provisioningJob.userId, userId))
+
+      instance = {
+        ...instance,
+        status: 'failed',
+      }
+      vpsFailureReason = timeoutMessage
+    }
+
+    if (
+      openClawReady &&
+      (instance.status === 'provisioning' ||
+        instance.status === 'bootstrapping')
+    ) {
+      await db
+        .update(vpsInstance)
+        .set({
+          status: 'active',
+          provisionedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(vpsInstance.userId, userId))
+
+      instance = {
+        ...instance,
+        status: 'active',
+      }
+    }
+  }
+
+  if (instance?.status === 'failed' && !vpsFailureReason) {
+    vpsFailureReason =
+      'Assistant setup failed on the server. Please retry provisioning.'
+  }
+
+  return {
+    openClawReady,
+    bootstrappingError: bootstrapError,
+    vpsFailureReason,
+    vps: instance
+      ? {
+          status: instance.status,
+          ipv4Address: instance.ipv4Address,
+          region: instance.region,
+          serverType: instance.serverType,
+        }
+      : null,
+    provisionedAt: instance?.provisionedAt ?? null,
+  }
+}
 
 function normalizeChannelSetupForCurrentInstance(
   channelSetup: UserChannelSetupSummary,
