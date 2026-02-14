@@ -150,14 +150,16 @@ Docker containers on the host can reach Tailscale IPs (`100.x.y.z`) through the 
 
 ### 3. Docker Volume for SSH Known Hosts
 
-Mount a persistent volume for SSH known hosts so they survive container restarts:
+The Dockerfile already persists SSH known hosts in `/app/data/` (owned by `node`). If you need a separate volume, mount it and point `VPS_SSH_KNOWN_HOSTS_PATH` to a **file** inside it:
 
 ```yaml
 volumes:
-  - sato-ssh-known-hosts:/app/.ssh
+  - sato-ssh-known-hosts:/app/data
 ```
 
-Set `VPS_SSH_KNOWN_HOSTS_PATH` to the mounted path.
+```env
+VPS_SSH_KNOWN_HOSTS_PATH=/app/data/sato-vps-known-hosts
+```
 
 ### 4. `APP_ENCRYPTION_KEY` Generation
 

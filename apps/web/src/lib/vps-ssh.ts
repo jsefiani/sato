@@ -31,7 +31,11 @@ function ensureSecureFile(filePath: string): void {
     writeFileSync(filePath, '', { mode: SSH_FILE_MODE })
   }
 
-  chmodSync(filePath, SSH_FILE_MODE)
+  try {
+    chmodSync(filePath, SSH_FILE_MODE)
+  } catch {
+    // Docker volume mounts / read-only layers may reject chmod from non-root
+  }
 }
 
 function resolveKnownHostsPath(): string {
@@ -60,7 +64,11 @@ function resolveSshPrivateKeyPath(): string {
       : `${inlineKey}\n`
 
     writeFileSync(keyPath, normalizedKey, { mode: SSH_FILE_MODE })
-    chmodSync(keyPath, SSH_FILE_MODE)
+    try {
+      chmodSync(keyPath, SSH_FILE_MODE)
+    } catch {
+      // writeFileSync already set the mode; chmod may fail on some mounts
+    }
     cachedInlineKeyPath = keyPath
   }
 
