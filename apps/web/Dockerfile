@@ -32,6 +32,10 @@ RUN npm install --no-save drizzle-kit@0.31.9 drizzle-orm@0.45.1 pg@8.18.0
 COPY apps/web/entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
+RUN mkdir -p /app/data && chown node:node /app/data
+ENV VPS_SSH_KNOWN_HOSTS_PATH=/app/data/sato-vps-known-hosts
+VOLUME ["/app/data"]
+
 EXPOSE 3000
 USER node
 CMD ["/app/entrypoint.sh"]

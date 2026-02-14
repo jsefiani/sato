@@ -12,7 +12,7 @@ import {
   grantMonthlyCredits,
   spendFromTopupPack,
 } from '@/lib/credits'
-import { getEnv } from '@/lib/env'
+import { env } from '@/lib/env'
 import { createId } from '@/lib/ids'
 
 interface StripeCustomerResponse {
@@ -80,7 +80,7 @@ async function stripeRequest<T>(
   const response = await fetch(`${STRIPE_API_BASE_URL}${path}`, {
     method,
     headers: {
-      Authorization: `Bearer ${getEnv('STRIPE_SECRET_KEY')}`,
+      Authorization: `Bearer ${env.STRIPE_SECRET_KEY}`,
       'Content-Type': 'application/x-www-form-urlencoded',
     },
     body: payload ? formEncode(payload) : undefined,
@@ -98,11 +98,10 @@ async function ensureStripeCustomer(
   userId: string,
   email: string,
 ): Promise<string> {
-  const [existingCustomer] = await db
-    .select({ id: billingCustomer.id })
-    .from(billingCustomer)
-    .where(eq(billingCustomer.userId, userId))
-    .limit(1)
+  const existingCustomer = await db.query.billingCustomer.findFirst({
+    where: eq(billingCustomer.userId, userId),
+    columns: { id: true },
+  })
 
   if (existingCustomer) {
     return existingCustomer.id
@@ -130,11 +129,10 @@ async function ensureStripeCustomer(
 async function getUserIdByCustomerId(
   customerId: string,
 ): Promise<string | null> {
-  const [customer] = await db
-    .select({ userId: billingCustomer.userId })
-    .from(billingCustomer)
-    .where(eq(billingCustomer.id, customerId))
-    .limit(1)
+  const customer = await db.query.billingCustomer.findFirst({
+    where: eq(billingCustomer.id, customerId),
+    columns: { userId: true },
+  })
 
   return customer?.userId ?? null
 }
@@ -144,7 +142,6 @@ export async function createCheckoutSession(
   email: string,
 ): Promise<string> {
   const customerId = await ensureStripeCustomer(userId, email)
-  const appUrl = getEnv('APP_URL')
 
   const checkout = await stripeRequest<StripeCheckoutResponse>(
     '/checkout/sessions',
@@ -152,9 +149,9 @@ export async function createCheckoutSession(
     {
       mode: 'subscription',
       customer: customerId,
-      success_url: `${appUrl}/?checkout=success`,
-      cancel_url: `${appUrl}/?checkout=cancelled`,
-      'line_items[0][price]': getEnv('STRIPE_PRICE_ID'),
+      success_url: `${env.APP_URL}/?checkout=success`,
+      cancel_url: `${env.APP_URL}/?checkout=cancelled`,
+      'line_items[0][price]': env.STRIPE_PRICE_ID,
       'line_items[0][quantity]': '1',
       'subscription_data[trial_period_days]': '3',
       'metadata[user_id]': userId,
@@ -181,16 +178,14 @@ export async function createTopupCheckoutSession(
     throw new Error('Unknown top-up pack')
   }
 
-  const appUrl = getEnv('APP_URL')
-
   const checkout = await stripeRequest<StripeCheckoutResponse>(
     '/checkout/sessions',
     'POST',
     {
       mode: 'payment',
       customer: customerId,
-      success_url: `${appUrl}/?topup=success`,
-      cancel_url: `${appUrl}/?topup=cancelled`,
+      success_url: `${env.APP_URL}/?topup=success`,
+      cancel_url: `${env.APP_URL}/?topup=cancelled`,
       'line_items[0][price]': pack.stripePriceId,
       'line_items[0][quantity]': '1',
       'metadata[user_id]': userId,
@@ -207,11 +202,10 @@ export async function createTopupCheckoutSession(
 }
 
 export async function createPortalSession(userId: string): Promise<string> {
-  const [customer] = await db
-    .select({ id: billingCustomer.id })
-    .from(billingCustomer)
-    .where(eq(billingCustomer.userId, userId))
-    .limit(1)
+  const customer = await db.query.billingCustomer.findFirst({
+    where: eq(billingCustomer.userId, userId),
+    columns: { id: true },
+  })
 
   if (!customer) {
     throw new Error('No Stripe customer found for this user')
@@ -222,7 +216,7 @@ export async function createPortalSession(userId: string): Promise<string> {
     'POST',
     {
       customer: customer.id,
-      return_url: `${getEnv('APP_URL')}/`,
+      return_url: `${env.APP_URL}/`,
     },
   )
 
@@ -244,12 +238,24 @@ function parseStripeHeader(signatureHeader: string): {
   return { timestamp, signature }
 }
 
+const WEBHOOK_TOLERANCE_SECONDS = 300
+
 export function verifyStripeWebhookSignature(
   payload: string,
   signatureHeader: string,
 ): void {
-  const secret = getEnv('STRIPE_WEBHOOK_SECRET')
+  const secret = env.STRIPE_WEBHOOK_SECRET
   const { timestamp, signature } = parseStripeHeader(signatureHeader)
+
+  const timestampSeconds = Number(timestamp)
+
+  if (
+    !Number.isFinite(timestampSeconds) ||
+    Math.abs(Date.now() / 1000 - timestampSeconds) > WEBHOOK_TOLERANCE_SECONDS
+  ) {
+    throw new Error('Stripe webhook timestamp too old')
+  }
+
   const signedPayload = `${timestamp}.${payload}`
   const digest = createHmac('sha256', secret)
     .update(signedPayload)
@@ -270,11 +276,10 @@ async function saveSubscription(
   userId: string,
   subscription: StripeSubscriptionResponse,
 ) {
-  const [customer] = await db
-    .select({ id: billingCustomer.id })
-    .from(billingCustomer)
-    .where(eq(billingCustomer.id, subscription.customer))
-    .limit(1)
+  const customer = await db.query.billingCustomer.findFirst({
+    where: eq(billingCustomer.id, subscription.customer),
+    columns: { id: true },
+  })
 
   if (!customer) {
     await db.insert(billingCustomer).values({
@@ -372,13 +377,12 @@ function readInvoice(object: Record<string, unknown>): InvoiceObject {
 }
 
 async function markStripeEventProcessed(event: StripeEvent): Promise<boolean> {
-  const [existing] = await db
-    .select({ id: stripeWebhookEvent.id })
-    .from(stripeWebhookEvent)
-    .where(eq(stripeWebhookEvent.id, event.id))
-    .limit(1)
+  const existingEvent = await db.query.stripeWebhookEvent.findFirst({
+    where: eq(stripeWebhookEvent.id, event.id),
+    columns: { id: true },
+  })
 
-  if (existing) {
+  if (existingEvent) {
     return false
   }
 

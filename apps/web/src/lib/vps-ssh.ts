@@ -2,13 +2,12 @@ import { execFile } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { getEnv, getNumberEnv, getOptionalEnv } from '@/lib/env'
+import { env } from '@/lib/env'
 
 const DEFAULT_TIMEOUT_MS = 20_000
 const SSH_FILE_MODE = 0o600
 const KNOWN_HOSTS_FILENAME = 'sato-vps-known-hosts'
 const INLINE_SSH_KEY_FILENAME = `sato-vps-ssh-key-${process.pid}`
-const ALLOWED_HOST_KEY_MODES = new Set(['yes', 'accept-new', 'no'])
 
 let cachedKnownHostsPath: string | null = null
 let cachedInlineKeyPath: string | null = null
@@ -36,11 +35,8 @@ function ensureSecureFile(filePath: string): void {
 }
 
 function resolveKnownHostsPath(): string {
-  const configuredPath = getOptionalEnv('VPS_SSH_KNOWN_HOSTS_PATH')?.trim()
   const knownHostsPath =
-    configuredPath && configuredPath.length > 0
-      ? configuredPath
-      : path.join(os.tmpdir(), KNOWN_HOSTS_FILENAME)
+    env.VPS_SSH_KNOWN_HOSTS_PATH ?? path.join(os.tmpdir(), KNOWN_HOSTS_FILENAME)
 
   if (cachedKnownHostsPath !== knownHostsPath) {
     ensureSecureFile(knownHostsPath)
@@ -51,10 +47,10 @@ function resolveKnownHostsPath(): string {
 }
 
 function resolveSshPrivateKeyPath(): string {
-  const inlineKey = getOptionalEnv('HETZNER_SSH_PRIVATE_KEY')
+  const inlineKey = env.HETZNER_SSH_PRIVATE_KEY
 
   if (!inlineKey || inlineKey.trim().length === 0) {
-    return getEnv('HETZNER_SSH_PRIVATE_KEY_PATH')
+    return env.HETZNER_SSH_PRIVATE_KEY_PATH!
   }
 
   if (!cachedInlineKeyPath) {
@@ -72,28 +68,7 @@ function resolveSshPrivateKeyPath(): string {
 }
 
 function resolveHostKeyCheckingMode(): string {
-  const mode =
-    getOptionalEnv('VPS_SSH_STRICT_HOST_KEY_CHECKING')?.trim() ?? 'accept-new'
-
-  if (!ALLOWED_HOST_KEY_MODES.has(mode)) {
-    throw new Error(
-      `Invalid VPS_SSH_STRICT_HOST_KEY_CHECKING value '${mode}'. Expected one of: yes, accept-new, no`,
-    )
-  }
-
-  return mode
-}
-
-function resolveBastionJumpTarget(): string | null {
-  const host = getOptionalEnv('VPS_SSH_BASTION_HOST')?.trim()
-  if (!host) {
-    return null
-  }
-
-  const user = getOptionalEnv('VPS_SSH_BASTION_USER')?.trim() || 'root'
-  const port = Math.max(1, Math.floor(getNumberEnv('VPS_SSH_BASTION_PORT', 22)))
-
-  return `${user}@${host}:${port}`
+  return env.VPS_SSH_STRICT_HOST_KEY_CHECKING
 }
 
 function redactSecrets(value: string, secrets: Array<string>): string {
@@ -124,20 +99,22 @@ export async function runVpsSshCommand(
     timeoutMs?: number
     redact?: Array<string>
     connectTimeoutSeconds?: number
+    tailscaleIp?: string | null
   },
 ): Promise<string> {
   const keyPath = resolveSshPrivateKeyPath()
   const knownHostsPath = resolveKnownHostsPath()
   const hostKeyCheckingMode = resolveHostKeyCheckingMode()
-  const jumpTarget = resolveBastionJumpTarget()
-  const sshUser = getOptionalEnv('VPS_SSH_USER')?.trim() || 'root'
-  const sshPort = Math.max(1, Math.floor(getNumberEnv('VPS_SSH_PORT', 22)))
+  const sshUser = env.VPS_SSH_USER
+  const sshPort = env.VPS_SSH_PORT
   const timeoutMs = opts?.timeoutMs ?? DEFAULT_TIMEOUT_MS
   const redact = opts?.redact ?? []
   const connectTimeoutSeconds = Math.max(
     1,
     Math.floor(opts?.connectTimeoutSeconds ?? 8),
   )
+
+  const targetHost = opts?.tailscaleIp ?? ipv4Address
 
   const sshArgs = [
     '-i',
@@ -158,11 +135,7 @@ export async function runVpsSshCommand(
     String(sshPort),
   ]
 
-  if (jumpTarget) {
-    sshArgs.push('-J', jumpTarget)
-  }
-
-  sshArgs.push(`${sshUser}@${ipv4Address}`, command)
+  sshArgs.push(`${sshUser}@${targetHost}`, command)
 
   return await new Promise((resolve, reject) => {
     execFile(

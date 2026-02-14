@@ -4,6 +4,7 @@ import type { UserChannelSetupSummary } from '@/lib/channel-connections'
 import { db } from '@/db'
 import { provisioningJob, vpsInstance } from '@/db/schema'
 import { getUserAccessState } from '@/lib/access-control'
+import { safeApiResponse } from '@/lib/api-error'
 import {
   getTopupPacks,
   getUserCreditStateSnapshot,
@@ -11,7 +12,9 @@ import {
 } from '@/lib/credits'
 import { getUserChannelSetupSummary } from '@/lib/channel-connections'
 import { isTcpPortReachable } from '@/lib/readiness'
+import { assertRateLimit } from '@/lib/rate-limit'
 import { requireSession } from '@/lib/session'
+import { findDeviceTailscaleIp } from '@/lib/tailscale'
 import { runVpsSshCommand } from '@/lib/vps-ssh'
 
 const BOOTSTRAP_LOG_TAIL_BYTES = 24_000
@@ -41,9 +44,17 @@ const bootstrapProbeCache = new Map<
 export const Route = createFileRoute('/api/vps/status')({
   server: {
     handlers: {
-      GET: async () => {
+      GET: async ({ request }) => {
         try {
           const session = await requireSession()
+
+          const rateLimited = assertRateLimit(
+            request,
+            'vps-status',
+            session.user.id,
+          )
+          if (rateLimited) return rateLimited
+
           const userId = session.user.id
 
           triggerUserCreditSyncIfStale(userId)
@@ -54,6 +65,8 @@ export const Route = createFileRoute('/api/vps/status')({
               columns: {
                 status: true,
                 ipv4Address: true,
+                tailscaleIp: true,
+                tailscaleHostname: true,
                 region: true,
                 serverType: true,
                 provisionedAt: true,
@@ -84,15 +97,40 @@ export const Route = createFileRoute('/api/vps/status')({
           const vpsProbe = (async () => {
             if (!instance?.ipv4Address) return
 
-            openClawReady = await probeOpenClawGateway(instance.ipv4Address)
+            if (
+              !instance.tailscaleIp &&
+              instance.tailscaleHostname &&
+              (instance.status === 'bootstrapping' ||
+                instance.status === 'active')
+            ) {
+              try {
+                const discoveredIp = await findDeviceTailscaleIp({
+                  hostname: instance.tailscaleHostname,
+                })
+                if (discoveredIp) {
+                  await db
+                    .update(vpsInstance)
+                    .set({ tailscaleIp: discoveredIp, updatedAt: new Date() })
+                    .where(eq(vpsInstance.userId, userId))
+                  instance = { ...instance, tailscaleIp: discoveredIp }
+                }
+              } catch {
+                // Tailscale API unavailable — continue without discovery
+              }
+            }
+
+            openClawReady = instance.ipv4Address
+              ? await probeOpenClawGateway(instance.ipv4Address)
+              : false
 
             if (
               !openClawReady &&
+              instance.tailscaleIp &&
               (instance.status === 'provisioning' ||
                 instance.status === 'bootstrapping')
             ) {
               bootstrapError = await probeBootstrapErrorWithCooldown(
-                instance.ipv4Address,
+                instance.tailscaleIp,
               )
 
               if (bootstrapError) {
@@ -176,12 +214,7 @@ export const Route = createFileRoute('/api/vps/status')({
             channelSetup: effectiveChannelSetup,
           })
         } catch (error) {
-          const message =
-            error instanceof Error ? error.message : 'Unknown error'
-          if (message === 'Unauthorized') {
-            return Response.json({ error: message }, { status: 401 })
-          }
-          return Response.json({ error: message }, { status: 500 })
+          return safeApiResponse(error)
         }
       },
     },
@@ -334,10 +367,10 @@ async function probeOpenClawGateway(ipv4Address: string): Promise<boolean> {
 }
 
 async function probeBootstrapErrorWithCooldown(
-  ipv4Address: string,
+  sshHost: string,
 ): Promise<string | null> {
   const now = Date.now()
-  const cached = bootstrapProbeCache.get(ipv4Address)
+  const cached = bootstrapProbeCache.get(sshHost)
 
   if (cached) {
     if (cached.inFlight) {
@@ -349,9 +382,9 @@ async function probeBootstrapErrorWithCooldown(
     }
   }
 
-  const inFlight = probeBootstrapError(ipv4Address)
+  const inFlight = probeBootstrapError(sshHost)
     .then((value) => {
-      bootstrapProbeCache.set(ipv4Address, {
+      bootstrapProbeCache.set(sshHost, {
         value,
         checkedAt: Date.now(),
         inFlight: null,
@@ -360,7 +393,7 @@ async function probeBootstrapErrorWithCooldown(
     })
     .catch(() => {
       const fallback = cached?.value ?? null
-      bootstrapProbeCache.set(ipv4Address, {
+      bootstrapProbeCache.set(sshHost, {
         value: fallback,
         checkedAt: Date.now(),
         inFlight: null,
@@ -368,7 +401,7 @@ async function probeBootstrapErrorWithCooldown(
       return fallback
     })
 
-  bootstrapProbeCache.set(ipv4Address, {
+  bootstrapProbeCache.set(sshHost, {
     value: cached?.value ?? null,
     checkedAt: cached?.checkedAt ?? 0,
     inFlight,
@@ -392,17 +425,14 @@ function normalizeFailureReason(
   return message
 }
 
-async function probeBootstrapError(
-  ipv4Address: string,
-): Promise<string | null> {
+async function probeBootstrapError(sshHost: string): Promise<string | null> {
   const [cloudInitResult, bootstrapLogResult] = await Promise.allSettled([
+    runVpsSshCommand(sshHost, 'cloud-init status --long 2>/dev/null || true', {
+      timeoutMs: 6_000,
+      connectTimeoutSeconds: 3,
+    }),
     runVpsSshCommand(
-      ipv4Address,
-      'cloud-init status --long 2>/dev/null || true',
-      { timeoutMs: 6_000, connectTimeoutSeconds: 3 },
-    ),
-    runVpsSshCommand(
-      ipv4Address,
+      sshHost,
       `tail -c ${BOOTSTRAP_LOG_TAIL_BYTES} /var/log/sato-openclaw-bootstrap.log 2>/dev/null || true`,
       { timeoutMs: 6_000, connectTimeoutSeconds: 3 },
     ),

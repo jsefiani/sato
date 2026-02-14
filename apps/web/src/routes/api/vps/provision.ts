@@ -1,20 +1,35 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { z } from 'zod'
 import { getUserAccessState } from '@/lib/access-control'
+import { safeApiResponse } from '@/lib/api-error'
 import { getUserCreditState } from '@/lib/credits'
+import { assertSameOrigin } from '@/lib/csrf'
 import { provisionUserServer } from '@/lib/provisioning'
+import { assertRateLimit } from '@/lib/rate-limit'
 import { requireSession } from '@/lib/session'
 
-interface ProvisionBody {
-  region?: string
-  serverType?: string
-}
+const provisionBodySchema = z.object({
+  region: z.string().max(100).optional(),
+  serverType: z.string().max(100).optional(),
+})
 
 export const Route = createFileRoute('/api/vps/provision')({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        const csrf = assertSameOrigin(request)
+        if (csrf) return csrf
+
         try {
           const session = await requireSession()
+
+          const rateLimited = assertRateLimit(
+            request,
+            'vps-provision',
+            session.user.id,
+          )
+          if (rateLimited) return rateLimited
+
           const access = await getUserAccessState(session.user.id)
 
           if (!access.hasAccess) {
@@ -38,22 +53,24 @@ export const Route = createFileRoute('/api/vps/provision')({
             )
           }
 
-          const body = (await request.json()) as ProvisionBody
+          const parsed = provisionBodySchema.safeParse(await request.json())
+
+          if (!parsed.success) {
+            return Response.json(
+              { error: 'Invalid request body' },
+              { status: 400 },
+            )
+          }
+
           const result = await provisionUserServer({
             userId: session.user.id,
-            region: body.region,
-            serverType: body.serverType,
+            region: parsed.data.region,
+            serverType: parsed.data.serverType,
           })
 
           return Response.json(result)
         } catch (error) {
-          const message =
-            error instanceof Error ? error.message : 'Unknown error'
-          if (message === 'Unauthorized') {
-            return Response.json({ error: message }, { status: 401 })
-          }
-
-          return Response.json({ error: message }, { status: 500 })
+          return safeApiResponse(error)
         }
       },
     },

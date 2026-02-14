@@ -1,13 +1,27 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { createCheckoutSession } from '@/lib/billing'
+import { safeApiResponse } from '@/lib/api-error'
+import { assertSameOrigin } from '@/lib/csrf'
+import { assertRateLimit } from '@/lib/rate-limit'
 import { requireSession } from '@/lib/session'
 
 export const Route = createFileRoute('/api/stripe/checkout')({
   server: {
     handlers: {
-      POST: async () => {
+      POST: async ({ request }) => {
+        const csrf = assertSameOrigin(request)
+        if (csrf) return csrf
+
         try {
           const session = await requireSession()
+
+          const rateLimited = assertRateLimit(
+            request,
+            'billing',
+            session.user.id,
+          )
+          if (rateLimited) return rateLimited
+
           const checkoutUrl = await createCheckoutSession(
             session.user.id,
             session.user.email,
@@ -15,12 +29,7 @@ export const Route = createFileRoute('/api/stripe/checkout')({
 
           return Response.json({ checkoutUrl })
         } catch (error) {
-          const message =
-            error instanceof Error ? error.message : 'Unknown error'
-          if (message === 'Unauthorized') {
-            return Response.json({ error: message }, { status: 401 })
-          }
-          return Response.json({ error: message }, { status: 500 })
+          return safeApiResponse(error)
         }
       },
     },

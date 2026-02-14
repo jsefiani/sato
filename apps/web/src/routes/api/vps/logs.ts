@@ -2,19 +2,29 @@ import { createFileRoute } from '@tanstack/react-router'
 import { eq } from 'drizzle-orm'
 import { db } from '@/db'
 import { vpsInstance } from '@/db/schema'
+import { safeApiResponse } from '@/lib/api-error'
+import { assertRateLimit } from '@/lib/rate-limit'
 import { requireSession } from '@/lib/session'
 import { runVpsSshCommand } from '@/lib/vps-ssh'
 
 export const Route = createFileRoute('/api/vps/logs')({
   server: {
     handlers: {
-      GET: async () => {
+      GET: async ({ request }) => {
         try {
           const session = await requireSession()
+
+          const rateLimited = assertRateLimit(
+            request,
+            'vps-status',
+            session.user.id,
+          )
+          if (rateLimited) return rateLimited
 
           const rows = await db
             .select({
               ipv4Address: vpsInstance.ipv4Address,
+              tailscaleIp: vpsInstance.tailscaleIp,
               status: vpsInstance.status,
             })
             .from(vpsInstance)
@@ -29,27 +39,28 @@ export const Route = createFileRoute('/api/vps/logs')({
             )
           }
 
-          if (!instance.ipv4Address) {
+          if (!instance.tailscaleIp) {
             return Response.json(
-              { error: 'VPS has no IP address yet' },
+              { error: 'VPS SSH is not ready yet' },
               { status: 409 },
             )
           }
 
+          const sshHost = instance.tailscaleIp
           const [bootstrapLog, cloudInitStatus, cloudInitOutput] =
             await Promise.allSettled([
               runVpsSshCommand(
-                instance.ipv4Address,
+                sshHost,
                 'cat /var/log/sato-openclaw-bootstrap.log 2>/dev/null || echo "Log file not found"',
                 { timeoutMs: 20_000 },
               ),
               runVpsSshCommand(
-                instance.ipv4Address,
+                sshHost,
                 'cloud-init status --long 2>/dev/null || echo "cloud-init not available"',
                 { timeoutMs: 20_000 },
               ),
               runVpsSshCommand(
-                instance.ipv4Address,
+                sshHost,
                 'tail -c 24000 /var/log/cloud-init-output.log 2>/dev/null || echo "cloud-init-output.log not found"',
                 { timeoutMs: 20_000 },
               ),
@@ -70,12 +81,7 @@ export const Route = createFileRoute('/api/vps/logs')({
                 : (cloudInitOutput.reason?.message ?? 'Failed to fetch'),
           })
         } catch (error) {
-          const message =
-            error instanceof Error ? error.message : 'Unknown error'
-          if (message === 'Unauthorized') {
-            return Response.json({ error: message }, { status: 401 })
-          }
-          return Response.json({ error: message }, { status: 500 })
+          return safeApiResponse(error)
         }
       },
     },

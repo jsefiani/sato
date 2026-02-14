@@ -1,10 +1,10 @@
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto'
-import { getEnv } from '@/lib/env'
+import { env } from '@/lib/env'
 
 const ALGORITHM = 'aes-256-gcm'
 
 function resolveEncryptionKey(): Buffer {
-  const raw = getEnv('APP_ENCRYPTION_KEY')
+  const raw = env.APP_ENCRYPTION_KEY
   const key = Buffer.from(raw, 'base64')
 
   if (key.length !== 32) {

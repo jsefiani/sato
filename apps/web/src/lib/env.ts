@@ -1,55 +1,72 @@
-const requiredEnvVars = [
-  'APP_URL',
-  'APP_ENCRYPTION_KEY',
-  'OPENROUTER_PROVISIONING_KEY',
-  'HETZNER_API_TOKEN',
-  'STRIPE_SECRET_KEY',
-  'STRIPE_PRICE_ID',
-  'STRIPE_TOPUP_PACK_10_PRICE_ID',
-  'STRIPE_TOPUP_PACK_25_PRICE_ID',
-  'STRIPE_TOPUP_PACK_50_PRICE_ID',
-  'STRIPE_WEBHOOK_SECRET',
-  'HETZNER_SSH_KEY_ID',
-  'HETZNER_SNAPSHOT_ID',
-] as const
+import { z } from 'zod'
 
-const SSH_KEY_PATH_ENV = 'HETZNER_SSH_PRIVATE_KEY_PATH'
-const SSH_KEY_INLINE_ENV = 'HETZNER_SSH_PRIVATE_KEY'
+const envSchema = z.object({
+  APP_URL: z.string().min(1),
+  APP_ENCRYPTION_KEY: z.string().min(1),
+  DATABASE_URL: z.string().min(1),
+  DATABASE_SSL: z.string().default('true'),
 
-export function getEnv(name: string): string {
-  const value = process.env[name]
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`)
+  GOOGLE_CLIENT_ID: z.string().min(1),
+  GOOGLE_CLIENT_SECRET: z.string().min(1),
+
+  OPENROUTER_PROVISIONING_KEY: z.string().min(1),
+  OPENROUTER_CREDIT_SYNC_MIN_INTERVAL_MS: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .default(30_000),
+
+  HETZNER_API_TOKEN: z.string().min(1),
+  HETZNER_SSH_KEY_ID: z.string().min(1),
+  HETZNER_SNAPSHOT_ID: z.string().min(1),
+  HETZNER_SSH_PRIVATE_KEY_PATH: z.string().optional(),
+  HETZNER_SSH_PRIVATE_KEY: z.string().optional(),
+
+  STRIPE_SECRET_KEY: z.string().min(1),
+  STRIPE_PRICE_ID: z.string().min(1),
+  STRIPE_TOPUP_PACK_10_PRICE_ID: z.string().min(1),
+  STRIPE_TOPUP_PACK_25_PRICE_ID: z.string().min(1),
+  STRIPE_TOPUP_PACK_50_PRICE_ID: z.string().min(1),
+  STRIPE_WEBHOOK_SECRET: z.string().min(1),
+
+  TAILSCALE_API_KEY: z.string().min(1),
+
+  VPS_SSH_USER: z.string().default('root'),
+  VPS_SSH_PORT: z.coerce.number().int().min(1).default(22),
+  VPS_SSH_STRICT_HOST_KEY_CHECKING: z
+    .enum(['yes', 'accept-new', 'no'])
+    .default('accept-new'),
+  VPS_SSH_KNOWN_HOSTS_PATH: z.string().optional(),
+  VPS_SSH_BASTION_HOST: z.string().optional(),
+  VPS_SSH_BASTION_USER: z.string().default('root'),
+  VPS_SSH_BASTION_PORT: z.coerce.number().int().min(1).default(22),
+
+  TRIAL_INCLUDED_CREDITS: z.coerce.number().int().min(0).default(5000),
+  MONTHLY_INCLUDED_CREDITS: z.coerce.number().int().min(0).default(20_000),
+})
+
+type Env = z.infer<typeof envSchema>
+
+function createEnv(): Env {
+  const result = envSchema.safeParse(process.env)
+
+  if (!result.success) {
+    const formatted = result.error.issues
+      .map((issue) => `  ${issue.path.join('.')}: ${issue.message}`)
+      .join('\n')
+    throw new Error(`Invalid environment variables:\n${formatted}`)
   }
-  return value
-}
 
-export function validateCoreEnv(): void {
-  for (const envName of requiredEnvVars) {
-    getEnv(envName)
-  }
-
-  if (!process.env[SSH_KEY_PATH_ENV] && !process.env[SSH_KEY_INLINE_ENV]) {
+  if (
+    !result.data.HETZNER_SSH_PRIVATE_KEY_PATH &&
+    !result.data.HETZNER_SSH_PRIVATE_KEY
+  ) {
     throw new Error(
-      `Missing required environment variable: ${SSH_KEY_PATH_ENV} or ${SSH_KEY_INLINE_ENV}`,
+      'Either HETZNER_SSH_PRIVATE_KEY_PATH or HETZNER_SSH_PRIVATE_KEY must be set',
     )
   }
+
+  return result.data
 }
 
-export function getOptionalEnv(name: string): string | null {
-  return process.env[name] ?? null
-}
-
-export function getNumberEnv(name: string, fallback: number): number {
-  const raw = process.env[name]
-  if (!raw) {
-    return fallback
-  }
-
-  const parsed = Number(raw)
-  if (!Number.isFinite(parsed)) {
-    throw new Error(`Environment variable ${name} must be a number`)
-  }
-
-  return parsed
-}
+export const env = createEnv()

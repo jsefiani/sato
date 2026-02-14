@@ -150,7 +150,7 @@ function isUnsupportedTelegramChannelError(message: string): boolean {
 
 function buildRootShellCommand(command: string): string {
   const escaped = command.replace(/'/g, `'"'"'`)
-  return `/bin/bash -lc 'export HOME=/root; export PATH=/root/.local/bin:/root/.npm-global/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin; ${escaped}'`
+  return `/bin/bash -lc 'export HOME=/root; export PATH=/usr/local/bin:/usr/bin:/bin; ${escaped}'`
 }
 
 async function runRootShellCommand(
@@ -168,6 +168,26 @@ async function runRootShellCommand(
   )
 }
 
+function buildOpenclawUserCommand(command: string): string {
+  const escaped = command.replace(/'/g, `'"'"'`)
+  return `sudo -u openclaw env HOME=/opt/openclaw PATH=/usr/local/bin:/usr/bin:/bin /bin/bash -c '${escaped}'`
+}
+
+async function runOpenClawUserCommand(
+  ipv4Address: string,
+  command: string,
+  opts?: {
+    timeoutMs?: number
+    redact?: Array<string>
+  },
+): Promise<string> {
+  return await runVpsSshCommand(
+    ipv4Address,
+    buildOpenclawUserCommand(command),
+    opts,
+  )
+}
+
 async function runOpenclawCommand(
   ipv4Address: string,
   command: string,
@@ -176,7 +196,7 @@ async function runOpenclawCommand(
     redact?: Array<string>
   },
 ): Promise<string> {
-  return await runRootShellCommand(ipv4Address, `openclaw ${command}`, opts)
+  return await runOpenClawUserCommand(ipv4Address, `openclaw ${command}`, opts)
 }
 
 function firstNonEmptyLine(value: string | null): string | null {
@@ -358,7 +378,7 @@ async function attemptTelegramRuntimeRepair(
   let reinstallError: string | null = null
 
   try {
-    await runOpenclawCommand(ipv4Address, 'update --channel stable', {
+    await runRootShellCommand(ipv4Address, 'openclaw update --channel stable', {
       timeoutMs: OPENCLAW_REPAIR_TIMEOUT_MS,
     })
   } catch (error) {

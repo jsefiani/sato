@@ -1,4 +1,4 @@
-import { getEnv } from '@/lib/env'
+import { env } from '@/lib/env'
 
 interface HetznerFirewall {
   id: number
@@ -71,7 +71,7 @@ async function hetznerRequest<T>(
   const response = await fetch(`${HETZNER_API_BASE_URL}${path}`, {
     method,
     headers: {
-      Authorization: `Bearer ${getEnv('HETZNER_API_TOKEN')}`,
+      Authorization: `Bearer ${env.HETZNER_API_TOKEN}`,
       'Content-Type': 'application/json',
     },
     body: body ? JSON.stringify(body) : undefined,
@@ -157,12 +157,6 @@ export async function createFirewall(
         {
           direction: 'in',
           protocol: 'tcp',
-          port: '22',
-          source_ips: ['0.0.0.0/0', '::/0'],
-        },
-        {
-          direction: 'in',
-          protocol: 'tcp',
           port: '80',
           source_ips: ['0.0.0.0/0', '::/0'],
         },
@@ -199,7 +193,7 @@ export async function createServer(
       location: input.region,
       user_data: input.userData,
       labels: input.labels,
-      ssh_keys: [Number(getEnv('HETZNER_SSH_KEY_ID'))],
+      ssh_keys: [Number(env.HETZNER_SSH_KEY_ID)],
       firewalls: [{ firewall: Number(firewallId) }],
     },
   )

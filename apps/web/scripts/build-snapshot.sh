@@ -109,18 +109,25 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 apt-get install -y -qq curl git ufw fail2ban
 
+# Install Tailscale
+curl -fsSL https://tailscale.com/install.sh | bash
+systemctl enable tailscaled
+
 # UFW firewall rules
 ufw default deny incoming
 ufw default allow outgoing
-ufw allow 22/tcp
 ufw allow 80/tcp
 ufw allow 443/tcp
 ufw allow 18789/tcp
+ufw allow in on tailscale0 to any port 22 proto tcp
 ufw --force enable
 
 # Enable fail2ban
 systemctl enable fail2ban
 systemctl start fail2ban
+
+# Create unprivileged openclaw user
+useradd --system --shell /usr/sbin/nologin --home-dir /opt/openclaw --create-home openclaw
 
 # Install OpenClaw
 export NO_COLOR=1 CLICOLOR=0 FORCE_COLOR=0
@@ -134,14 +141,23 @@ export PATH="/root/.local/bin:/root/.npm-global/bin:$PATH"
 # Verify openclaw is installed
 openclaw --version
 
-# Create working directory
+# Create working directory and set ownership
 mkdir -p /opt/openclaw
+chown openclaw:openclaw /opt/openclaw
 
 # Find the actual binary path for the systemd unit
 OPENCLAW_BIN=$(command -v openclaw)
 echo "OpenClaw binary: $OPENCLAW_BIN"
 
-# Create systemd service (enabled but NOT started — no config yet)
+# Ensure binary is accessible system-wide (installer may place it under /root/)
+if [[ "$OPENCLAW_BIN" == /root/* ]]; then
+  cp "$OPENCLAW_BIN" /usr/local/bin/openclaw
+  chmod 755 /usr/local/bin/openclaw
+  OPENCLAW_BIN=/usr/local/bin/openclaw
+  echo "Copied OpenClaw binary to $OPENCLAW_BIN"
+fi
+
+# Create hardened systemd service (enabled but NOT started — no config yet)
 cat > /etc/systemd/system/openclaw-gateway.service << UNIT
 [Unit]
 Description=OpenClaw Gateway
@@ -153,8 +169,30 @@ Type=simple
 ExecStart=$OPENCLAW_BIN gateway run
 Restart=on-failure
 RestartSec=5
-Environment=HOME=/root
-Environment=PATH=/root/.local/bin:/root/.npm-global/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+WorkingDirectory=/opt/openclaw
+
+User=openclaw
+Group=openclaw
+
+Environment=HOME=/opt/openclaw
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+
+# Sandboxing
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/opt/openclaw
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+
+# Resource limits
+CPUQuota=80%
+MemoryMax=1G
+MemorySwapMax=0
+LimitNOFILE=4096
+TasksMax=64
 
 [Install]
 WantedBy=multi-user.target

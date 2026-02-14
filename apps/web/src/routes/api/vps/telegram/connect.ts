@@ -1,16 +1,20 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { eq } from 'drizzle-orm'
+import { z } from 'zod'
 import { db } from '@/db'
 import { vpsInstance } from '@/db/schema'
+import { safeApiResponse } from '@/lib/api-error'
 import { syncTelegramChannelConnection } from '@/lib/channel-connections'
+import { assertSameOrigin } from '@/lib/csrf'
+import { assertRateLimit } from '@/lib/rate-limit'
 import { connectTelegram } from '@/lib/vps-openclaw'
 import { requireSession } from '@/lib/session'
 
-interface ConnectTelegramBody {
-  token?: string
-}
-
 const TELEGRAM_BOT_TOKEN_REGEX = /^[0-9]{6,}:[A-Za-z0-9_-]{20,}$/
+
+const connectBodySchema = z.object({
+  token: z.string().min(1, 'Telegram bot token is required').max(100),
+})
 
 function telegramProvisioningError(status: string): string | null {
   if (status === 'active') {
@@ -36,10 +40,28 @@ export const Route = createFileRoute('/api/vps/telegram/connect')({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        const csrf = assertSameOrigin(request)
+        if (csrf) return csrf
+
         try {
           const session = await requireSession()
-          const body = (await request.json()) as ConnectTelegramBody
-          const token = body.token?.trim() ?? ''
+
+          const rateLimited = assertRateLimit(
+            request,
+            'telegram',
+            session.user.id,
+          )
+          if (rateLimited) return rateLimited
+
+          const parsed = connectBodySchema.safeParse(await request.json())
+          if (!parsed.success) {
+            return Response.json(
+              { error: 'Telegram bot token is required' },
+              { status: 400 },
+            )
+          }
+
+          const token = parsed.data.token.trim()
 
           if (!token) {
             return Response.json(
@@ -61,6 +83,7 @@ export const Route = createFileRoute('/api/vps/telegram/connect')({
           const rows = await db
             .select({
               ipv4Address: vpsInstance.ipv4Address,
+              tailscaleIp: vpsInstance.tailscaleIp,
               status: vpsInstance.status,
               provisionedAt: vpsInstance.provisionedAt,
             })
@@ -76,9 +99,9 @@ export const Route = createFileRoute('/api/vps/telegram/connect')({
             )
           }
 
-          if (!instance.ipv4Address) {
+          if (!instance.tailscaleIp) {
             return Response.json(
-              { error: 'VPS has no IP address yet' },
+              { error: 'VPS SSH is not ready yet' },
               { status: 409 },
             )
           }
@@ -88,7 +111,7 @@ export const Route = createFileRoute('/api/vps/telegram/connect')({
             return Response.json({ error: provisioningError }, { status: 409 })
           }
 
-          const summary = await connectTelegram(instance.ipv4Address, token)
+          const summary = await connectTelegram(instance.tailscaleIp, token)
           const setupState = await syncTelegramChannelConnection(
             session.user.id,
             summary,
@@ -109,13 +132,7 @@ export const Route = createFileRoute('/api/vps/telegram/connect')({
             ipv4Address: instance.ipv4Address,
           })
         } catch (error) {
-          const message =
-            error instanceof Error ? error.message : 'Unknown error'
-          if (message === 'Unauthorized') {
-            return Response.json({ error: message }, { status: 401 })
-          }
-
-          return Response.json({ error: message }, { status: 500 })
+          return safeApiResponse(error)
         }
       },
     },

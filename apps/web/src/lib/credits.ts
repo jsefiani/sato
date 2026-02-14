@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm'
 import { db } from '@/db'
 import { creditLedger, creditWallet, userOpenRouterKey } from '@/db/schema'
 import { decryptSecret, encryptSecret } from '@/lib/crypto'
-import { getEnv, getNumberEnv } from '@/lib/env'
+import { env } from '@/lib/env'
 import { createId } from '@/lib/ids'
 import {
   createOpenRouterKey,
@@ -12,10 +12,7 @@ import {
 } from '@/lib/openrouter'
 
 const CREDITS_PER_USD = 1000
-const CREDIT_SYNC_MIN_INTERVAL_MS = Math.max(
-  0,
-  Math.floor(getNumberEnv('OPENROUTER_CREDIT_SYNC_MIN_INTERVAL_MS', 30_000)),
-)
+const CREDIT_SYNC_MIN_INTERVAL_MS = env.OPENROUTER_CREDIT_SYNC_MIN_INTERVAL_MS
 
 const inFlightCreditSyncByUserId = new Map<string, Promise<void>>()
 
@@ -36,14 +33,11 @@ export interface TopupPack {
 }
 
 function getTrialCreditGrant(): number {
-  return Math.max(0, Math.floor(getNumberEnv('TRIAL_INCLUDED_CREDITS', 5000)))
+  return env.TRIAL_INCLUDED_CREDITS
 }
 
 function getMonthlyCreditGrant(): number {
-  return Math.max(
-    0,
-    Math.floor(getNumberEnv('MONTHLY_INCLUDED_CREDITS', 20000)),
-  )
+  return env.MONTHLY_INCLUDED_CREDITS
 }
 
 function roundToUsd(value: number): number {
@@ -104,19 +98,19 @@ export function getTopupPacks(): Array<TopupPack> {
       id: 'pack_10',
       label: '$10 credit pack',
       credits: 10000,
-      stripePriceId: getEnv('STRIPE_TOPUP_PACK_10_PRICE_ID'),
+      stripePriceId: env.STRIPE_TOPUP_PACK_10_PRICE_ID,
     },
     {
       id: 'pack_25',
       label: '$25 credit pack',
       credits: 25000,
-      stripePriceId: getEnv('STRIPE_TOPUP_PACK_25_PRICE_ID'),
+      stripePriceId: env.STRIPE_TOPUP_PACK_25_PRICE_ID,
     },
     {
       id: 'pack_50',
       label: '$50 credit pack',
       credits: 50000,
-      stripePriceId: getEnv('STRIPE_TOPUP_PACK_50_PRICE_ID'),
+      stripePriceId: env.STRIPE_TOPUP_PACK_50_PRICE_ID,
     },
   ]
 }

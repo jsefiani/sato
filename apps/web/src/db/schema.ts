@@ -151,6 +151,8 @@ export const vpsInstance = pgTable('vps_instance', {
   region: text('region').notNull().default('nbg1'),
   serverType: text('server_type').notNull().default('cpx22'),
   ipv4Address: text('ipv4_address'),
+  tailscaleIp: text('tailscale_ip'),
+  tailscaleHostname: text('tailscale_hostname'),
   status: text('status').notNull().default('pending'),
   provisionedAt: timestamp('provisioned_at'),
   createdAt: timestamp('created_at').notNull().defaultNow(),

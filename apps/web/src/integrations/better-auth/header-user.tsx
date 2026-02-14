@@ -1,6 +1,6 @@
-import { authClient } from '@/lib/auth-client'
-import { useState, useRef, useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ChevronDown, LogOut } from 'lucide-react'
+import { authClient } from '@/lib/auth-client'
 
 export default function UserMenu() {
   const { data: session, isPending } = authClient.useSession()
@@ -19,12 +19,14 @@ export default function UserMenu() {
   }, [open])
 
   if (isPending) {
-    return <div className="h-8 w-8 rounded-full bg-white/[0.06] animate-pulse" />
+    return (
+      <div className="h-8 w-8 rounded-full bg-white/[0.06] animate-pulse" />
+    )
   }
 
   if (!session?.user) return null
 
-  const initials = session.user.name?.charAt(0).toUpperCase() || 'U'
+  const initials = session.user.name.charAt(0).toUpperCase() || 'U'
 
   return (
     <div className="relative" ref={menuRef}>

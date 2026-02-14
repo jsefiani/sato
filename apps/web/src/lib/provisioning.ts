@@ -7,7 +7,7 @@ import {
   ensureUserOpenRouterApiKey,
 } from '@/lib/credits'
 import { clearUserChannelConnections } from '@/lib/channel-connections'
-import { getEnv } from '@/lib/env'
+import { env } from '@/lib/env'
 import {
   assertServerTypeAvailable,
   createFirewall,
@@ -18,6 +18,7 @@ import {
   removeFirewallFromServer,
 } from '@/lib/hetzner'
 import { createId } from '@/lib/ids'
+import { createEphemeralAuthKey } from '@/lib/tailscale'
 
 const CLEANUP_ATTEMPTS = 3
 const CLEANUP_BACKOFF_MS = 500
@@ -47,15 +48,19 @@ function buildResourceName(prefix: 'srv' | 'fw', userId: string): string {
   return `sato-${prefix}-${cleanUser}-${entropy}`.slice(0, 63)
 }
 
-function buildSnapshotCloudInit(openRouterApiKey: string): string {
+function buildSnapshotCloudInit(
+  openRouterApiKey: string,
+  tailscaleAuthKey: string,
+): string {
   const safeApiKey = openRouterApiKey.replace(/'/g, `'"'"'`)
+  const safeTsKey = tailscaleAuthKey.replace(/'/g, `'"'"'`)
 
   return [
     '#cloud-config',
     'package_update: false',
     'write_files:',
     '  - path: /opt/openclaw/.env',
-    '    owner: root:root',
+    '    owner: openclaw:openclaw',
     "    permissions: '0600'",
     '    content: |',
     `      OPENROUTER_API_KEY='${safeApiKey}'`,
@@ -68,7 +73,7 @@ function buildSnapshotCloudInit(openRouterApiKey: string): string {
     '      trap \'code=$?; echo "bootstrap.sh failed at line $LINENO with exit code $code"; exit $code\' ERR',
     '',
     '      export HOME=/root',
-    '      export PATH=/root/.local/bin:/root/.npm-global/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin',
+    '      export PATH=/usr/local/bin:/usr/bin:/bin',
     '      export NO_COLOR=1',
     '      export CLICOLOR=0',
     '      export FORCE_COLOR=0',
@@ -78,19 +83,31 @@ function buildSnapshotCloudInit(openRouterApiKey: string): string {
     '      source /opt/openclaw/.env',
     '      set +a',
     '',
-    '      # Configure OpenClaw (already installed in snapshot)',
-    '      openclaw onboard --non-interactive --accept-risk --mode local \\',
+    '      # Join Tailscale mesh',
+    `      tailscale up --authkey '${safeTsKey}' --hostname "sato-vps-$(hostname -s)"`,
+    '',
+    '      # Configure OpenClaw as unprivileged user (already installed in snapshot)',
+    '      sudo -u openclaw env HOME=/opt/openclaw \\',
+    '        PATH=/usr/local/bin:/usr/bin:/bin \\',
+    '        NO_COLOR=1 CLICOLOR=0 FORCE_COLOR=0 \\',
+    '        OPENROUTER_API_KEY="$OPENROUTER_API_KEY" \\',
+    '        openclaw onboard --non-interactive --accept-risk --mode local \\',
     '        --auth-choice openrouter-api-key --openrouter-api-key "$OPENROUTER_API_KEY" \\',
     '        --gateway-port 18789 --gateway-bind lan --skip-skills --skip-health',
     '',
     '      # Enable Telegram plugin',
-    '      if ! openclaw plugins enable telegram > /dev/null 2>&1; then',
+    '      if ! sudo -u openclaw env HOME=/opt/openclaw PATH=/usr/local/bin:/usr/bin:/bin \\',
+    '        NO_COLOR=1 CLICOLOR=0 FORCE_COLOR=0 \\',
+    '        openclaw plugins enable telegram > /dev/null 2>&1; then',
     '        echo "Failed to enable Telegram plugin"',
-    '        openclaw plugins list --json || true',
+    '        sudo -u openclaw env HOME=/opt/openclaw PATH=/usr/local/bin:/usr/bin:/bin \\',
+    '          openclaw plugins list --json || true',
     '        exit 1',
     '      fi',
     '',
-    '      TELEGRAM_PLUGIN_LIST=$(openclaw plugins list --enabled --json 2>/dev/null || true)',
+    '      TELEGRAM_PLUGIN_LIST=$(sudo -u openclaw env HOME=/opt/openclaw PATH=/usr/local/bin:/usr/bin:/bin \\',
+    '        NO_COLOR=1 CLICOLOR=0 FORCE_COLOR=0 \\',
+    '        openclaw plugins list --enabled --json 2>/dev/null || true)',
     '      if ! printf \'%s\' "$TELEGRAM_PLUGIN_LIST" | grep -q \'"id": "telegram"\'; then',
     '        echo "Telegram plugin is still not enabled after setup"',
     '        printf \'%s\\n\' "$TELEGRAM_PLUGIN_LIST"',
@@ -120,6 +137,12 @@ function buildSnapshotCloudInit(openRouterApiKey: string): string {
     '        journalctl -u openclaw-gateway -n 200 --no-pager || true',
     '        exit 1',
     '      fi',
+    '',
+    '      # Harden: clear the .env file (OpenClaw already loaded it)',
+    '      : > /opt/openclaw/.env',
+    '',
+    '      # Harden: block metadata endpoint to prevent API key leakage',
+    '      iptables -A OUTPUT -d 169.254.169.254 -j DROP',
     '',
     '      # Log diagnostic info regardless of outcome',
     '      systemctl status openclaw-gateway --no-pager || true',
@@ -302,7 +325,7 @@ export async function provisionUserServer(input: ProvisionInput) {
   const serverType = normalizeHetznerServerType(
     input.serverType ?? instanceRow?.serverType ?? 'cpx22',
   )
-  const snapshotId = getEnv('HETZNER_SNAPSHOT_ID')
+  const snapshotId = env.HETZNER_SNAPSHOT_ID
 
   await Promise.all([
     cleanupStaleResourcesForUser(input.userId),
@@ -335,6 +358,8 @@ export async function provisionUserServer(input: ProvisionInput) {
       hetznerServerId: null,
       hetznerFirewallId: null,
       ipv4Address: null,
+      tailscaleIp: null,
+      tailscaleHostname: null,
       createdAt: now,
       updatedAt: now,
     })
@@ -347,6 +372,8 @@ export async function provisionUserServer(input: ProvisionInput) {
         hetznerServerId: null,
         hetznerFirewallId: null,
         ipv4Address: null,
+        tailscaleIp: null,
+        tailscaleHostname: null,
         updatedAt: now,
       },
     })
@@ -355,9 +382,13 @@ export async function provisionUserServer(input: ProvisionInput) {
   let createdServerId: string | null = null
 
   try {
-    const openRouterApiKey = await ensureUserOpenRouterApiKey(input.userId)
+    const [openRouterApiKey, tailscaleAuth] = await Promise.all([
+      ensureUserOpenRouterApiKey(input.userId),
+      createEphemeralAuthKey(),
+    ])
     const firewallName = buildResourceName('fw', input.userId)
     const serverName = buildResourceName('srv', input.userId)
+    const tailscaleHostname = `sato-vps-${serverName}`
 
     const labels: HetznerLabels = {
       app: 'sato',
@@ -379,7 +410,7 @@ export async function provisionUserServer(input: ProvisionInput) {
       })
       .where(eq(vpsInstance.userId, input.userId))
 
-    const userData = buildSnapshotCloudInit(openRouterApiKey)
+    const userData = buildSnapshotCloudInit(openRouterApiKey, tailscaleAuth.key)
 
     const server = await createServer(
       {
@@ -401,6 +432,7 @@ export async function provisionUserServer(input: ProvisionInput) {
         hetznerServerId: server.serverId,
         hetznerFirewallId: firewallId,
         ipv4Address: server.ipv4Address,
+        tailscaleHostname,
         provisionedAt: null,
         updatedAt: new Date(),
       })

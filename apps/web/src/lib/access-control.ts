@@ -20,11 +20,12 @@ export interface AccessState {
 }
 
 export async function getUserAccessState(userId: string): Promise<AccessState> {
-  const [userRow] = await db
-    .select({ createdAt: user.createdAt })
-    .from(user)
-    .where(eq(user.id, userId))
-    .limit(1)
+  const userRow = await db.query.user.findFirst({
+    where: eq(user.id, userId),
+    columns: {
+      createdAt: true,
+    },
+  })
 
   if (!userRow) {
     return {
@@ -36,51 +37,52 @@ export async function getUserAccessState(userId: string): Promise<AccessState> {
     }
   }
 
-  const [subscriptionRow] = await db
-    .select({
-      status: billingSubscription.status,
-      trialEndsAt: billingSubscription.trialEndsAt,
-    })
-    .from(billingSubscription)
-    .where(eq(billingSubscription.userId, userId))
-    .limit(1)
+  const subscriptionRow = await db.query.billingSubscription.findFirst({
+    where: eq(billingSubscription.userId, userId),
+    columns: {
+      status: true,
+      trialEndsAt: true,
+    },
+  })
 
-  if (
-    subscriptionRow?.status === 'active' ||
-    subscriptionRow?.status === 'trialing'
-  ) {
-    return {
-      status: subscriptionRow.status,
-      hasAccess: true,
-      trialEndsAt: subscriptionRow.trialEndsAt
-        ? subscriptionRow.trialEndsAt.toISOString()
-        : null,
-      trialDaysRemaining: getTrialDaysRemaining(subscriptionRow.trialEndsAt),
-      subscriptionStatus: subscriptionRow.status,
+  if (subscriptionRow) {
+    if (
+      subscriptionRow.status === 'active' ||
+      subscriptionRow.status === 'trialing'
+    ) {
+      return {
+        status: subscriptionRow.status,
+        hasAccess: true,
+        trialEndsAt: subscriptionRow.trialEndsAt
+          ? subscriptionRow.trialEndsAt.toISOString()
+          : null,
+        trialDaysRemaining: getTrialDaysRemaining(subscriptionRow.trialEndsAt),
+        subscriptionStatus: subscriptionRow.status,
+      }
     }
-  }
 
-  if (subscriptionRow?.status === 'past_due') {
-    return {
-      status: 'past_due',
-      hasAccess: false,
-      trialEndsAt: subscriptionRow.trialEndsAt
-        ? subscriptionRow.trialEndsAt.toISOString()
-        : null,
-      trialDaysRemaining: getTrialDaysRemaining(subscriptionRow.trialEndsAt),
-      subscriptionStatus: subscriptionRow.status,
+    if (subscriptionRow.status === 'past_due') {
+      return {
+        status: 'past_due',
+        hasAccess: false,
+        trialEndsAt: subscriptionRow.trialEndsAt
+          ? subscriptionRow.trialEndsAt.toISOString()
+          : null,
+        trialDaysRemaining: getTrialDaysRemaining(subscriptionRow.trialEndsAt),
+        subscriptionStatus: subscriptionRow.status,
+      }
     }
-  }
 
-  if (subscriptionRow?.status === 'canceled') {
-    return {
-      status: 'canceled',
-      hasAccess: false,
-      trialEndsAt: subscriptionRow.trialEndsAt
-        ? subscriptionRow.trialEndsAt.toISOString()
-        : null,
-      trialDaysRemaining: 0,
-      subscriptionStatus: subscriptionRow.status,
+    if (subscriptionRow.status === 'canceled') {
+      return {
+        status: 'canceled',
+        hasAccess: false,
+        trialEndsAt: subscriptionRow.trialEndsAt
+          ? subscriptionRow.trialEndsAt.toISOString()
+          : null,
+        trialDaysRemaining: 0,
+        subscriptionStatus: subscriptionRow.status,
+      }
     }
   }
 
@@ -92,16 +94,16 @@ export async function getUserAccessState(userId: string): Promise<AccessState> {
       status: 'trialing',
       hasAccess: true,
       trialEndsAt: trialEndsAt.toISOString(),
-      trialDaysRemaining: getTrialDaysRemaining(trialEndsAt),
       subscriptionStatus: subscriptionRow?.status ?? null,
+      trialDaysRemaining: getTrialDaysRemaining(trialEndsAt),
     }
   }
 
   return {
     status: 'requires_payment',
     hasAccess: false,
-    trialEndsAt: trialEndsAt.toISOString(),
     trialDaysRemaining: 0,
+    trialEndsAt: trialEndsAt.toISOString(),
     subscriptionStatus: subscriptionRow?.status ?? null,
   }
 }

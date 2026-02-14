@@ -2,19 +2,30 @@ import { createFileRoute } from '@tanstack/react-router'
 import { eq } from 'drizzle-orm'
 import { db } from '@/db'
 import { vpsInstance } from '@/db/schema'
+import { safeApiResponse } from '@/lib/api-error'
+import { assertRateLimit } from '@/lib/rate-limit'
 import { verifyOpenClawHost } from '@/lib/vps-openclaw'
 import { requireSession } from '@/lib/session'
 
 export const Route = createFileRoute('/api/vps/verify')({
   server: {
     handlers: {
-      GET: async () => {
+      GET: async ({ request }) => {
         try {
           const session = await requireSession()
+
+          const rateLimited = assertRateLimit(
+            request,
+            'vps-status',
+            session.user.id,
+          )
+
+          if (rateLimited) return rateLimited
 
           const rows = await db
             .select({
               ipv4Address: vpsInstance.ipv4Address,
+              tailscaleIp: vpsInstance.tailscaleIp,
               status: vpsInstance.status,
             })
             .from(vpsInstance)
@@ -29,14 +40,14 @@ export const Route = createFileRoute('/api/vps/verify')({
             )
           }
 
-          if (!instance.ipv4Address) {
+          if (!instance.tailscaleIp) {
             return Response.json(
-              { error: 'VPS has no IP address yet' },
+              { error: 'VPS SSH is not ready yet' },
               { status: 409 },
             )
           }
 
-          const result = await verifyOpenClawHost(instance.ipv4Address)
+          const result = await verifyOpenClawHost(instance.tailscaleIp)
 
           return Response.json({
             ...result,
@@ -44,12 +55,7 @@ export const Route = createFileRoute('/api/vps/verify')({
             ipv4Address: instance.ipv4Address,
           })
         } catch (error) {
-          const message =
-            error instanceof Error ? error.message : 'Unknown error'
-          if (message === 'Unauthorized') {
-            return Response.json({ error: message }, { status: 401 })
-          }
-          return Response.json({ error: message }, { status: 500 })
+          return safeApiResponse(error)
         }
       },
     },

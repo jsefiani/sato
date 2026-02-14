@@ -3,7 +3,9 @@ import { eq } from 'drizzle-orm'
 import type { ChannelSetupState } from '@/lib/channel-connections'
 import { db } from '@/db'
 import { vpsInstance } from '@/db/schema'
+import { safeApiResponse } from '@/lib/api-error'
 import { syncTelegramChannelConnection } from '@/lib/channel-connections'
+import { assertRateLimit } from '@/lib/rate-limit'
 import { getTelegramStatus } from '@/lib/vps-openclaw'
 import { requireSession } from '@/lib/session'
 
@@ -30,14 +32,23 @@ function telegramProvisioningError(status: string): string | null {
 export const Route = createFileRoute('/api/vps/telegram/status')({
   server: {
     handlers: {
-      GET: async () => {
+      GET: async ({ request }) => {
         try {
           const session = await requireSession()
+
+          const rateLimited = assertRateLimit(
+            request,
+            'telegram',
+            session.user.id,
+          )
+          if (rateLimited) return rateLimited
+
           const userId = session.user.id
 
           const rows = await db
             .select({
               ipv4Address: vpsInstance.ipv4Address,
+              tailscaleIp: vpsInstance.tailscaleIp,
               status: vpsInstance.status,
               provisionedAt: vpsInstance.provisionedAt,
             })
@@ -53,9 +64,9 @@ export const Route = createFileRoute('/api/vps/telegram/status')({
             )
           }
 
-          if (!instance.ipv4Address) {
+          if (!instance.tailscaleIp) {
             return Response.json(
-              { error: 'VPS has no IP address yet' },
+              { error: 'VPS SSH is not ready yet' },
               { status: 409 },
             )
           }
@@ -65,7 +76,7 @@ export const Route = createFileRoute('/api/vps/telegram/status')({
             return Response.json({ error: provisioningError }, { status: 409 })
           }
 
-          const summary = await getTelegramStatus(instance.ipv4Address)
+          const summary = await getTelegramStatus(instance.tailscaleIp)
 
           let setupState: ChannelSetupState = summary.configured
             ? 'configuring'
@@ -94,13 +105,7 @@ export const Route = createFileRoute('/api/vps/telegram/status')({
             ipv4Address: instance.ipv4Address,
           })
         } catch (error) {
-          const message =
-            error instanceof Error ? error.message : 'Unknown error'
-          if (message === 'Unauthorized') {
-            return Response.json({ error: message }, { status: 401 })
-          }
-
-          return Response.json({ error: message }, { status: 500 })
+          return safeApiResponse(error)
         }
       },
     },

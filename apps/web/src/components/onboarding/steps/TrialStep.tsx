@@ -1,5 +1,5 @@
 import { motion } from 'motion/react'
-import { Gift, Check, CreditCard } from 'lucide-react'
+import { Check, CreditCard, Gift } from 'lucide-react'
 import type { AccessState } from '../onboarding-utils'
 
 interface TrialStepProps {
@@ -82,16 +82,11 @@ export default function TrialStep({
             className="mt-8 w-full max-w-sm space-y-2.5"
           >
             {included.map((text) => (
-              <div
-                key={text}
-                className="flex items-center gap-3 text-left"
-              >
+              <div key={text} className="flex items-center gap-3 text-left">
                 <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/[0.03]">
                   <Check className="h-3 w-3 text-zinc-300" />
                 </div>
-                <span className="text-sm text-zinc-400">
-                  {text}
-                </span>
+                <span className="text-sm text-zinc-400">{text}</span>
               </div>
             ))}
           </motion.div>
@@ -112,8 +107,8 @@ export default function TrialStep({
             variants={item}
             className="mt-3 max-w-sm text-[15px] leading-relaxed text-zinc-500"
           >
-            You have an active subscription. Let's continue
-            setting up your assistant.
+            You have an active subscription. Let's continue setting up your
+            assistant.
           </motion.p>
 
           <motion.button
@@ -132,8 +127,7 @@ export default function TrialStep({
             variants={item}
             className="mt-3 max-w-sm text-[15px] leading-relaxed text-zinc-500"
           >
-            Your free trial has ended. Subscribe to keep your
-            assistant running.
+            Your free trial has ended. Subscribe to keep your assistant running.
           </motion.p>
 
           <motion.button
@@ -146,9 +140,7 @@ export default function TrialStep({
           >
             <span className="inline-flex items-center gap-2">
               <CreditCard className="h-4 w-4" />
-              {loading
-                ? 'Opening checkout…'
-                : 'Subscribe to continue'}
+              {loading ? 'Opening checkout…' : 'Subscribe to continue'}
             </span>
           </motion.button>
         </>

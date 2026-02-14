@@ -1,0 +1,28 @@
+{
+  // Reference ACL policy for the Sato Tailscale tailnet.
+  // Apply via: https://login.tailscale.com/admin/acls
+  //
+  // Prerequisites:
+  //   1. Apply this ACL policy first (tags must exist before devices can claim them)
+  //   2. Tag the Coolify server: tailscale up --advertise-tags=tag:sato-server
+  //   3. VPS auth keys already request tag:sato-vps (see tailscale.ts)
+
+  "tagOwners": {
+    "tag:sato-server": ["autogroup:admin"],
+    "tag:sato-vps": ["tag:sato-server"],
+  },
+
+  "acls": [
+    // Coolify server can SSH into any VPS
+    {
+      "action": "accept",
+      "src": ["tag:sato-server"],
+      "dst": ["tag:sato-vps:22"],
+    },
+
+    // VPSes cannot reach each other (implicit deny — no rule grants it)
+
+    // Admin access for debugging
+    { "action": "accept", "src": ["autogroup:admin"], "dst": ["*:*"] },
+  ],
+}
