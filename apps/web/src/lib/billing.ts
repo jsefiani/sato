@@ -74,7 +74,7 @@ function formEncode(payload: Record<string, string>): string {
 
 async function stripeRequest<T>(
   path: string,
-  method: 'GET' | 'POST',
+  method: 'GET' | 'POST' | 'DELETE',
   payload?: Record<string, string>,
 ): Promise<T> {
   const response = await fetch(`${STRIPE_API_BASE_URL}${path}`, {
@@ -376,6 +376,28 @@ function readInvoice(object: Record<string, unknown>): InvoiceObject {
   }
 }
 
+function readSubscriptionEvent(obj: Record<string, unknown>) {
+  return {
+    id: obj.id as string,
+    customer: obj.customer as string,
+    trial_end: obj.trial_end as number | null,
+  }
+}
+
+function readDispute(obj: Record<string, unknown>) {
+  return {
+    id: obj.id as string,
+    charge: obj.charge as string,
+    customer: typeof obj.customer === 'string' ? obj.customer : null,
+    amount: obj.amount as number,
+    reason: obj.reason as string | null,
+  }
+}
+
+async function cancelSubscription(subscriptionId: string): Promise<void> {
+  await stripeRequest(`/subscriptions/${subscriptionId}`, 'DELETE')
+}
+
 async function markStripeEventProcessed(event: StripeEvent): Promise<boolean> {
   const existingEvent = await db.query.stripeWebhookEvent.findFirst({
     where: eq(stripeWebhookEvent.id, event.id),
@@ -433,6 +455,15 @@ export async function processStripeEvent(event: StripeEvent): Promise<void> {
     }
   }
 
+  if (event.type === 'customer.subscription.created') {
+    const sub = readSubscriptionEvent(event.data.object)
+    const userId = await getUserIdByCustomerId(sub.customer)
+    if (userId) {
+      const fullSub = await retrieveSubscription(sub.id)
+      await saveSubscription(userId, fullSub)
+    }
+  }
+
   if (
     event.type === 'customer.subscription.updated' ||
     event.type === 'customer.subscription.deleted'
@@ -468,6 +499,107 @@ export async function processStripeEvent(event: StripeEvent): Promise<void> {
         await saveSubscription(userId, subscription)
       }
     }
+  }
+
+  if (event.type === 'customer.subscription.trial_will_end') {
+    const sub = readSubscriptionEvent(event.data.object)
+    const userId = await getUserIdByCustomerId(sub.customer)
+    if (userId) {
+      await db.insert(auditLog).values({
+        id: createId(),
+        userId,
+        action: 'subscription.trial_will_end',
+        metadata: JSON.stringify({
+          subscriptionId: sub.id,
+          trialEnd: sub.trial_end,
+        }),
+        createdAt: new Date(),
+      })
+    }
+  }
+
+  if (event.type === 'invoice.finalization_failed') {
+    const invoice = readInvoice(event.data.object)
+    if (invoice.customer) {
+      const userId = await getUserIdByCustomerId(invoice.customer)
+      if (userId) {
+        await db.insert(auditLog).values({
+          id: createId(),
+          userId,
+          action: 'invoice.finalization_failed',
+          metadata: JSON.stringify({
+            invoiceId: invoice.id,
+            subscriptionId: invoice.subscription,
+          }),
+          createdAt: new Date(),
+        })
+      }
+    }
+  }
+
+  if (event.type === 'charge.dispute.created') {
+    const dispute = readDispute(event.data.object)
+    if (dispute.customer) {
+      const userId = await getUserIdByCustomerId(dispute.customer)
+      if (userId) {
+        const sub = await db.query.billingSubscription.findFirst({
+          where: eq(billingSubscription.userId, userId),
+          columns: { id: true, status: true },
+        })
+        if (sub && sub.status !== 'canceled') {
+          await cancelSubscription(sub.id)
+        }
+        await db.insert(auditLog).values({
+          id: createId(),
+          userId,
+          action: 'charge.dispute.created',
+          metadata: JSON.stringify({
+            disputeId: dispute.id,
+            chargeId: dispute.charge,
+            amount: dispute.amount,
+            reason: dispute.reason,
+          }),
+          createdAt: new Date(),
+        })
+      }
+    }
+  }
+
+  if (event.type === 'charge.dispute.closed') {
+    const dispute = readDispute(event.data.object)
+    const disputeStatus = event.data.object.status as string
+    if (dispute.customer) {
+      const userId = await getUserIdByCustomerId(dispute.customer)
+      if (userId) {
+        await db.insert(auditLog).values({
+          id: createId(),
+          userId,
+          action: 'charge.dispute.closed',
+          metadata: JSON.stringify({
+            disputeId: dispute.id,
+            chargeId: dispute.charge,
+            status: disputeStatus,
+            amount: dispute.amount,
+          }),
+          createdAt: new Date(),
+        })
+      }
+    }
+  }
+
+  if (event.type === 'radar.early_fraud_warning.created') {
+    const warning = event.data.object
+    await db.insert(auditLog).values({
+      id: createId(),
+      action: 'radar.early_fraud_warning.created',
+      metadata: JSON.stringify({
+        warningId: warning.id,
+        chargeId: warning.charge,
+        paymentIntent: warning.payment_intent,
+        fraudType: warning.fraud_type,
+      }),
+      createdAt: new Date(),
+    })
   }
 
   await db.insert(auditLog).values({

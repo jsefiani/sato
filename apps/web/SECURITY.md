@@ -104,6 +104,10 @@ Key points:
 
 - **Stripe event deduplication**: Processed webhook event IDs are stored in the `stripe_webhook_event` table. Duplicate events are silently skipped.
 
+- **Dispute-triggered subscription cancellation**: On `charge.dispute.created`, the user's subscription is immediately canceled via the Stripe API. This revokes access through the existing access-control logic (`canceled` = `hasAccess: false`). The dispute details (ID, charge, amount, reason) are logged to the audit log. On `charge.dispute.closed`, the outcome (won/lost/withdrawn) is logged. If the dispute is won, the user can re-subscribe manually.
+
+- **Early fraud warning logging**: On `radar.early_fraud_warning.created`, the warning details (charge, payment intent, fraud type) are logged to the audit log for manual investigation. Stripe reports that 80% of early fraud warnings become disputes if not proactively addressed.
+
 ### Validation & Configuration
 
 - **Zod input validation**: All POST API endpoints validate request bodies with Zod schemas. Invalid input is rejected before any business logic executes.
@@ -173,7 +177,7 @@ Configure a webhook endpoint in the Stripe dashboard pointing to:
 https://<your-domain>/api/stripe/webhook
 ```
 
-Subscribe to events: `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_succeeded`, `checkout.session.completed`.
+Subscribe to events: `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_succeeded`, `checkout.session.completed`, `charge.dispute.created`, `charge.dispute.closed`, `radar.early_fraud_warning.created`.
 
 Set the signing secret as `STRIPE_WEBHOOK_SECRET`.
 
