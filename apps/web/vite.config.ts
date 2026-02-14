@@ -14,18 +14,6 @@ const securityHeaders: Record<string, string> = {
   'X-Content-Type-Options': 'nosniff',
   'Referrer-Policy': 'strict-origin-when-cross-origin',
   'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
-  'Content-Security-Policy': [
-    "default-src 'self'",
-    "script-src 'self' https://js.stripe.com",
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-    "font-src 'self' https://fonts.gstatic.com",
-    "img-src 'self' data: https://lh3.googleusercontent.com",
-    'frame-src https://js.stripe.com https://accounts.google.com',
-    "connect-src 'self' https://api.stripe.com https://accounts.google.com",
-    "object-src 'none'",
-    "base-uri 'self'",
-    "form-action 'self'",
-  ].join('; '),
 }
 
 const config = defineConfig({

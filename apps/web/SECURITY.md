@@ -63,13 +63,13 @@ Key points:
 
 ### Application Security
 
-- **Security headers**: Served on all routes via Nitro route rules (`vite.config.ts`):
+- **Security headers**: Static headers served on all routes via Nitro route rules (`vite.config.ts`):
   - `Strict-Transport-Security: max-age=31536000; includeSubDomains`
   - `X-Frame-Options: DENY`
   - `X-Content-Type-Options: nosniff`
   - `Referrer-Policy: strict-origin-when-cross-origin`
   - `Permissions-Policy: camera=(), microphone=(), geolocation=()`
-  - `Content-Security-Policy` with restrictive `default-src 'self'`, allowlisted Stripe/Google domains, and `object-src 'none'`
+  - `Content-Security-Policy` set dynamically per request in `server.ts` with a cryptographic nonce (`crypto.randomBytes`). Each SSR response gets a unique `'nonce-<base64>'` in `script-src`, allowlisting TanStack Start's inline hydration scripts without `'unsafe-inline'`. Restrictive `default-src 'self'` with allowlisted Stripe/Google domains and `object-src 'none'`.
 
 - **CSRF protection**: Origin header verification on all mutating API endpoints (`csrf.ts`). Requests without a matching `Origin` or `Referer` header are rejected with 403.
 
