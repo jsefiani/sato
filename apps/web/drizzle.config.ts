@@ -1,7 +1,6 @@
-import { config } from 'dotenv'
 import { defineConfig } from 'drizzle-kit'
 
-config({ path: ['.env.local', '.env'] })
+try { require('dotenv').config({ path: ['.env.local', '.env'] }) } catch {}
 
 export default defineConfig({
   out: './drizzle',
