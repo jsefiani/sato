@@ -176,6 +176,7 @@ Group=openclaw
 
 Environment=HOME=/opt/openclaw
 Environment=PATH=/usr/local/bin:/usr/bin:/bin
+Environment=NODE_OPTIONS=--max-old-space-size=1536
 
 # Sandboxing
 NoNewPrivileges=yes
@@ -189,7 +190,7 @@ ProtectControlGroups=yes
 
 # Resource limits
 CPUQuota=80%
-MemoryMax=1G
+MemoryMax=2G
 MemorySwapMax=0
 LimitNOFILE=4096
 TasksMax=64
