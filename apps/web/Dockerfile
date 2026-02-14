@@ -23,6 +23,15 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 COPY --from=build /app/apps/web/.output /app/.output
+
+# Drizzle push dependencies
+COPY --from=build /app/node_modules /app/node_modules
+COPY --from=build /app/apps/web/node_modules /app/apps/web/node_modules
+COPY apps/web/drizzle.config.ts /app/drizzle.config.ts
+COPY apps/web/src/db/schema.ts /app/src/db/schema.ts
+COPY apps/web/entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
 EXPOSE 3000
 USER node
-CMD ["node", ".output/server/index.mjs"]
+CMD ["/app/entrypoint.sh"]
