@@ -81,7 +81,7 @@ Key points:
   - `stripe-webhook`: 100 req / min
   - `auth`: 10 req / min
 
-- **API error sanitization**: Allowlist-based error message filtering (`api-error.ts`). Only pre-approved error messages are returned to clients; all others are replaced with `"Something went wrong"` and logged server-side.
+- **API error sanitization**: Allowlist-based error message filtering (`api-error.ts`). Only pre-approved error messages are returned to clients; all others are replaced with `"Something went wrong"` and logged server-side. Applies to REST JSON responses, SSE error events, and nested fields like `lastError` inside successful response payloads.
 
 ### Authentication & Sessions
 

@@ -3,6 +3,11 @@ import { eq } from 'drizzle-orm'
 import type { ChannelSetupState } from '@/lib/channel-connections'
 import { db } from '@/db'
 import { vpsInstance } from '@/db/schema'
+import {
+  safeApiResponse,
+  safeErrorMessage,
+  sanitizeLastError,
+} from '@/lib/api-error'
 import { syncTelegramChannelConnection } from '@/lib/channel-connections'
 import { assertRateLimit } from '@/lib/rate-limit'
 import { getTelegramStatus } from '@/lib/vps-openclaw'
@@ -143,18 +148,16 @@ export const Route = createFileRoute('/api/vps/telegram/stream')({
 
                   const payload = {
                     ...summary,
+                    lastError: sanitizeLastError(summary.lastError),
                     connected,
                     configured,
                     vpsStatus: instance.status,
-                    ipv4Address: instance.ipv4Address,
                   }
 
                   send(`data: ${JSON.stringify(payload)}\n\n`)
                 } catch (error) {
-                  const message =
-                    error instanceof Error ? error.message : String(error)
                   send(
-                    `event: error\ndata: ${JSON.stringify({ error: message })}\n\n`,
+                    `event: error\ndata: ${JSON.stringify({ error: safeErrorMessage(error) })}\n\n`,
                   )
                 }
 
@@ -183,9 +186,7 @@ export const Route = createFileRoute('/api/vps/telegram/stream')({
             },
           })
         } catch (error) {
-          const message =
-            error instanceof Error ? error.message : 'Internal server error'
-          return Response.json({ error: message }, { status: 500 })
+          return safeApiResponse(error)
         }
       },
     },

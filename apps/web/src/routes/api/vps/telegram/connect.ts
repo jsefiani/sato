@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '@/db'
 import { vpsInstance } from '@/db/schema'
-import { safeApiResponse } from '@/lib/api-error'
+import { safeApiResponse, sanitizeLastError } from '@/lib/api-error'
 import { syncTelegramChannelConnection } from '@/lib/channel-connections'
 import { assertSameOrigin } from '@/lib/csrf'
 import { assertRateLimit } from '@/lib/rate-limit'
@@ -126,6 +126,7 @@ export const Route = createFileRoute('/api/vps/telegram/connect')({
 
           return Response.json({
             ...summary,
+            lastError: sanitizeLastError(summary.lastError),
             connected,
             configured,
             vpsStatus: instance.status,

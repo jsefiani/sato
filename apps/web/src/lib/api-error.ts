@@ -19,6 +19,11 @@ export function safeErrorMessage(error: unknown): string {
   return 'Something went wrong'
 }
 
+export function sanitizeLastError(lastError: string | null): string | null {
+  if (!lastError) return null
+  return safeErrorMessage(new Error(lastError))
+}
+
 export function safeApiResponse(
   error: unknown,
   fallbackStatus = 500,
@@ -44,6 +49,8 @@ const SAFE_ERROR_MESSAGES = new Set([
   'That token format looks invalid. Double-check the BotFather token and try again.',
   'Pairing code is required',
   'Pairing code should be 8 uppercase letters/numbers (without 0/1).',
+  'Gateway probe requires pairing, but Telegram account is configured.',
+  'Telegram status could not be parsed yet. The gateway may still be warming up.',
 ])
 
 const SAFE_ERROR_PREFIXES = [
