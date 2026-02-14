@@ -177,7 +177,19 @@ Configure a webhook endpoint in the Stripe dashboard pointing to:
 https://<your-domain>/api/stripe/webhook
 ```
 
-Subscribe to events: `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_succeeded`, `checkout.session.completed`, `charge.dispute.created`, `charge.dispute.closed`, `radar.early_fraud_warning.created`.
+Subscribe to these events:
+
+- `checkout.session.completed`
+- `customer.subscription.created`
+- `customer.subscription.updated`
+- `customer.subscription.deleted`
+- `customer.subscription.trial_will_end`
+- `invoice.payment_succeeded`
+- `invoice.payment_failed`
+- `invoice.finalization_failed`
+- `charge.dispute.created`
+- `charge.dispute.closed`
+- `radar.early_fraud_warning.created`
 
 Set the signing secret as `STRIPE_WEBHOOK_SECRET`.
 
