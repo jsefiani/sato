@@ -76,7 +76,7 @@ export default function NewDashboard() {
   const dashboardQuery = useQuery({
     queryKey: ['dashboard-status'],
     queryFn: async () => {
-      const res = await fetch('/api/vps/status?view=dashboard')
+      const res = await fetch('/api/vps/status')
       if (!res.ok) throw new Error('Failed to load status')
       return res.json() as Promise<DashboardState>
     },

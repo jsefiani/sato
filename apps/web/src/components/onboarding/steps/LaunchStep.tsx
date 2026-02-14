@@ -144,7 +144,7 @@ export default function LaunchStep({
               whileTap={{ scale: 0.98 }}
               onClick={onProvision}
               disabled={provisioning}
-              className="h-12 w-full max-w-sm rounded-2xl bg-white text-[15px] font-semibold text-zinc-950 transition-colors hover:bg-zinc-200 disabled:opacity-60"
+              className="h-12 w-full max-w-sm rounded-2xl bg-white text-[15px] font-semibold text-zinc-950 transition-colors hover:bg-zinc-200 disabled:opacity-60 px-8"
             >
               {provisioning ? (
                 <span className="inline-flex items-center gap-2">

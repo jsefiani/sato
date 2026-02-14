@@ -22,6 +22,7 @@ const OPENCLAW_GATEWAY_PORT = 18789
 const OPENCLAW_PROBE_TIMEOUT_MS = 800
 const OPENCLAW_PROBE_CACHE_TTL_MS = 10_000
 const BOOTSTRAP_PROBE_COOLDOWN_MS = 30_000
+const BOOTSTRAP_TIMEOUT_MS = 10 * 60 * 1000
 
 const readinessProbeCache = new Map<
   string,
@@ -70,6 +71,7 @@ export const Route = createFileRoute('/api/vps/status')({
                 region: true,
                 serverType: true,
                 provisionedAt: true,
+                updatedAt: true,
               },
             }),
             db.query.provisioningJob.findFirst({
@@ -157,6 +159,40 @@ export const Route = createFileRoute('/api/vps/status')({
                 }
                 vpsFailureReason = bootstrapError
               }
+            }
+
+            if (
+              !openClawReady &&
+              !bootstrapError &&
+              instance.status === 'bootstrapping' &&
+              Date.now() - new Date(instance.updatedAt).getTime() >
+                BOOTSTRAP_TIMEOUT_MS
+            ) {
+              const timeoutMessage =
+                'Your assistant took too long to start and may have encountered an issue. Please retry setup.'
+
+              await db
+                .update(vpsInstance)
+                .set({
+                  status: 'failed',
+                  updatedAt: new Date(),
+                })
+                .where(eq(vpsInstance.userId, userId))
+
+              await db
+                .update(provisioningJob)
+                .set({
+                  status: 'failed',
+                  errorMessage: timeoutMessage,
+                  updatedAt: new Date(),
+                })
+                .where(eq(provisioningJob.userId, userId))
+
+              instance = {
+                ...instance,
+                status: 'failed',
+              }
+              vpsFailureReason = timeoutMessage
             }
 
             if (
