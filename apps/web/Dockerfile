@@ -18,7 +18,7 @@ RUN pnpm --filter web build
 RUN cd apps/web/.output/server && pnpm install --prod --frozen-lockfile=false --ignore-workspace
 
 FROM node:22-alpine AS runtime
-RUN apk add --no-cache openssh-client bash ca-certificates
+RUN apk add --no-cache openssh-client bash ca-certificates curl
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000

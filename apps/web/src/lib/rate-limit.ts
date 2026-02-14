@@ -15,7 +15,7 @@ const RATE_LIMITS: Record<RateLimitCategory, RateLimitConfig> = {
   'vps-provision': { maxRequests: 3, windowMs: 10 * 60 * 1000 },
   billing: { maxRequests: 10, windowMs: 60 * 1000 },
   'vps-status': { maxRequests: 60, windowMs: 60 * 1000 },
-  telegram: { maxRequests: 10, windowMs: 60 * 1000 },
+  telegram: { maxRequests: 30, windowMs: 60 * 1000 },
   'stripe-webhook': { maxRequests: 100, windowMs: 60 * 1000 },
   auth: { maxRequests: 10, windowMs: 60 * 1000 },
 }

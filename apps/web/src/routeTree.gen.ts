@@ -23,6 +23,7 @@ import { Route as ApiStripeTopupRouteImport } from './routes/api/stripe/topup'
 import { Route as ApiStripePortalRouteImport } from './routes/api/stripe/portal'
 import { Route as ApiStripeCheckoutRouteImport } from './routes/api/stripe/checkout'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as ApiVpsTelegramStreamRouteImport } from './routes/api/vps/telegram/stream'
 import { Route as ApiVpsTelegramStatusRouteImport } from './routes/api/vps/telegram/status'
 import { Route as ApiVpsTelegramConnectRouteImport } from './routes/api/vps/telegram/connect'
 import { Route as ApiVpsTelegramApproveRouteImport } from './routes/api/vps/telegram/approve'
@@ -96,6 +97,11 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiVpsTelegramStreamRoute = ApiVpsTelegramStreamRouteImport.update({
+  id: '/api/vps/telegram/stream',
+  path: '/api/vps/telegram/stream',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiVpsTelegramStatusRoute = ApiVpsTelegramStatusRouteImport.update({
   id: '/api/vps/telegram/status',
   path: '/api/vps/telegram/status',
@@ -129,6 +135,7 @@ export interface FileRoutesByFullPath {
   '/api/vps/telegram/approve': typeof ApiVpsTelegramApproveRoute
   '/api/vps/telegram/connect': typeof ApiVpsTelegramConnectRoute
   '/api/vps/telegram/status': typeof ApiVpsTelegramStatusRoute
+  '/api/vps/telegram/stream': typeof ApiVpsTelegramStreamRoute
 }
 export interface FileRoutesByTo {
   '/sign-in': typeof SignInRoute
@@ -147,6 +154,7 @@ export interface FileRoutesByTo {
   '/api/vps/telegram/approve': typeof ApiVpsTelegramApproveRoute
   '/api/vps/telegram/connect': typeof ApiVpsTelegramConnectRoute
   '/api/vps/telegram/status': typeof ApiVpsTelegramStatusRoute
+  '/api/vps/telegram/stream': typeof ApiVpsTelegramStreamRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -167,6 +175,7 @@ export interface FileRoutesById {
   '/api/vps/telegram/approve': typeof ApiVpsTelegramApproveRoute
   '/api/vps/telegram/connect': typeof ApiVpsTelegramConnectRoute
   '/api/vps/telegram/status': typeof ApiVpsTelegramStatusRoute
+  '/api/vps/telegram/stream': typeof ApiVpsTelegramStreamRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -187,6 +196,7 @@ export interface FileRouteTypes {
     | '/api/vps/telegram/approve'
     | '/api/vps/telegram/connect'
     | '/api/vps/telegram/status'
+    | '/api/vps/telegram/stream'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/sign-in'
@@ -205,6 +215,7 @@ export interface FileRouteTypes {
     | '/api/vps/telegram/approve'
     | '/api/vps/telegram/connect'
     | '/api/vps/telegram/status'
+    | '/api/vps/telegram/stream'
   id:
     | '__root__'
     | '/_authed'
@@ -224,6 +235,7 @@ export interface FileRouteTypes {
     | '/api/vps/telegram/approve'
     | '/api/vps/telegram/connect'
     | '/api/vps/telegram/status'
+    | '/api/vps/telegram/stream'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -243,6 +255,7 @@ export interface RootRouteChildren {
   ApiVpsTelegramApproveRoute: typeof ApiVpsTelegramApproveRoute
   ApiVpsTelegramConnectRoute: typeof ApiVpsTelegramConnectRoute
   ApiVpsTelegramStatusRoute: typeof ApiVpsTelegramStatusRoute
+  ApiVpsTelegramStreamRoute: typeof ApiVpsTelegramStreamRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -345,6 +358,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/vps/telegram/stream': {
+      id: '/api/vps/telegram/stream'
+      path: '/api/vps/telegram/stream'
+      fullPath: '/api/vps/telegram/stream'
+      preLoaderRoute: typeof ApiVpsTelegramStreamRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/vps/telegram/status': {
       id: '/api/vps/telegram/status'
       path: '/api/vps/telegram/status'
@@ -397,6 +417,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiVpsTelegramApproveRoute: ApiVpsTelegramApproveRoute,
   ApiVpsTelegramConnectRoute: ApiVpsTelegramConnectRoute,
   ApiVpsTelegramStatusRoute: ApiVpsTelegramStatusRoute,
+  ApiVpsTelegramStreamRoute: ApiVpsTelegramStreamRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

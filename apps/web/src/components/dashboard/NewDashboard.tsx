@@ -21,6 +21,7 @@ import type {
   TopupPack,
 } from '@/components/onboarding/onboarding-utils'
 import { authClient } from '@/lib/auth-client'
+import { useEventStream } from '@/lib/use-event-stream'
 
 interface VerifyState {
   checkedAt: string
@@ -103,22 +104,20 @@ export default function NewDashboard() {
   const isAssistantLive =
     state?.vps?.status === 'active' && state.openClawReady === true
 
-  const telegramQuery = useQuery({
-    queryKey: ['telegram-status', state?.vps?.ipv4Address],
-    queryFn: async () => {
-      const res = await fetch('/api/vps/telegram/status?view=telegram')
-      const payload = (await res.json()) as TelegramState & {
-        error?: string
-      }
-      if (!res.ok)
-        throw new Error(payload.error ?? 'Failed to load Telegram status')
-      return payload
-    },
+  const telegramStatusKey = [
+    'telegram-status',
+    state?.vps?.ipv4Address,
+  ] as const
+
+  const { isConnected: telegramStreamConnected } = useEventStream({
+    url: '/api/vps/telegram/stream',
     enabled: isAssistantLive,
-    refetchInterval: isAssistantLive ? 10000 : false,
+    queryKey: telegramStatusKey,
   })
 
-  const telegramState = telegramQuery.data ?? null
+  const telegramState =
+    useQuery<TelegramState>({ queryKey: telegramStatusKey, enabled: false })
+      .data ?? null
   const hasRuntimeTelegramState = telegramState !== null
   const normalizedTelegramBotUsername =
     telegramState?.botUsername?.replace(/^@+/, '') ??
@@ -133,9 +132,7 @@ export default function NewDashboard() {
     telegramSetup?.setupState === 'configuring' ||
     (hasRuntimeTelegramState && telegramState.configured === true)
   const telegramInitialCheckInFlight =
-    isAssistantLive && telegramQuery.isFetching && !hasRuntimeTelegramState
-  const telegramStatusUnavailable =
-    isAssistantLive && telegramQuery.isError && !hasRuntimeTelegramState
+    isAssistantLive && !telegramStreamConnected && !hasRuntimeTelegramState
 
   // ── Billing / Stripe ──────────────────────────────────
 
@@ -391,8 +388,6 @@ export default function NewDashboard() {
                       <Loader2 className="h-3 w-3 animate-spin" />
                       Checking status…
                     </span>
-                  ) : telegramStatusUnavailable ? (
-                    'Status unavailable'
                   ) : telegramConfigured ? (
                     'Configured, not connected'
                   ) : (

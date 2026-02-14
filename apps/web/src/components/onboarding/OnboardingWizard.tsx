@@ -18,6 +18,7 @@ import type {
   TelegramState,
 } from './onboarding-utils'
 import { authClient } from '@/lib/auth-client'
+import { useEventStream } from '@/lib/use-event-stream'
 
 interface OnboardingWizardProps {
   urlStep: OnboardingStep
@@ -69,28 +70,15 @@ export default function OnboardingWizard({
     state?.vps?.ipv4Address,
   ] as const
 
-  const telegramQuery = useQuery({
-    queryKey: telegramStatusKey,
-    queryFn: async () => {
-      const res = await fetch('/api/vps/telegram/status?view=telegram')
-      const payload = (await res.json()) as TelegramState & {
-        error?: string
-      }
-      if (!res.ok)
-        throw new Error(payload.error ?? 'Failed to load Telegram status')
-      return payload
-    },
+  useEventStream({
+    url: '/api/vps/telegram/stream',
     enabled: isAssistantLive,
-    refetchInterval: () => {
-      if (!isAssistantLive) {
-        return false
-      }
-
-      return telegramApproved ? 5000 : 2000
-    },
+    queryKey: telegramStatusKey,
   })
 
-  const telegramState = telegramQuery.data ?? null
+  const telegramState =
+    useQuery<TelegramState>({ queryKey: telegramStatusKey, enabled: false })
+      .data ?? null
 
   // ── Step management ───────────────────────────────────
 
@@ -173,9 +161,6 @@ export default function OnboardingWizard({
     onSuccess: (payload) => {
       queryClient.setQueryData(telegramStatusKey, payload)
       queryClient.invalidateQueries({
-        queryKey: telegramStatusKey,
-      })
-      queryClient.invalidateQueries({
         queryKey: ['dashboard-status'],
       })
     },
@@ -196,9 +181,6 @@ export default function OnboardingWizard({
     },
     onSuccess: (payload) => {
       queryClient.setQueryData(telegramStatusKey, payload)
-      queryClient.invalidateQueries({
-        queryKey: telegramStatusKey,
-      })
       queryClient.invalidateQueries({
         queryKey: ['dashboard-status'],
       })
