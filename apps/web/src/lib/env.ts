@@ -37,9 +37,6 @@ const envSchema = z.object({
     .enum(['yes', 'accept-new', 'no'])
     .default('accept-new'),
   VPS_SSH_KNOWN_HOSTS_PATH: z.string().optional(),
-  VPS_SSH_BASTION_HOST: z.string().optional(),
-  VPS_SSH_BASTION_USER: z.string().default('root'),
-  VPS_SSH_BASTION_PORT: z.coerce.number().int().min(1).default(22),
 
   TRIAL_INCLUDED_CREDITS: z.coerce.number().int().min(0).default(5000),
   MONTHLY_INCLUDED_CREDITS: z.coerce.number().int().min(0).default(20_000),

@@ -37,23 +37,13 @@ HETZNER_IMAGE="${HETZNER_IMAGE:-ubuntu-24.04}"
 HETZNER_NETWORK_ZONE="${HETZNER_NETWORK_ZONE:-eu-central}"
 HETZNER_NETWORK_CIDR="${HETZNER_NETWORK_CIDR:-10.50.0.0/16}"
 HETZNER_NETWORK_SUBNET_CIDR="${HETZNER_NETWORK_SUBNET_CIDR:-10.50.1.0/24}"
-HETZNER_BASTION_SERVER_TYPE="${HETZNER_BASTION_SERVER_TYPE:-cpx21}"
 HETZNER_COOLIFY_SERVER_TYPE="${HETZNER_COOLIFY_SERVER_TYPE:-cpx22}"
-
-WG_PORT="${WG_PORT:-51820}"
-WG_SERVER_ADDRESS="${WG_SERVER_ADDRESS:-10.99.0.1/24}"
-WG_ADMIN_CLIENT_NAME="${WG_ADMIN_CLIENT_NAME:-admin-laptop}"
-WG_ADMIN_CLIENT_IP="${WG_ADMIN_CLIENT_IP:-10.99.0.2/32}"
-WG_ALLOWED_IPS="${WG_ALLOWED_IPS:-$HETZNER_NETWORK_CIDR}"
 
 INSTALL_COOLIFY="${INSTALL_COOLIFY:-true}"
 SKIP_CONFIRM="${SKIP_CONFIRM:-false}"
-PRINT_WG_PRIVATE_KEY="${PRINT_WG_PRIVATE_KEY:-false}"
 
 NETWORK_NAME="${NETWORK_NAME:-${PROJECT_PREFIX}-private-network}"
-BASTION_NAME="${BASTION_NAME:-${PROJECT_PREFIX}-bastion}"
 COOLIFY_NAME="${COOLIFY_NAME:-${PROJECT_PREFIX}-coolify}"
-BASTION_FIREWALL_NAME="${BASTION_FIREWALL_NAME:-${PROJECT_PREFIX}-bastion-fw}"
 COOLIFY_FIREWALL_NAME="${COOLIFY_FIREWALL_NAME:-${PROJECT_PREFIX}-coolify-fw}"
 
 HETZNER_API_BASE_URL="https://api.hetzner.cloud/v1"
@@ -71,8 +61,6 @@ ADMIN_SSH_CIDRS="${ADMIN_SSH_CIDRS:-$(detect_admin_cidr)}"
 if [ -z "$ADMIN_SSH_CIDRS" ]; then
   ADMIN_SSH_CIDRS="0.0.0.0/0"
 fi
-
-WG_SOURCE_CIDRS="${WG_SOURCE_CIDRS:-0.0.0.0/0,::/0}"
 
 KNOWN_HOSTS_FILE="$(mktemp -t sato-foundation-known-hosts.XXXXXX)"
 cleanup() {
@@ -300,30 +288,6 @@ wait_for_ssh() {
   exit 1
 }
 
-extract_key_value() {
-  local key="$1"
-  local content="$2"
-
-  while IFS= read -r line; do
-    case "$line" in
-      "$key"=*)
-        printf '%s\n' "${line#*=}"
-        return
-        ;;
-    esac
-  done <<<"$content"
-
-  return 1
-}
-
-HETZNER_BASTION_SERVER_TYPE="$(resolve_server_type \
-  "$HETZNER_BASTION_SERVER_TYPE" \
-  "cpx21" \
-  "cpx22" \
-  "cpx31" \
-  "cx22" \
-  "cx32")"
-
 HETZNER_COOLIFY_SERVER_TYPE="$(resolve_server_type \
   "$HETZNER_COOLIFY_SERVER_TYPE" \
   "cpx22" \
@@ -336,12 +300,10 @@ if [ "$SKIP_CONFIRM" != "true" ] && [ -t 0 ]; then
   cat <<EOF
 This will create or reuse the following Hetzner resources:
 - Private network: $NETWORK_NAME ($HETZNER_NETWORK_CIDR)
-- Bastion server: $BASTION_NAME ($HETZNER_BASTION_SERVER_TYPE)
 - Coolify server: $COOLIFY_NAME ($HETZNER_COOLIFY_SERVER_TYPE)
-- Firewalls: $BASTION_FIREWALL_NAME, $COOLIFY_FIREWALL_NAME
+- Firewall: $COOLIFY_FIREWALL_NAME
 
 Location: $HETZNER_LOCATION
-WireGuard port: $WG_PORT
 Admin SSH CIDRs: $ADMIN_SSH_CIDRS
 
 Continue? [y/N]
@@ -354,143 +316,14 @@ EOF
 fi
 
 ADMIN_SSH_CIDRS_JSON="$(csv_to_json_array "$ADMIN_SSH_CIDRS")"
-WG_SOURCE_CIDRS_JSON="$(csv_to_json_array "$WG_SOURCE_CIDRS")"
 
 log_step "Ensuring private network '$NETWORK_NAME'"
 NETWORK_ID="$(ensure_network)"
 echo "Network ID: $NETWORK_ID"
 
-log_step "Ensuring bastion firewall '$BASTION_FIREWALL_NAME'"
-BASTION_RULES_JSON="$(jq -cn \
-  --argjson ssh_sources "$ADMIN_SSH_CIDRS_JSON" \
-  --argjson wg_sources "$WG_SOURCE_CIDRS_JSON" \
-  --arg wg_port "$WG_PORT" \
-  '[
-    {
-      direction: "in",
-      protocol: "tcp",
-      port: "22",
-      source_ips: $ssh_sources
-    },
-    {
-      direction: "in",
-      protocol: "udp",
-      port: $wg_port,
-      source_ips: $wg_sources
-    }
-  ]')"
-
-BASTION_FIREWALL_ID="$(ensure_firewall "$BASTION_FIREWALL_NAME" "$BASTION_RULES_JSON" "bastion-firewall")"
-echo "Bastion firewall ID: $BASTION_FIREWALL_ID"
-
-log_step "Ensuring bastion server '$BASTION_NAME'"
-read -r BASTION_SERVER_ID BASTION_PUBLIC_IP BASTION_PRIVATE_IP < <(
-  ensure_server \
-    "$BASTION_NAME" \
-    "$HETZNER_BASTION_SERVER_TYPE" \
-    "$BASTION_FIREWALL_ID" \
-    "bastion" \
-    "#cloud-config
-package_update: true
-packages:
-  - wireguard
-  - fail2ban
-"
-)
-
-echo "Bastion server ID: $BASTION_SERVER_ID"
-echo "Bastion public IP: $BASTION_PUBLIC_IP"
-echo "Bastion private IP: $BASTION_PRIVATE_IP"
-
-if [ -z "$BASTION_PUBLIC_IP" ] || [ -z "$BASTION_PRIVATE_IP" ]; then
-  echo "ERROR: Could not determine bastion public/private IPs."
-  exit 1
-fi
-
-log_step "Waiting for bastion SSH"
-wait_for_ssh "$BASTION_PUBLIC_IP" "$BASTION_NAME"
-
-log_step "Bootstrapping WireGuard on bastion"
-WG_BOOTSTRAP_OUTPUT="$({
-  ssh "${SSH_OPTS[@]}" "root@$BASTION_PUBLIC_IP" \
-    "bash -s -- '$WG_PORT' '$WG_SERVER_ADDRESS' '$WG_ADMIN_CLIENT_NAME' '$WG_ADMIN_CLIENT_IP'" <<'REMOTE_SCRIPT'
-set -euo pipefail
-
-WG_PORT="$1"
-WG_SERVER_ADDRESS="$2"
-WG_ADMIN_CLIENT_NAME="$3"
-WG_ADMIN_CLIENT_IP="$4"
-
-export DEBIAN_FRONTEND=noninteractive
-apt-get update -qq
-apt-get install -y -qq wireguard >/dev/null
-
-install -d -m 700 /etc/wireguard /etc/wireguard/clients
-
-if [ ! -f /etc/wireguard/private.key ]; then
-  umask 077
-  wg genkey | tee /etc/wireguard/private.key | wg pubkey > /etc/wireguard/public.key
-fi
-
-SERVER_PRIVATE_KEY="$(cat /etc/wireguard/private.key)"
-cat > /etc/wireguard/wg0.conf <<WGCONF
-[Interface]
-Address = ${WG_SERVER_ADDRESS}
-ListenPort = ${WG_PORT}
-PrivateKey = ${SERVER_PRIVATE_KEY}
-SaveConfig = false
-WGCONF
-
-grep -q '^net.ipv4.ip_forward=1' /etc/sysctl.conf || echo 'net.ipv4.ip_forward=1' >> /etc/sysctl.conf
-grep -q '^net.ipv6.conf.all.forwarding=1' /etc/sysctl.conf || echo 'net.ipv6.conf.all.forwarding=1' >> /etc/sysctl.conf
-sysctl -w net.ipv4.ip_forward=1 >/dev/null
-sysctl -w net.ipv6.conf.all.forwarding=1 >/dev/null
-
-CLIENT_PRIVATE_PATH="/etc/wireguard/clients/${WG_ADMIN_CLIENT_NAME}.private"
-CLIENT_PUBLIC_PATH="/etc/wireguard/clients/${WG_ADMIN_CLIENT_NAME}.public"
-
-if [ ! -f "$CLIENT_PRIVATE_PATH" ]; then
-  umask 077
-  wg genkey | tee "$CLIENT_PRIVATE_PATH" | wg pubkey > "$CLIENT_PUBLIC_PATH"
-fi
-
-CLIENT_PUBLIC_KEY="$(cat "$CLIENT_PUBLIC_PATH")"
-
-if ! grep -q "$CLIENT_PUBLIC_KEY" /etc/wireguard/wg0.conf; then
-  cat >> /etc/wireguard/wg0.conf <<WGPEER
-
-[Peer]
-PublicKey = ${CLIENT_PUBLIC_KEY}
-AllowedIPs = ${WG_ADMIN_CLIENT_IP}
-PersistentKeepalive = 25
-WGPEER
-fi
-
-systemctl enable wg-quick@wg0 >/dev/null
-systemctl restart wg-quick@wg0
-
-echo "CLIENT_PRIVATE_KEY=$(cat "$CLIENT_PRIVATE_PATH")"
-echo "CLIENT_PUBLIC_KEY=$CLIENT_PUBLIC_KEY"
-echo "SERVER_PUBLIC_KEY=$(cat /etc/wireguard/public.key)"
-REMOTE_SCRIPT
-} 2>/dev/null)"
-
-WG_CLIENT_PRIVATE_KEY="$(extract_key_value CLIENT_PRIVATE_KEY "$WG_BOOTSTRAP_OUTPUT" || true)"
-WG_SERVER_PUBLIC_KEY="$(extract_key_value SERVER_PUBLIC_KEY "$WG_BOOTSTRAP_OUTPUT" || true)"
-
-if [ -z "$WG_CLIENT_PRIVATE_KEY" ] || [ -z "$WG_SERVER_PUBLIC_KEY" ]; then
-  echo "ERROR: WireGuard bootstrap failed."
-  exit 1
-fi
-
-COOLIFY_SSH_SOURCES_JSON="$(jq -cn \
-  --argjson admin_sources "$ADMIN_SSH_CIDRS_JSON" \
-  --arg bastion_source "$BASTION_PRIVATE_IP/32" \
-  '$admin_sources + [$bastion_source]')"
-
 log_step "Ensuring Coolify firewall '$COOLIFY_FIREWALL_NAME'"
 COOLIFY_RULES_JSON="$(jq -cn \
-  --argjson ssh_sources "$COOLIFY_SSH_SOURCES_JSON" \
+  --argjson ssh_sources "$ADMIN_SSH_CIDRS_JSON" \
   --argjson dashboard_sources "$ADMIN_SSH_CIDRS_JSON" \
   '[
     {
@@ -574,42 +407,13 @@ curl -fsSL https://cdn.coollabs.io/coolify/install.sh | bash
 REMOTE_SCRIPT
 fi
 
-WG_CLIENT_PRIVATE_KEY_DISPLAY="[hidden]"
-WG_PRIVATE_KEY_NOTE="WireGuard private key is stored on bastion at /etc/wireguard/clients/${WG_ADMIN_CLIENT_NAME}.private"
-
-if [ "$PRINT_WG_PRIVATE_KEY" = "true" ]; then
-  WG_CLIENT_PRIVATE_KEY_DISPLAY="$WG_CLIENT_PRIVATE_KEY"
-  WG_PRIVATE_KEY_NOTE=""
-fi
-
 cat <<EOF
 
 Done. Foundation infrastructure is ready.
 
 Resource summary:
 - Network: $NETWORK_NAME (id: $NETWORK_ID)
-- Bastion: $BASTION_NAME (id: $BASTION_SERVER_ID, public: $BASTION_PUBLIC_IP, private: $BASTION_PRIVATE_IP)
 - Coolify: $COOLIFY_NAME (id: $COOLIFY_SERVER_ID, public: $COOLIFY_PUBLIC_IP, private: $COOLIFY_PRIVATE_IP)
-
-WireGuard client profile ($WG_ADMIN_CLIENT_NAME):
-
-[Interface]
-PrivateKey = $WG_CLIENT_PRIVATE_KEY_DISPLAY
-Address = ${WG_ADMIN_CLIENT_IP%/32}/32
-DNS = 1.1.1.1
-
-[Peer]
-PublicKey = $WG_SERVER_PUBLIC_KEY
-AllowedIPs = $WG_ALLOWED_IPS
-Endpoint = $BASTION_PUBLIC_IP:$WG_PORT
-PersistentKeepalive = 25
-
-$WG_PRIVATE_KEY_NOTE
-
-Next app env values:
-- VPS_SSH_BASTION_HOST=$BASTION_PRIVATE_IP
-- VPS_SSH_BASTION_USER=root
-- VPS_SSH_BASTION_PORT=22
 
 Coolify URL:
 - http://$COOLIFY_PUBLIC_IP:8000

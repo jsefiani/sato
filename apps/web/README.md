@@ -2,10 +2,6 @@ Sato web app (TanStack Start) for secure user-scoped AI VPS provisioning.
 
 ## Deploying to Coolify
 
-For Hetzner + Coolify migration with a fresh database, follow:
-
-- `apps/web/docs/coolify-migration.md`
-
 Generate `APP_ENCRYPTION_KEY`:
 
 ```bash
