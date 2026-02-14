@@ -25,6 +25,7 @@ const config = defineConfig({
   plugins: [
     devtools(),
     nitro({
+      errorHandler: './src/lib/nitro-error-handler',
       routeRules: {
         '/**': {
           headers: securityHeaders,

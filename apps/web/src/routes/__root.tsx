@@ -1,5 +1,6 @@
 import {
   HeadContent,
+  Outlet,
   Scripts,
   createRootRouteWithContext,
 } from '@tanstack/react-router'
@@ -7,6 +8,7 @@ import {
 import appCss from '../styles.css?url'
 
 import type { QueryClient } from '@tanstack/react-query'
+import ErrorPage from '@/components/ErrorPage'
 
 interface MyRouterContext {
   queryClient: QueryClient
@@ -47,8 +49,38 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
     ],
   }),
 
+  component: RootComponent,
+  errorComponent: RootErrorComponent,
+  notFoundComponent: RootNotFound,
   shellComponent: RootDocument,
 })
+
+function RootComponent() {
+  return <Outlet />
+}
+
+function RootErrorComponent() {
+  return (
+    <RootDocument>
+      <ErrorPage
+        status={500}
+        title="Something went wrong"
+        description="An unexpected error occurred. Please try again or return to the home page."
+      />
+    </RootDocument>
+  )
+}
+
+function RootNotFound() {
+  return (
+    <ErrorPage
+      status={404}
+      title="Page not found"
+      description="The page you're looking for doesn't exist or has been moved."
+      showRetry={false}
+    />
+  )
+}
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   return (
