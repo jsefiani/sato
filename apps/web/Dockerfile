@@ -27,7 +27,7 @@ COPY --from=build /app/apps/web/.output /app/.output
 # Drizzle push dependencies
 COPY apps/web/drizzle.config.ts /app/drizzle.config.ts
 COPY apps/web/src/db/schema.ts /app/src/db/schema.ts
-RUN npm install --no-save drizzle-kit drizzle-orm
+RUN npm install --no-save drizzle-kit@0.31.9 drizzle-orm@0.45.1 pg@8.18.0
 
 COPY apps/web/entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
