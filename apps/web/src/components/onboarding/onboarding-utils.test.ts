@@ -72,7 +72,18 @@ describe('deriveStep', () => {
   })
 
   it('moves to complete only when connected with no pending pairing', () => {
-    expect(deriveStep(baseState, connectedTelegramState)).toBe('complete')
+    const stateWithConnectedChannel: DashboardState = {
+      ...baseState,
+      channelSetup: {
+        channels: [],
+        connectedChannels: ['telegram'],
+        connectedCount: 1,
+        hasConnectedChannel: true,
+      },
+    }
+    expect(deriveStep(stateWithConnectedChannel, connectedTelegramState)).toBe(
+      'complete',
+    )
   })
 })
 

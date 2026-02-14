@@ -275,3 +275,56 @@ export async function clearUserChannelConnections(
 ): Promise<void> {
   await db.delete(channelConnection).where(eq(channelConnection.userId, userId))
 }
+
+export function normalizeChannelSetupForCurrentInstance(
+  channelSetup: UserChannelSetupSummary,
+  provisionedAt: Date | null,
+): UserChannelSetupSummary {
+  if (!provisionedAt) {
+    return {
+      channels: channelSetup.channels.map((channel) =>
+        channel.connected
+          ? {
+              ...channel,
+              connected: false,
+              setupState: 'disconnected',
+            }
+          : channel,
+      ),
+      connectedChannels: [],
+      connectedCount: 0,
+      hasConnectedChannel: false,
+    }
+  }
+
+  const provisionedAtMs = provisionedAt.getTime()
+  const channels = channelSetup.channels.map((channel) => {
+    if (!channel.connected) {
+      return channel
+    }
+
+    const connectedAtMs = channel.connectedAt
+      ? Date.parse(channel.connectedAt)
+      : NaN
+    if (Number.isNaN(connectedAtMs) || connectedAtMs < provisionedAtMs) {
+      return {
+        ...channel,
+        connected: false,
+        setupState: 'disconnected' as const,
+      }
+    }
+
+    return channel
+  })
+
+  const connectedChannels = channels
+    .filter((channel) => channel.connected)
+    .map((channel) => channel.channel)
+
+  return {
+    channels,
+    connectedChannels,
+    connectedCount: connectedChannels.length,
+    hasConnectedChannel: connectedChannels.length > 0,
+  }
+}
