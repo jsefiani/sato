@@ -1,3 +1,37 @@
+Sato web app (TanStack Start) for secure user-scoped AI VPS provisioning.
+
+## Deploying to Coolify
+
+For Hetzner + Coolify migration with a fresh database, follow:
+
+- `apps/web/docs/coolify-migration.md`
+
+Generate `APP_ENCRYPTION_KEY`:
+
+```bash
+node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
+```
+
+## Database changes
+
+After updating env vars, apply schema updates:
+
+```bash
+pnpm db:push
+```
+
+## Stripe webhook
+
+Run Stripe CLI locally and forward events to:
+
+```bash
+pnpm stripe:listen
+```
+
+This forwards to `http://localhost:3000/api/stripe/webhook`.
+
+---
+
 Welcome to your new TanStack app!
 
 # Getting Started

@@ -11,9 +11,11 @@ export const Route = createFileRoute('/_authed')({
 
 function AuthedLayout() {
   return (
-    <>
+    <div className="flex h-screen flex-col">
       <Header />
-      <Outlet />
-    </>
+      <main className="flex min-h-0 flex-1 flex-col">
+        <Outlet />
+      </main>
+    </div>
   )
 }

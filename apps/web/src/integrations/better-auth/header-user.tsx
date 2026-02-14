@@ -1,46 +1,71 @@
 import { authClient } from '@/lib/auth-client'
-import { Link } from '@tanstack/react-router'
+import { useState, useRef, useEffect } from 'react'
+import { ChevronDown, LogOut } from 'lucide-react'
 
-export default function BetterAuthHeader() {
+export default function UserMenu() {
   const { data: session, isPending } = authClient.useSession()
+  const [open, setOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function handleClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [open])
 
   if (isPending) {
-    return (
-      <div className="h-8 w-8 bg-neutral-100 dark:bg-neutral-800 animate-pulse" />
-    )
+    return <div className="h-8 w-8 rounded-full bg-white/[0.06] animate-pulse" />
   }
 
-  if (session?.user) {
-    return (
-      <div className="flex items-center gap-2">
+  if (!session?.user) return null
+
+  const initials = session.user.name?.charAt(0).toUpperCase() || 'U'
+
+  return (
+    <div className="relative" ref={menuRef}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-2.5 rounded-full border border-transparent py-1.5 pl-1.5 pr-3 text-sm text-zinc-400 transition-colors hover:border-white/[0.06] hover:text-zinc-200"
+      >
         {session.user.image ? (
-          <img src={session.user.image} alt="" className="h-8 w-8" />
+          <img
+            src={session.user.image}
+            alt=""
+            className="h-7 w-7 rounded-full object-cover"
+          />
         ) : (
-          <div className="h-8 w-8 bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
-            <span className="text-xs font-medium text-neutral-600 dark:text-neutral-400">
-              {session.user.name?.charAt(0).toUpperCase() || 'U'}
+          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-white/[0.08]">
+            <span className="text-xs font-medium text-zinc-300">
+              {initials}
             </span>
           </div>
         )}
-        <button
-          onClick={async () => {
-            await authClient.signOut()
-            window.location.href = '/sign-in'
-          }}
-          className="flex-1 h-9 px-4 text-sm font-medium bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-50 border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
-        >
-          Sign out
-        </button>
-      </div>
-    )
-  }
+        <span className="max-w-[120px] truncate">{session.user.name}</span>
+        <ChevronDown
+          size={14}
+          className={`text-zinc-600 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+        />
+      </button>
 
-  return (
-    <Link
-      to="/sign-in"
-      className="h-9 px-4 text-sm font-medium bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-50 border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors inline-flex items-center"
-    >
-      Sign in
-    </Link>
+      {open && (
+        <div className="absolute right-0 mt-1.5 w-48 overflow-hidden rounded-xl border border-white/[0.06] bg-zinc-900/80 p-1 shadow-2xl backdrop-blur-xl">
+          <button
+            onClick={async () => {
+              await authClient.signOut()
+              window.location.href = '/sign-in'
+            }}
+            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-zinc-400 transition-colors hover:bg-white/[0.06] hover:text-zinc-200"
+          >
+            <LogOut size={14} />
+            Sign out
+          </button>
+        </div>
+      )}
+    </div>
   )
 }

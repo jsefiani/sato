@@ -1,21 +1,51 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { authClient } from '@/lib/auth-client'
+import { useCallback } from 'react'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import type { OnboardingStep } from '@/components/onboarding/onboarding-utils'
+import NewDashboard from '@/components/dashboard/NewDashboard'
+import DevVpsLogsWidget from '@/components/dev/DevVpsLogsWidget'
+import { ONBOARDING_STEPS } from '@/components/onboarding/onboarding-utils'
+import OnboardingWizard from '@/components/onboarding/OnboardingWizard'
 
 export const Route = createFileRoute('/_authed/')({
   component: HomePage,
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { step?: OnboardingStep } => {
+    const raw = search.step
+    if (
+      typeof raw === 'string' &&
+      ONBOARDING_STEPS.includes(raw as OnboardingStep)
+    ) {
+      return { step: raw as OnboardingStep }
+    }
+    return {}
+  },
 })
 
 function HomePage() {
-  const { data: session } = authClient.useSession()
+  const { step: urlStep } = Route.useSearch()
+  const navigate = useNavigate()
+
+  const handleNavigate = useCallback(
+    (step: OnboardingStep | null) => {
+      if (step) {
+        navigate({ to: '/', search: { step } })
+        return
+      }
+
+      navigate({ to: '/', search: {} })
+    },
+    [navigate],
+  )
 
   return (
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center px-4">
-      <div className="max-w-md w-full text-center space-y-2">
-        <h1 className="text-3xl font-bold text-white">Home</h1>
-        {session?.user && (
-          <p className="text-gray-400">{session.user.email}</p>
-        )}
-      </div>
-    </div>
+    <>
+      {urlStep ? (
+        <OnboardingWizard urlStep={urlStep} onNavigate={handleNavigate} />
+      ) : (
+        <NewDashboard />
+      )}
+      {import.meta.env.DEV ? <DevVpsLogsWidget /> : null}
+    </>
   )
 }

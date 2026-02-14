@@ -12,7 +12,19 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as AuthedIndexRouteImport } from './routes/_authed/index'
+import { Route as ApiVpsVerifyRouteImport } from './routes/api/vps/verify'
+import { Route as ApiVpsStatusRouteImport } from './routes/api/vps/status'
+import { Route as ApiVpsProvisionRouteImport } from './routes/api/vps/provision'
+import { Route as ApiVpsLogsRouteImport } from './routes/api/vps/logs'
+import { Route as ApiVpsDestroyRouteImport } from './routes/api/vps/destroy'
+import { Route as ApiStripeWebhookRouteImport } from './routes/api/stripe/webhook'
+import { Route as ApiStripeTopupRouteImport } from './routes/api/stripe/topup'
+import { Route as ApiStripePortalRouteImport } from './routes/api/stripe/portal'
+import { Route as ApiStripeCheckoutRouteImport } from './routes/api/stripe/checkout'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as ApiVpsTelegramStatusRouteImport } from './routes/api/vps/telegram/status'
+import { Route as ApiVpsTelegramConnectRouteImport } from './routes/api/vps/telegram/connect'
+import { Route as ApiVpsTelegramApproveRouteImport } from './routes/api/vps/telegram/approve'
 
 const SignInRoute = SignInRouteImport.update({
   id: '/sign-in',
@@ -28,9 +40,69 @@ const AuthedIndexRoute = AuthedIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthedRoute,
 } as any)
+const ApiVpsVerifyRoute = ApiVpsVerifyRouteImport.update({
+  id: '/api/vps/verify',
+  path: '/api/vps/verify',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiVpsStatusRoute = ApiVpsStatusRouteImport.update({
+  id: '/api/vps/status',
+  path: '/api/vps/status',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiVpsProvisionRoute = ApiVpsProvisionRouteImport.update({
+  id: '/api/vps/provision',
+  path: '/api/vps/provision',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiVpsLogsRoute = ApiVpsLogsRouteImport.update({
+  id: '/api/vps/logs',
+  path: '/api/vps/logs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiVpsDestroyRoute = ApiVpsDestroyRouteImport.update({
+  id: '/api/vps/destroy',
+  path: '/api/vps/destroy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiStripeWebhookRoute = ApiStripeWebhookRouteImport.update({
+  id: '/api/stripe/webhook',
+  path: '/api/stripe/webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiStripeTopupRoute = ApiStripeTopupRouteImport.update({
+  id: '/api/stripe/topup',
+  path: '/api/stripe/topup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiStripePortalRoute = ApiStripePortalRouteImport.update({
+  id: '/api/stripe/portal',
+  path: '/api/stripe/portal',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiStripeCheckoutRoute = ApiStripeCheckoutRouteImport.update({
+  id: '/api/stripe/checkout',
+  path: '/api/stripe/checkout',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiVpsTelegramStatusRoute = ApiVpsTelegramStatusRouteImport.update({
+  id: '/api/vps/telegram/status',
+  path: '/api/vps/telegram/status',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiVpsTelegramConnectRoute = ApiVpsTelegramConnectRouteImport.update({
+  id: '/api/vps/telegram/connect',
+  path: '/api/vps/telegram/connect',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiVpsTelegramApproveRoute = ApiVpsTelegramApproveRouteImport.update({
+  id: '/api/vps/telegram/approve',
+  path: '/api/vps/telegram/approve',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -38,11 +110,35 @@ export interface FileRoutesByFullPath {
   '/': typeof AuthedIndexRoute
   '/sign-in': typeof SignInRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/stripe/checkout': typeof ApiStripeCheckoutRoute
+  '/api/stripe/portal': typeof ApiStripePortalRoute
+  '/api/stripe/topup': typeof ApiStripeTopupRoute
+  '/api/stripe/webhook': typeof ApiStripeWebhookRoute
+  '/api/vps/destroy': typeof ApiVpsDestroyRoute
+  '/api/vps/logs': typeof ApiVpsLogsRoute
+  '/api/vps/provision': typeof ApiVpsProvisionRoute
+  '/api/vps/status': typeof ApiVpsStatusRoute
+  '/api/vps/verify': typeof ApiVpsVerifyRoute
+  '/api/vps/telegram/approve': typeof ApiVpsTelegramApproveRoute
+  '/api/vps/telegram/connect': typeof ApiVpsTelegramConnectRoute
+  '/api/vps/telegram/status': typeof ApiVpsTelegramStatusRoute
 }
 export interface FileRoutesByTo {
   '/sign-in': typeof SignInRoute
   '/': typeof AuthedIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/stripe/checkout': typeof ApiStripeCheckoutRoute
+  '/api/stripe/portal': typeof ApiStripePortalRoute
+  '/api/stripe/topup': typeof ApiStripeTopupRoute
+  '/api/stripe/webhook': typeof ApiStripeWebhookRoute
+  '/api/vps/destroy': typeof ApiVpsDestroyRoute
+  '/api/vps/logs': typeof ApiVpsLogsRoute
+  '/api/vps/provision': typeof ApiVpsProvisionRoute
+  '/api/vps/status': typeof ApiVpsStatusRoute
+  '/api/vps/verify': typeof ApiVpsVerifyRoute
+  '/api/vps/telegram/approve': typeof ApiVpsTelegramApproveRoute
+  '/api/vps/telegram/connect': typeof ApiVpsTelegramConnectRoute
+  '/api/vps/telegram/status': typeof ApiVpsTelegramStatusRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -50,19 +146,90 @@ export interface FileRoutesById {
   '/sign-in': typeof SignInRoute
   '/_authed/': typeof AuthedIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/stripe/checkout': typeof ApiStripeCheckoutRoute
+  '/api/stripe/portal': typeof ApiStripePortalRoute
+  '/api/stripe/topup': typeof ApiStripeTopupRoute
+  '/api/stripe/webhook': typeof ApiStripeWebhookRoute
+  '/api/vps/destroy': typeof ApiVpsDestroyRoute
+  '/api/vps/logs': typeof ApiVpsLogsRoute
+  '/api/vps/provision': typeof ApiVpsProvisionRoute
+  '/api/vps/status': typeof ApiVpsStatusRoute
+  '/api/vps/verify': typeof ApiVpsVerifyRoute
+  '/api/vps/telegram/approve': typeof ApiVpsTelegramApproveRoute
+  '/api/vps/telegram/connect': typeof ApiVpsTelegramConnectRoute
+  '/api/vps/telegram/status': typeof ApiVpsTelegramStatusRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/sign-in' | '/api/auth/$'
+  fullPaths:
+    | '/'
+    | '/sign-in'
+    | '/api/auth/$'
+    | '/api/stripe/checkout'
+    | '/api/stripe/portal'
+    | '/api/stripe/topup'
+    | '/api/stripe/webhook'
+    | '/api/vps/destroy'
+    | '/api/vps/logs'
+    | '/api/vps/provision'
+    | '/api/vps/status'
+    | '/api/vps/verify'
+    | '/api/vps/telegram/approve'
+    | '/api/vps/telegram/connect'
+    | '/api/vps/telegram/status'
   fileRoutesByTo: FileRoutesByTo
-  to: '/sign-in' | '/' | '/api/auth/$'
-  id: '__root__' | '/_authed' | '/sign-in' | '/_authed/' | '/api/auth/$'
+  to:
+    | '/sign-in'
+    | '/'
+    | '/api/auth/$'
+    | '/api/stripe/checkout'
+    | '/api/stripe/portal'
+    | '/api/stripe/topup'
+    | '/api/stripe/webhook'
+    | '/api/vps/destroy'
+    | '/api/vps/logs'
+    | '/api/vps/provision'
+    | '/api/vps/status'
+    | '/api/vps/verify'
+    | '/api/vps/telegram/approve'
+    | '/api/vps/telegram/connect'
+    | '/api/vps/telegram/status'
+  id:
+    | '__root__'
+    | '/_authed'
+    | '/sign-in'
+    | '/_authed/'
+    | '/api/auth/$'
+    | '/api/stripe/checkout'
+    | '/api/stripe/portal'
+    | '/api/stripe/topup'
+    | '/api/stripe/webhook'
+    | '/api/vps/destroy'
+    | '/api/vps/logs'
+    | '/api/vps/provision'
+    | '/api/vps/status'
+    | '/api/vps/verify'
+    | '/api/vps/telegram/approve'
+    | '/api/vps/telegram/connect'
+    | '/api/vps/telegram/status'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   AuthedRoute: typeof AuthedRouteWithChildren
   SignInRoute: typeof SignInRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiStripeCheckoutRoute: typeof ApiStripeCheckoutRoute
+  ApiStripePortalRoute: typeof ApiStripePortalRoute
+  ApiStripeTopupRoute: typeof ApiStripeTopupRoute
+  ApiStripeWebhookRoute: typeof ApiStripeWebhookRoute
+  ApiVpsDestroyRoute: typeof ApiVpsDestroyRoute
+  ApiVpsLogsRoute: typeof ApiVpsLogsRoute
+  ApiVpsProvisionRoute: typeof ApiVpsProvisionRoute
+  ApiVpsStatusRoute: typeof ApiVpsStatusRoute
+  ApiVpsVerifyRoute: typeof ApiVpsVerifyRoute
+  ApiVpsTelegramApproveRoute: typeof ApiVpsTelegramApproveRoute
+  ApiVpsTelegramConnectRoute: typeof ApiVpsTelegramConnectRoute
+  ApiVpsTelegramStatusRoute: typeof ApiVpsTelegramStatusRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -88,11 +255,95 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedIndexRouteImport
       parentRoute: typeof AuthedRoute
     }
+    '/api/vps/verify': {
+      id: '/api/vps/verify'
+      path: '/api/vps/verify'
+      fullPath: '/api/vps/verify'
+      preLoaderRoute: typeof ApiVpsVerifyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/vps/status': {
+      id: '/api/vps/status'
+      path: '/api/vps/status'
+      fullPath: '/api/vps/status'
+      preLoaderRoute: typeof ApiVpsStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/vps/provision': {
+      id: '/api/vps/provision'
+      path: '/api/vps/provision'
+      fullPath: '/api/vps/provision'
+      preLoaderRoute: typeof ApiVpsProvisionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/vps/logs': {
+      id: '/api/vps/logs'
+      path: '/api/vps/logs'
+      fullPath: '/api/vps/logs'
+      preLoaderRoute: typeof ApiVpsLogsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/vps/destroy': {
+      id: '/api/vps/destroy'
+      path: '/api/vps/destroy'
+      fullPath: '/api/vps/destroy'
+      preLoaderRoute: typeof ApiVpsDestroyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/stripe/webhook': {
+      id: '/api/stripe/webhook'
+      path: '/api/stripe/webhook'
+      fullPath: '/api/stripe/webhook'
+      preLoaderRoute: typeof ApiStripeWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/stripe/topup': {
+      id: '/api/stripe/topup'
+      path: '/api/stripe/topup'
+      fullPath: '/api/stripe/topup'
+      preLoaderRoute: typeof ApiStripeTopupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/stripe/portal': {
+      id: '/api/stripe/portal'
+      path: '/api/stripe/portal'
+      fullPath: '/api/stripe/portal'
+      preLoaderRoute: typeof ApiStripePortalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/stripe/checkout': {
+      id: '/api/stripe/checkout'
+      path: '/api/stripe/checkout'
+      fullPath: '/api/stripe/checkout'
+      preLoaderRoute: typeof ApiStripeCheckoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
       fullPath: '/api/auth/$'
       preLoaderRoute: typeof ApiAuthSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/vps/telegram/status': {
+      id: '/api/vps/telegram/status'
+      path: '/api/vps/telegram/status'
+      fullPath: '/api/vps/telegram/status'
+      preLoaderRoute: typeof ApiVpsTelegramStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/vps/telegram/connect': {
+      id: '/api/vps/telegram/connect'
+      path: '/api/vps/telegram/connect'
+      fullPath: '/api/vps/telegram/connect'
+      preLoaderRoute: typeof ApiVpsTelegramConnectRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/vps/telegram/approve': {
+      id: '/api/vps/telegram/approve'
+      path: '/api/vps/telegram/approve'
+      fullPath: '/api/vps/telegram/approve'
+      preLoaderRoute: typeof ApiVpsTelegramApproveRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -113,6 +364,18 @@ const rootRouteChildren: RootRouteChildren = {
   AuthedRoute: AuthedRouteWithChildren,
   SignInRoute: SignInRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiStripeCheckoutRoute: ApiStripeCheckoutRoute,
+  ApiStripePortalRoute: ApiStripePortalRoute,
+  ApiStripeTopupRoute: ApiStripeTopupRoute,
+  ApiStripeWebhookRoute: ApiStripeWebhookRoute,
+  ApiVpsDestroyRoute: ApiVpsDestroyRoute,
+  ApiVpsLogsRoute: ApiVpsLogsRoute,
+  ApiVpsProvisionRoute: ApiVpsProvisionRoute,
+  ApiVpsStatusRoute: ApiVpsStatusRoute,
+  ApiVpsVerifyRoute: ApiVpsVerifyRoute,
+  ApiVpsTelegramApproveRoute: ApiVpsTelegramApproveRoute,
+  ApiVpsTelegramConnectRoute: ApiVpsTelegramConnectRoute,
+  ApiVpsTelegramStatusRoute: ApiVpsTelegramStatusRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

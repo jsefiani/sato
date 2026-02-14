@@ -1,0 +1,475 @@
+import { createHmac, timingSafeEqual } from 'node:crypto'
+import { eq } from 'drizzle-orm'
+import { db } from '@/db'
+import {
+  auditLog,
+  billingCustomer,
+  billingSubscription,
+  stripeWebhookEvent,
+} from '@/db/schema'
+import {
+  getTopupPacks,
+  grantMonthlyCredits,
+  spendFromTopupPack,
+} from '@/lib/credits'
+import { getEnv } from '@/lib/env'
+import { createId } from '@/lib/ids'
+
+interface StripeCustomerResponse {
+  id: string
+}
+
+interface StripeCheckoutResponse {
+  id: string
+  url: string | null
+}
+
+interface StripeSubscriptionResponse {
+  id: string
+  status: string
+  customer: string
+  items: {
+    data: Array<{
+      price: {
+        id: string
+      }
+    }>
+  }
+  current_period_end: number | null
+  trial_end: number | null
+  canceled_at: number | null
+}
+
+interface StripeEvent {
+  id: string
+  type: string
+  data: {
+    object: Record<string, unknown>
+  }
+}
+
+interface CheckoutSessionObject {
+  id: string | null
+  customer: string | null
+  subscription: string | null
+  mode: string | null
+  metadata: Record<string, string>
+}
+
+interface InvoiceObject {
+  id: string | null
+  customer: string | null
+  subscription: string | null
+}
+
+const STRIPE_API_BASE_URL = 'https://api.stripe.com/v1'
+
+function formEncode(payload: Record<string, string>): string {
+  const body = new URLSearchParams()
+  for (const [key, value] of Object.entries(payload)) {
+    body.set(key, value)
+  }
+  return body.toString()
+}
+
+async function stripeRequest<T>(
+  path: string,
+  method: 'GET' | 'POST',
+  payload?: Record<string, string>,
+): Promise<T> {
+  const response = await fetch(`${STRIPE_API_BASE_URL}${path}`, {
+    method,
+    headers: {
+      Authorization: `Bearer ${getEnv('STRIPE_SECRET_KEY')}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: payload ? formEncode(payload) : undefined,
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new Error(`Stripe API error (${response.status}): ${errorText}`)
+  }
+
+  return (await response.json()) as T
+}
+
+async function ensureStripeCustomer(
+  userId: string,
+  email: string,
+): Promise<string> {
+  const [existingCustomer] = await db
+    .select({ id: billingCustomer.id })
+    .from(billingCustomer)
+    .where(eq(billingCustomer.userId, userId))
+    .limit(1)
+
+  if (existingCustomer) {
+    return existingCustomer.id
+  }
+
+  const customer = await stripeRequest<StripeCustomerResponse>(
+    '/customers',
+    'POST',
+    {
+      email,
+      'metadata[user_id]': userId,
+    },
+  )
+
+  await db.insert(billingCustomer).values({
+    id: customer.id,
+    userId,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  })
+
+  return customer.id
+}
+
+async function getUserIdByCustomerId(
+  customerId: string,
+): Promise<string | null> {
+  const [customer] = await db
+    .select({ userId: billingCustomer.userId })
+    .from(billingCustomer)
+    .where(eq(billingCustomer.id, customerId))
+    .limit(1)
+
+  return customer?.userId ?? null
+}
+
+export async function createCheckoutSession(
+  userId: string,
+  email: string,
+): Promise<string> {
+  const customerId = await ensureStripeCustomer(userId, email)
+  const appUrl = getEnv('APP_URL')
+
+  const checkout = await stripeRequest<StripeCheckoutResponse>(
+    '/checkout/sessions',
+    'POST',
+    {
+      mode: 'subscription',
+      customer: customerId,
+      success_url: `${appUrl}/?checkout=success`,
+      cancel_url: `${appUrl}/?checkout=cancelled`,
+      'line_items[0][price]': getEnv('STRIPE_PRICE_ID'),
+      'line_items[0][quantity]': '1',
+      'subscription_data[trial_period_days]': '3',
+      'metadata[user_id]': userId,
+      'metadata[checkout_kind]': 'subscription',
+    },
+  )
+
+  if (!checkout.url) {
+    throw new Error('Stripe checkout did not return a URL')
+  }
+
+  return checkout.url
+}
+
+export async function createTopupCheckoutSession(
+  userId: string,
+  email: string,
+  packId: string,
+): Promise<string> {
+  const customerId = await ensureStripeCustomer(userId, email)
+  const pack = getTopupPacks().find((entry) => entry.id === packId)
+
+  if (!pack) {
+    throw new Error('Unknown top-up pack')
+  }
+
+  const appUrl = getEnv('APP_URL')
+
+  const checkout = await stripeRequest<StripeCheckoutResponse>(
+    '/checkout/sessions',
+    'POST',
+    {
+      mode: 'payment',
+      customer: customerId,
+      success_url: `${appUrl}/?topup=success`,
+      cancel_url: `${appUrl}/?topup=cancelled`,
+      'line_items[0][price]': pack.stripePriceId,
+      'line_items[0][quantity]': '1',
+      'metadata[user_id]': userId,
+      'metadata[checkout_kind]': 'topup',
+      'metadata[topup_pack_id]': pack.id,
+    },
+  )
+
+  if (!checkout.url) {
+    throw new Error('Stripe checkout did not return a URL')
+  }
+
+  return checkout.url
+}
+
+export async function createPortalSession(userId: string): Promise<string> {
+  const [customer] = await db
+    .select({ id: billingCustomer.id })
+    .from(billingCustomer)
+    .where(eq(billingCustomer.userId, userId))
+    .limit(1)
+
+  if (!customer) {
+    throw new Error('No Stripe customer found for this user')
+  }
+
+  const portal = await stripeRequest<{ url: string }>(
+    '/billing_portal/sessions',
+    'POST',
+    {
+      customer: customer.id,
+      return_url: `${getEnv('APP_URL')}/`,
+    },
+  )
+
+  return portal.url
+}
+
+function parseStripeHeader(signatureHeader: string): {
+  timestamp: string
+  signature: string
+} {
+  const items = signatureHeader.split(',')
+  const timestamp = items.find((item) => item.startsWith('t='))?.slice(2)
+  const signature = items.find((item) => item.startsWith('v1='))?.slice(3)
+
+  if (!timestamp || !signature) {
+    throw new Error('Invalid Stripe signature header')
+  }
+
+  return { timestamp, signature }
+}
+
+export function verifyStripeWebhookSignature(
+  payload: string,
+  signatureHeader: string,
+): void {
+  const secret = getEnv('STRIPE_WEBHOOK_SECRET')
+  const { timestamp, signature } = parseStripeHeader(signatureHeader)
+  const signedPayload = `${timestamp}.${payload}`
+  const digest = createHmac('sha256', secret)
+    .update(signedPayload)
+    .digest('hex')
+
+  const expected = Buffer.from(digest, 'utf8')
+  const provided = Buffer.from(signature, 'utf8')
+
+  if (
+    expected.length !== provided.length ||
+    !timingSafeEqual(expected, provided)
+  ) {
+    throw new Error('Invalid Stripe webhook signature')
+  }
+}
+
+async function saveSubscription(
+  userId: string,
+  subscription: StripeSubscriptionResponse,
+) {
+  const [customer] = await db
+    .select({ id: billingCustomer.id })
+    .from(billingCustomer)
+    .where(eq(billingCustomer.id, subscription.customer))
+    .limit(1)
+
+  if (!customer) {
+    await db.insert(billingCustomer).values({
+      id: subscription.customer,
+      userId,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+  }
+
+  await db
+    .insert(billingSubscription)
+    .values({
+      id: subscription.id,
+      userId,
+      customerId: subscription.customer,
+      stripePriceId: subscription.items.data[0]?.price.id ?? null,
+      status: subscription.status,
+      currentPeriodEnd: subscription.current_period_end
+        ? new Date(subscription.current_period_end * 1000)
+        : null,
+      trialEndsAt: subscription.trial_end
+        ? new Date(subscription.trial_end * 1000)
+        : null,
+      canceledAt: subscription.canceled_at
+        ? new Date(subscription.canceled_at * 1000)
+        : null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .onConflictDoUpdate({
+      target: billingSubscription.userId,
+      set: {
+        id: subscription.id,
+        customerId: subscription.customer,
+        stripePriceId: subscription.items.data[0]?.price.id ?? null,
+        status: subscription.status,
+        currentPeriodEnd: subscription.current_period_end
+          ? new Date(subscription.current_period_end * 1000)
+          : null,
+        trialEndsAt: subscription.trial_end
+          ? new Date(subscription.trial_end * 1000)
+          : null,
+        canceledAt: subscription.canceled_at
+          ? new Date(subscription.canceled_at * 1000)
+          : null,
+        updatedAt: new Date(),
+      },
+    })
+}
+
+async function retrieveSubscription(
+  subscriptionId: string,
+): Promise<StripeSubscriptionResponse> {
+  return stripeRequest<StripeSubscriptionResponse>(
+    `/subscriptions/${subscriptionId}`,
+    'GET',
+  )
+}
+
+function readCheckoutSession(
+  object: Record<string, unknown>,
+): CheckoutSessionObject {
+  const metadataRaw = object.metadata
+  const metadata =
+    metadataRaw && typeof metadataRaw === 'object'
+      ? Object.entries(metadataRaw).reduce<Record<string, string>>(
+          (acc, [key, value]) => {
+            if (typeof value === 'string') {
+              acc[key] = value
+            }
+            return acc
+          },
+          {},
+        )
+      : {}
+
+  return {
+    id: typeof object.id === 'string' ? object.id : null,
+    customer: typeof object.customer === 'string' ? object.customer : null,
+    subscription:
+      typeof object.subscription === 'string' ? object.subscription : null,
+    mode: typeof object.mode === 'string' ? object.mode : null,
+    metadata,
+  }
+}
+
+function readInvoice(object: Record<string, unknown>): InvoiceObject {
+  return {
+    id: typeof object.id === 'string' ? object.id : null,
+    customer: typeof object.customer === 'string' ? object.customer : null,
+    subscription:
+      typeof object.subscription === 'string' ? object.subscription : null,
+  }
+}
+
+async function markStripeEventProcessed(event: StripeEvent): Promise<boolean> {
+  const [existing] = await db
+    .select({ id: stripeWebhookEvent.id })
+    .from(stripeWebhookEvent)
+    .where(eq(stripeWebhookEvent.id, event.id))
+    .limit(1)
+
+  if (existing) {
+    return false
+  }
+
+  await db.insert(stripeWebhookEvent).values({
+    id: event.id,
+    eventType: event.type,
+    processedAt: new Date(),
+  })
+
+  return true
+}
+
+export async function processStripeEvent(event: StripeEvent): Promise<void> {
+  const shouldProcess = await markStripeEventProcessed(event)
+  if (!shouldProcess) {
+    return
+  }
+
+  if (event.type === 'checkout.session.completed') {
+    const checkoutSession = readCheckoutSession(event.data.object)
+
+    if (checkoutSession.metadata.checkout_kind === 'topup') {
+      const userId = checkoutSession.metadata.user_id
+      const packId = checkoutSession.metadata.topup_pack_id
+
+      if (userId && packId) {
+        await spendFromTopupPack(userId, packId, {
+          checkoutSessionId: checkoutSession.id,
+          customerId: checkoutSession.customer,
+        })
+      }
+    }
+
+    if (checkoutSession.mode === 'subscription') {
+      if (!checkoutSession.subscription || !checkoutSession.customer) {
+        return
+      }
+
+      const userId = await getUserIdByCustomerId(checkoutSession.customer)
+      if (!userId) {
+        return
+      }
+
+      const subscription = await retrieveSubscription(
+        checkoutSession.subscription,
+      )
+      await saveSubscription(userId, subscription)
+    }
+  }
+
+  if (
+    event.type === 'customer.subscription.updated' ||
+    event.type === 'customer.subscription.deleted'
+  ) {
+    const subscription = event.data
+      .object as unknown as StripeSubscriptionResponse
+    const userId = await getUserIdByCustomerId(subscription.customer)
+
+    if (userId) {
+      await saveSubscription(userId, subscription)
+    }
+  }
+
+  if (event.type === 'invoice.payment_succeeded') {
+    const invoice = readInvoice(event.data.object)
+    if (invoice.customer) {
+      const userId = await getUserIdByCustomerId(invoice.customer)
+      if (userId) {
+        await grantMonthlyCredits(userId, {
+          invoiceId: invoice.id,
+          subscriptionId: invoice.subscription,
+        })
+      }
+    }
+  }
+
+  if (event.type === 'invoice.payment_failed') {
+    const invoice = readInvoice(event.data.object)
+    if (invoice.customer && invoice.subscription) {
+      const userId = await getUserIdByCustomerId(invoice.customer)
+      if (userId) {
+        const subscription = await retrieveSubscription(invoice.subscription)
+        await saveSubscription(userId, subscription)
+      }
+    }
+  }
+
+  await db.insert(auditLog).values({
+    id: createId(),
+    action: 'stripe.webhook.processed',
+    metadata: JSON.stringify({ eventId: event.id, eventType: event.type }),
+    createdAt: new Date(),
+  })
+}

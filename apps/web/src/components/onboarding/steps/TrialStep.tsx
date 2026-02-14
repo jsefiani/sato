@@ -1,0 +1,158 @@
+import { motion } from 'motion/react'
+import { Gift, Check, CreditCard } from 'lucide-react'
+import type { AccessState } from '../onboarding-utils'
+
+interface TrialStepProps {
+  access: AccessState
+  onContinue: () => void
+  onSubscribe: () => void
+  loading: boolean
+}
+
+const container = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: { staggerChildren: 0.08, delayChildren: 0.1 },
+  },
+} as const
+
+const item = {
+  hidden: { opacity: 0, y: 16 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: { type: 'spring' as const, stiffness: 260, damping: 20 },
+  },
+}
+
+const included = [
+  'Your own private AI assistant',
+  'Unlimited conversations',
+  'Telegram integration',
+  'No credit card required',
+]
+
+export default function TrialStep({
+  access,
+  onContinue,
+  onSubscribe,
+  loading,
+}: TrialStepProps) {
+  const hasAccess = access.hasAccess
+  const isTrialing = access.status === 'trialing'
+  const daysLeft = access.trialDaysRemaining
+
+  return (
+    <motion.div
+      variants={container}
+      initial="hidden"
+      animate="show"
+      className="flex flex-col items-center text-center"
+    >
+      <motion.div
+        variants={item}
+        className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/[0.04]"
+      >
+        <Gift className="h-7 w-7 text-white/80" />
+      </motion.div>
+
+      <motion.h1
+        variants={item}
+        className="mt-6 text-3xl font-light tracking-tight text-white"
+      >
+        {hasAccess ? 'Your free trial' : 'Subscribe to continue'}
+      </motion.h1>
+
+      {hasAccess && isTrialing ? (
+        <>
+          <motion.p
+            variants={item}
+            className="mt-3 max-w-sm text-[15px] leading-relaxed text-zinc-500"
+          >
+            Great news — you have a{' '}
+            <span className="font-medium text-white">
+              {daysLeft}-day free trial
+            </span>
+            . Explore everything, no strings attached.
+          </motion.p>
+
+          <motion.div
+            variants={item}
+            className="mt-8 w-full max-w-sm space-y-2.5"
+          >
+            {included.map((text) => (
+              <div
+                key={text}
+                className="flex items-center gap-3 text-left"
+              >
+                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/[0.03]">
+                  <Check className="h-3 w-3 text-zinc-300" />
+                </div>
+                <span className="text-sm text-zinc-400">
+                  {text}
+                </span>
+              </div>
+            ))}
+          </motion.div>
+
+          <motion.button
+            variants={item}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={onContinue}
+            className="mt-10 h-12 w-full max-w-sm rounded-2xl bg-white text-[15px] font-semibold text-zinc-950 transition-colors hover:bg-zinc-200"
+          >
+            Continue
+          </motion.button>
+        </>
+      ) : hasAccess ? (
+        <>
+          <motion.p
+            variants={item}
+            className="mt-3 max-w-sm text-[15px] leading-relaxed text-zinc-500"
+          >
+            You have an active subscription. Let's continue
+            setting up your assistant.
+          </motion.p>
+
+          <motion.button
+            variants={item}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={onContinue}
+            className="mt-10 h-12 w-full max-w-sm rounded-2xl bg-white text-[15px] font-semibold text-zinc-950 transition-colors hover:bg-zinc-200"
+          >
+            Continue
+          </motion.button>
+        </>
+      ) : (
+        <>
+          <motion.p
+            variants={item}
+            className="mt-3 max-w-sm text-[15px] leading-relaxed text-zinc-500"
+          >
+            Your free trial has ended. Subscribe to keep your
+            assistant running.
+          </motion.p>
+
+          <motion.button
+            variants={item}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={onSubscribe}
+            disabled={loading}
+            className="mt-10 h-12 w-full max-w-sm rounded-2xl bg-white text-[15px] font-semibold text-zinc-950 transition-colors hover:bg-zinc-200 disabled:opacity-60"
+          >
+            <span className="inline-flex items-center gap-2">
+              <CreditCard className="h-4 w-4" />
+              {loading
+                ? 'Opening checkout…'
+                : 'Subscribe to continue'}
+            </span>
+          </motion.button>
+        </>
+      )}
+    </motion.div>
+  )
+}
