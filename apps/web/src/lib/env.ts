@@ -19,8 +19,6 @@ const envSchema = z.object({
   HETZNER_API_TOKEN: z.string().min(1),
   HETZNER_SSH_KEY_ID: z.string().min(1),
   HETZNER_SNAPSHOT_ID: z.string().min(1),
-  HETZNER_SSH_PRIVATE_KEY_PATH: z.string().optional(),
-  HETZNER_SSH_PRIVATE_KEY: z.string().optional(),
 
   STRIPE_SECRET_KEY: z.string().min(1),
   STRIPE_PRICE_ID: z.string().min(1),
@@ -33,10 +31,6 @@ const envSchema = z.object({
 
   VPS_SSH_USER: z.string().default('root'),
   VPS_SSH_PORT: z.coerce.number().int().min(1).default(22),
-  VPS_SSH_STRICT_HOST_KEY_CHECKING: z
-    .enum(['yes', 'accept-new', 'no'])
-    .default('accept-new'),
-  VPS_SSH_KNOWN_HOSTS_PATH: z.string().optional(),
 
   TRIAL_INCLUDED_CREDITS: z.coerce.number().int().min(0).default(5000),
   MONTHLY_INCLUDED_CREDITS: z.coerce.number().int().min(0).default(20_000),
@@ -52,15 +46,6 @@ function createEnv(): Env {
       .map((issue) => `  ${issue.path.join('.')}: ${issue.message}`)
       .join('\n')
     throw new Error(`Invalid environment variables:\n${formatted}`)
-  }
-
-  if (
-    !result.data.HETZNER_SSH_PRIVATE_KEY_PATH &&
-    !result.data.HETZNER_SSH_PRIVATE_KEY
-  ) {
-    throw new Error(
-      'Either HETZNER_SSH_PRIVATE_KEY_PATH or HETZNER_SSH_PRIVATE_KEY must be set',
-    )
   }
 
   return result.data

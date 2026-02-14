@@ -154,18 +154,14 @@ function buildRootShellCommand(command: string): string {
 }
 
 async function runRootShellCommand(
-  ipv4Address: string,
+  host: string,
   command: string,
   opts?: {
     timeoutMs?: number
     redact?: Array<string>
   },
 ): Promise<string> {
-  return await runVpsSshCommand(
-    ipv4Address,
-    buildRootShellCommand(command),
-    opts,
-  )
+  return await runVpsSshCommand(host, buildRootShellCommand(command), opts)
 }
 
 function buildOpenclawUserCommand(command: string): string {
@@ -174,29 +170,25 @@ function buildOpenclawUserCommand(command: string): string {
 }
 
 async function runOpenClawUserCommand(
-  ipv4Address: string,
+  host: string,
   command: string,
   opts?: {
     timeoutMs?: number
     redact?: Array<string>
   },
 ): Promise<string> {
-  return await runVpsSshCommand(
-    ipv4Address,
-    buildOpenclawUserCommand(command),
-    opts,
-  )
+  return await runVpsSshCommand(host, buildOpenclawUserCommand(command), opts)
 }
 
 async function runOpenclawCommand(
-  ipv4Address: string,
+  host: string,
   command: string,
   opts?: {
     timeoutMs?: number
     redact?: Array<string>
   },
 ): Promise<string> {
-  return await runOpenClawUserCommand(ipv4Address, `openclaw ${command}`, opts)
+  return await runOpenClawUserCommand(host, `openclaw ${command}`, opts)
 }
 
 function firstNonEmptyLine(value: string | null): string | null {
@@ -291,11 +283,9 @@ function extractTelegramPluginDiagnostics(pluginsRaw: string): {
   }
 }
 
-async function tryEnableTelegramPlugin(
-  ipv4Address: string,
-): Promise<string | null> {
+async function tryEnableTelegramPlugin(host: string): Promise<string | null> {
   try {
-    await runOpenclawCommand(ipv4Address, 'plugins enable telegram', {
+    await runOpenclawCommand(host, 'plugins enable telegram', {
       timeoutMs: 25_000,
     })
     return null
@@ -305,7 +295,7 @@ async function tryEnableTelegramPlugin(
 }
 
 async function collectTelegramRuntimeDiagnostics(
-  ipv4Address: string,
+  host: string,
 ): Promise<TelegramRuntimeDiagnostics> {
   const [
     pathResult,
@@ -314,23 +304,19 @@ async function collectTelegramRuntimeDiagnostics(
     pairingResult,
     pluginsResult,
   ] = await Promise.allSettled([
-    runRootShellCommand(ipv4Address, 'command -v openclaw || true', {
+    runRootShellCommand(host, 'command -v openclaw || true', {
       timeoutMs: 15_000,
     }),
-    runOpenclawCommand(ipv4Address, '--version 2>/dev/null || true', {
+    runOpenclawCommand(host, '--version 2>/dev/null || true', {
       timeoutMs: 15_000,
     }),
-    runOpenclawCommand(ipv4Address, 'channels list 2>&1 || true', {
+    runOpenclawCommand(host, 'channels list 2>&1 || true', {
       timeoutMs: 20_000,
     }),
-    runOpenclawCommand(
-      ipv4Address,
-      'pairing list telegram --json 2>&1 || true',
-      {
-        timeoutMs: 20_000,
-      },
-    ),
-    runOpenclawCommand(ipv4Address, 'plugins list --json 2>&1 || true', {
+    runOpenclawCommand(host, 'pairing list telegram --json 2>&1 || true', {
+      timeoutMs: 20_000,
+    }),
+    runOpenclawCommand(host, 'plugins list --json 2>&1 || true', {
       timeoutMs: 20_000,
     }),
   ])
@@ -369,23 +355,23 @@ async function collectTelegramRuntimeDiagnostics(
 }
 
 async function attemptTelegramRuntimeRepair(
-  ipv4Address: string,
+  host: string,
 ): Promise<TelegramRepairAttempt> {
-  const before = await collectTelegramRuntimeDiagnostics(ipv4Address)
+  const before = await collectTelegramRuntimeDiagnostics(host)
 
-  let pluginEnableError = await tryEnableTelegramPlugin(ipv4Address)
+  let pluginEnableError = await tryEnableTelegramPlugin(host)
   let updateError: string | null = null
   let reinstallError: string | null = null
 
   try {
-    await runRootShellCommand(ipv4Address, 'openclaw update --channel stable', {
+    await runRootShellCommand(host, 'openclaw update --channel stable', {
       timeoutMs: OPENCLAW_REPAIR_TIMEOUT_MS,
     })
   } catch (error) {
     updateError = errorMessage(error)
   }
 
-  const afterUpdate = await collectTelegramRuntimeDiagnostics(ipv4Address)
+  const afterUpdate = await collectTelegramRuntimeDiagnostics(host)
   const stillUnsupported =
     afterUpdate.pairingUnknownChannel ||
     afterUpdate.telegramPluginLoaded === false
@@ -393,7 +379,7 @@ async function attemptTelegramRuntimeRepair(
   if (stillUnsupported) {
     try {
       await runRootShellCommand(
-        ipv4Address,
+        host,
         'curl -fsSL https://openclaw.ai/install.sh | bash -s -- --no-prompt --no-onboard --no-gum --version latest',
         { timeoutMs: OPENCLAW_REPAIR_TIMEOUT_MS },
       )
@@ -401,23 +387,23 @@ async function attemptTelegramRuntimeRepair(
       reinstallError = errorMessage(error)
     }
 
-    const enableAfterReinstallError = await tryEnableTelegramPlugin(ipv4Address)
+    const enableAfterReinstallError = await tryEnableTelegramPlugin(host)
     if (enableAfterReinstallError) {
       pluginEnableError = pluginEnableError ?? enableAfterReinstallError
     }
   }
 
-  await runOpenclawCommand(ipv4Address, 'doctor --non-interactive || true', {
+  await runOpenclawCommand(host, 'doctor --non-interactive || true', {
     timeoutMs: 45_000,
   }).catch(() => {})
 
   await runRootShellCommand(
-    ipv4Address,
+    host,
     'if command -v systemctl >/dev/null 2>&1; then systemctl restart openclaw-gateway || true; fi',
     { timeoutMs: 30_000 },
   ).catch(() => {})
 
-  const after = await collectTelegramRuntimeDiagnostics(ipv4Address)
+  const after = await collectTelegramRuntimeDiagnostics(host)
 
   return {
     before,
@@ -462,7 +448,7 @@ function buildTelegramRepairFailureError(
 }
 
 async function runTelegramCommandWithAutoRepair(
-  ipv4Address: string,
+  host: string,
   command: string,
   opts?: {
     timeoutMs?: number
@@ -470,7 +456,7 @@ async function runTelegramCommandWithAutoRepair(
   },
 ): Promise<void> {
   try {
-    await runOpenclawCommand(ipv4Address, command, opts)
+    await runOpenclawCommand(host, command, opts)
     return
   } catch (error) {
     const initialMessage = errorMessage(error)
@@ -479,10 +465,10 @@ async function runTelegramCommandWithAutoRepair(
     }
   }
 
-  await tryEnableTelegramPlugin(ipv4Address)
+  await tryEnableTelegramPlugin(host)
 
   try {
-    await runOpenclawCommand(ipv4Address, command, opts)
+    await runOpenclawCommand(host, command, opts)
     return
   } catch (error) {
     const message = errorMessage(error)
@@ -491,10 +477,10 @@ async function runTelegramCommandWithAutoRepair(
     }
   }
 
-  const repair = await attemptTelegramRuntimeRepair(ipv4Address)
+  const repair = await attemptTelegramRuntimeRepair(host)
 
   try {
-    await runOpenclawCommand(ipv4Address, command, opts)
+    await runOpenclawCommand(host, command, opts)
   } catch (error) {
     throw buildTelegramRepairFailureError(error, repair)
   }
@@ -1170,13 +1156,13 @@ function mergeTelegramStatusSummary(
 }
 
 export async function verifyOpenClawHost(
-  ipv4Address: string,
+  host: string,
 ): Promise<OpenClawVerifyResult> {
   const [gatewayStatusRaw, healthRaw] = await Promise.all([
-    runOpenclawCommand(ipv4Address, 'gateway status --json', {
+    runOpenclawCommand(host, 'gateway status --json', {
       timeoutMs: 30_000,
     }),
-    runOpenclawCommand(ipv4Address, 'health --json', {
+    runOpenclawCommand(host, 'health --json', {
       timeoutMs: 30_000,
     }),
   ])
@@ -1227,17 +1213,17 @@ export async function verifyOpenClawHost(
 }
 
 export async function getTelegramStatus(
-  ipv4Address: string,
+  host: string,
 ): Promise<TelegramStatusSummary> {
   const [capabilitiesResult, pairingResult] = await Promise.allSettled([
     runOpenclawCommand(
-      ipv4Address,
+      host,
       'channels capabilities --channel telegram --json',
       {
         timeoutMs: 30_000,
       },
     ),
-    runOpenclawCommand(ipv4Address, 'pairing list telegram --json', {
+    runOpenclawCommand(host, 'pairing list telegram --json', {
       timeoutMs: 20_000,
     }),
   ])
@@ -1262,10 +1248,10 @@ export async function getTelegramStatus(
     capabilitiesError &&
     isUnsupportedTelegramChannelError(errorMessage(capabilitiesError))
   ) {
-    await tryEnableTelegramPlugin(ipv4Address)
+    await tryEnableTelegramPlugin(host)
     try {
       capabilitiesRaw = await runOpenclawCommand(
-        ipv4Address,
+        host,
         'channels capabilities --channel telegram --json',
         {
           timeoutMs: 30_000,
@@ -1291,7 +1277,7 @@ export async function getTelegramStatus(
   let channelsStatusError: unknown = null
   try {
     channelsStatusRaw = await runOpenclawCommand(
-      ipv4Address,
+      host,
       'channels status --probe --json',
       {
         timeoutMs: 30_000,
@@ -1347,12 +1333,12 @@ export async function getTelegramStatus(
 }
 
 export async function connectTelegram(
-  ipv4Address: string,
+  host: string,
   botToken: string,
 ): Promise<TelegramStatusSummary> {
   const escapedToken = escapeShellArg(botToken)
   await runTelegramCommandWithAutoRepair(
-    ipv4Address,
+    host,
     `channels add --channel telegram --token ${escapedToken}`,
     {
       timeoutMs: 40_000,
@@ -1360,21 +1346,21 @@ export async function connectTelegram(
     },
   )
 
-  return await getTelegramStatus(ipv4Address)
+  return await getTelegramStatus(host)
 }
 
 export async function approveTelegramPairing(
-  ipv4Address: string,
+  host: string,
   code: string,
 ): Promise<TelegramStatusSummary> {
   const escapedCode = escapeShellArg(code)
   await runTelegramCommandWithAutoRepair(
-    ipv4Address,
+    host,
     `pairing approve telegram ${escapedCode} --notify`,
     {
       timeoutMs: 20_000,
     },
   )
 
-  return await getTelegramStatus(ipv4Address)
+  return await getTelegramStatus(host)
 }

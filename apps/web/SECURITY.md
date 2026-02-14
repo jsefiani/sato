@@ -96,7 +96,7 @@ Key points:
 
 - **Database SSL**: PostgreSQL connections use SSL with certificate validation by default (`rejectUnauthorized: true`). Opt-out via `DATABASE_SSL=false` for local development only.
 
-- **SSH known hosts persistence**: Known hosts are persisted across deploys (Docker volume) to detect MITM attacks on the Tailscale SSH connections.
+- **Tailscale SSH authentication**: VPS SSH access uses Tailscale SSH — no private keys or known-hosts files. The Tailscale daemon authenticates connections based on node identity and ACL grants. SSH host key verification is handled at the WireGuard tunnel layer.
 
 ### Payment & Billing
 
@@ -148,20 +148,7 @@ The second command prints a URL — open it in your browser to authenticate with
 
 Docker containers on the host can reach Tailscale IPs (`100.x.y.z`) through the default bridge NAT — no Docker networking changes needed.
 
-### 3. Docker Volume for SSH Known Hosts
-
-The Dockerfile already persists SSH known hosts in `/app/data/` (owned by `node`). If you need a separate volume, mount it and point `VPS_SSH_KNOWN_HOSTS_PATH` to a **file** inside it:
-
-```yaml
-volumes:
-  - sato-ssh-known-hosts:/app/data
-```
-
-```env
-VPS_SSH_KNOWN_HOSTS_PATH=/app/data/sato-vps-known-hosts
-```
-
-### 4. `APP_ENCRYPTION_KEY` Generation
+### 3. `APP_ENCRYPTION_KEY` Generation
 
 Generate a 32-byte base64-encoded encryption key:
 
@@ -171,7 +158,7 @@ openssl rand -base64 32
 
 Set the result as `APP_ENCRYPTION_KEY` in your environment.
 
-### 5. Stripe Webhook Endpoint
+### 4. Stripe Webhook Endpoint
 
 Configure a webhook endpoint in the Stripe dashboard pointing to:
 
@@ -198,8 +185,6 @@ Set the signing secret as `STRIPE_WEBHOOK_SECRET`.
 ---
 
 ## Future Improvements
-
-- **Per-user SSH keys**: Currently all VPS SSH access uses the same Hetzner SSH key. Per-user keys would add another isolation layer, though with Tailscale ACLs this is low priority.
 
 - **Redis-backed rate limiting**: The current in-memory rate limiter resets on deploy and doesn't share state across instances. A Redis backend would be needed for multi-instance deployments.
 

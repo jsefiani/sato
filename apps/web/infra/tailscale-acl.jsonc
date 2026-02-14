@@ -25,4 +25,19 @@
     // Admin access for debugging
     { "action": "accept", "src": ["autogroup:admin"], "dst": ["*:*"] },
   ],
+
+  "ssh": [
+    {
+      "action": "accept",
+      "src": ["tag:sato-server"],
+      "dst": ["tag:sato-vps"],
+      "users": ["root"],
+    },
+    {
+      "action": "accept",
+      "src": ["autogroup:admin"],
+      "dst": ["tag:sato-vps"],
+      "users": ["autogroup:nonroot", "root"],
+    },
+  ],
 }

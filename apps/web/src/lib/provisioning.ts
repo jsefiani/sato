@@ -84,7 +84,7 @@ function buildSnapshotCloudInit(
     '      set +a',
     '',
     '      # Join Tailscale mesh',
-    `      tailscale up --authkey '${safeTsKey}' --hostname "sato-vps-$(hostname -s)"`,
+    `      tailscale up --ssh --authkey '${safeTsKey}' --hostname "sato-vps-$(hostname -s)"`,
     '',
     '      # Configure OpenClaw as unprivileged user (already installed in snapshot)',
     '      sudo -u openclaw env HOME=/opt/openclaw \\',
