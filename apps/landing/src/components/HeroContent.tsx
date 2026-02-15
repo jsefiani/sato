@@ -34,7 +34,7 @@ export default function HeroContent() {
 
       <div className="mt-8">
         <a
-          href={import.meta.env.PUBLIC_APP_URL || 'https://www.app.asksato.ai'}
+          href={import.meta.env.PUBLIC_APP_URL || 'https://app.asksato.ai'}
           className="inline-flex rounded-full bg-primary px-8 py-3 text-base font-medium text-primary-foreground transition-colors hover:bg-primary/90"
         >
           Try Sato
