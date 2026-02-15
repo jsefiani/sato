@@ -32,6 +32,7 @@ function telegramProvisioningError(status: string): string | null {
 }
 
 const CHECK_INTERVAL_MS = 5_000
+const MAX_BACKOFF_MS = 60_000
 const KEEPALIVE_INTERVAL_MS = 30_000
 
 export const Route = createFileRoute('/api/vps/telegram/stream')({
@@ -47,6 +48,7 @@ export const Route = createFileRoute('/api/vps/telegram/stream')({
             'telegram',
             session.user.id,
           )
+
           if (rateLimited) return rateLimited
 
           const userId = session.user.id
@@ -61,6 +63,7 @@ export const Route = createFileRoute('/api/vps/telegram/stream')({
             .from(vpsInstance)
             .where(eq(vpsInstance.userId, userId))
             .limit(1)
+
           const instance = rows.at(0)
 
           if (!instance) {
@@ -116,6 +119,8 @@ export const Route = createFileRoute('/api/vps/telegram/stream')({
 
               abortSignal.addEventListener('abort', cleanup, { once: true })
 
+              let delay = CHECK_INTERVAL_MS
+
               async function check() {
                 try {
                   if (!instance) {
@@ -156,14 +161,16 @@ export const Route = createFileRoute('/api/vps/telegram/stream')({
                   }
 
                   send(`data: ${JSON.stringify(payload)}\n\n`)
+                  delay = CHECK_INTERVAL_MS
                 } catch (error) {
                   send(
                     `event: error\ndata: ${JSON.stringify({ error: safeErrorMessage(error) })}\n\n`,
                   )
+                  delay = Math.min(delay * 2, MAX_BACKOFF_MS)
                 }
 
                 if (!abortSignal.aborted) {
-                  checkTimer = setTimeout(check, CHECK_INTERVAL_MS)
+                  checkTimer = setTimeout(check, delay)
                 }
               }
 

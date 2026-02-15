@@ -5,6 +5,7 @@ import { assertRateLimit } from '@/lib/rate-limit'
 import { requireSession } from '@/lib/session'
 
 const CHECK_INTERVAL_MS = 5_000
+const MAX_BACKOFF_MS = 60_000
 const KEEPALIVE_INTERVAL_MS = 30_000
 
 export const Route = createFileRoute('/api/vps/status-stream')({
@@ -57,19 +58,23 @@ export const Route = createFileRoute('/api/vps/status-stream')({
 
               abortSignal.addEventListener('abort', cleanup, { once: true })
 
+              let delay = CHECK_INTERVAL_MS
+
               async function check() {
                 try {
                   const { provisionedAt: _, ...payload } =
                     await computeVpsProbeState({ userId })
                   send(`data: ${JSON.stringify(payload)}\n\n`)
+                  delay = CHECK_INTERVAL_MS
                 } catch (error) {
                   send(
                     `event: error\ndata: ${JSON.stringify({ error: safeErrorMessage(error) })}\n\n`,
                   )
+                  delay = Math.min(delay * 2, MAX_BACKOFF_MS)
                 }
 
                 if (!abortSignal.aborted) {
-                  checkTimer = setTimeout(check, CHECK_INTERVAL_MS)
+                  checkTimer = setTimeout(check, delay)
                 }
               }
 
