@@ -35,6 +35,7 @@ const CHECK_INTERVAL_MS = 5_000
 const KEEPALIVE_INTERVAL_MS = 30_000
 
 export const Route = createFileRoute('/api/vps/telegram/stream')({
+  ssr: false,
   server: {
     handlers: {
       GET: async ({ request }) => {

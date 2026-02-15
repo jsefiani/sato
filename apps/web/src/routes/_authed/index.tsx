@@ -1,7 +1,7 @@
 import { useCallback } from 'react'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import type { OnboardingStep } from '@/components/onboarding/onboarding-utils'
-import NewDashboard from '@/components/dashboard/NewDashboard'
+import Dashboard from '@/components/dashboard/Dashboard'
 import DevVpsLogsWidget from '@/components/dev/DevVpsLogsWidget'
 import { ONBOARDING_STEPS } from '@/components/onboarding/onboarding-utils'
 import OnboardingWizard from '@/components/onboarding/OnboardingWizard'
@@ -43,7 +43,7 @@ function HomePage() {
       {urlStep ? (
         <OnboardingWizard urlStep={urlStep} onNavigate={handleNavigate} />
       ) : (
-        <NewDashboard />
+        <Dashboard />
       )}
       {import.meta.env.DEV ? <DevVpsLogsWidget /> : null}
     </>

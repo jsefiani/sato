@@ -1,11 +1,7 @@
 import { motion } from 'motion/react'
 import { MessageCircle, Shield, Zap } from 'lucide-react'
-
-interface WelcomeStepProps {
-  userName: string
-  userImage: string | null
-  onContinue: () => void
-}
+import { containerVariants, itemVariants } from '../onboarding-animations'
+import { useOnboardingContext } from '../onboarding-context'
 
 const features = [
   {
@@ -25,38 +21,18 @@ const features = [
   },
 ]
 
-const container = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: { staggerChildren: 0.1, delayChildren: 0.15 },
-  },
-} as const
-
-const item = {
-  hidden: { opacity: 0, y: 16 },
-  show: {
-    opacity: 1,
-    y: 0,
-    transition: { type: 'spring' as const, stiffness: 260, damping: 20 },
-  },
-}
-
-export default function WelcomeStep({
-  userName,
-  userImage,
-  onContinue,
-}: WelcomeStepProps) {
+export default function WelcomeStep() {
+  const { userName, userImage, handleWelcomeContinue } = useOnboardingContext()
   const firstName = userName.split(' ')[0]
 
   return (
     <motion.div
-      variants={container}
+      variants={containerVariants}
       initial="hidden"
       animate="show"
       className="flex flex-col items-center text-center"
     >
-      <motion.div variants={item}>
+      <motion.div variants={itemVariants}>
         {userImage ? (
           <img
             src={userImage}
@@ -71,25 +47,28 @@ export default function WelcomeStep({
       </motion.div>
 
       <motion.h1
-        variants={item}
+        variants={itemVariants}
         className="mt-7 text-4xl font-light tracking-tight text-white"
       >
         Welcome, {firstName}
       </motion.h1>
 
       <motion.p
-        variants={item}
+        variants={itemVariants}
         className="mt-3 max-w-sm text-[15px] leading-relaxed text-zinc-400"
       >
         Sato gives you a personal AI assistant on its own private and secure
         server. Let's get yours set up.
       </motion.p>
 
-      <motion.div variants={item} className="mt-10 grid w-full max-w-sm gap-3">
+      <motion.div
+        variants={itemVariants}
+        className="mt-10 grid w-full max-w-sm gap-3"
+      >
         {features.map((feature) => (
           <motion.div
             key={feature.title}
-            variants={item}
+            variants={itemVariants}
             className="flex items-start gap-4 rounded-2xl border border-white/[0.06] bg-zinc-900/50 p-4 text-left backdrop-blur-sm"
           >
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/[0.04]">
@@ -106,10 +85,10 @@ export default function WelcomeStep({
       </motion.div>
 
       <motion.button
-        variants={item}
+        variants={itemVariants}
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
-        onClick={onContinue}
+        onClick={handleWelcomeContinue}
         className="mt-10 h-12 w-full max-w-sm rounded-2xl bg-white text-[15px] font-semibold text-zinc-950 transition-colors hover:bg-zinc-200"
       >
         Create my assistant

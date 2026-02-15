@@ -9,19 +9,9 @@ import {
   MessageCircle,
   UserCheck,
 } from 'lucide-react'
+import { containerVariants, itemVariants } from '../onboarding-animations'
+import { useOnboardingContext } from '../onboarding-context'
 import type { TelegramPairingRequest, TelegramState } from '../onboarding-utils'
-
-interface TelegramStepProps {
-  telegramState: TelegramState | null
-  approved: boolean
-  onConnectToken: (token: string) => void
-  connectingToken: boolean
-  connectError?: string | null
-  onApprovePairing: (code: string) => void
-  approvingPairing: boolean
-  approveError?: string | null
-  onContinue: () => void
-}
 
 type TelegramFlowStep = 'token' | 'message' | 'approval' | 'done'
 
@@ -106,34 +96,19 @@ function deriveFlowStep({
   return 'token'
 }
 
-const container = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: { staggerChildren: 0.08, delayChildren: 0.1 },
-  },
-} as const
+export default function TelegramStep() {
+  const {
+    telegramState,
+    telegramApproved: approved,
+    handleConnectToken: onConnectToken,
+    connectingToken,
+    connectError,
+    handleApprovePairing: onApprovePairing,
+    approvingPairing,
+    approveError,
+    onNavigate,
+  } = useOnboardingContext()
 
-const item = {
-  hidden: { opacity: 0, y: 16 },
-  show: {
-    opacity: 1,
-    y: 0,
-    transition: { type: 'spring' as const, stiffness: 260, damping: 20 },
-  },
-}
-
-export default function TelegramStep({
-  telegramState,
-  approved,
-  onConnectToken,
-  connectingToken,
-  connectError,
-  onApprovePairing,
-  approvingPairing,
-  approveError,
-  onContinue,
-}: TelegramStepProps) {
   const normalizedBotUsername =
     telegramState?.botUsername?.replace(/^@+/, '') ?? null
   const botHandle = normalizedBotUsername ? `@${normalizedBotUsername}` : null
@@ -249,40 +224,43 @@ export default function TelegramStep({
 
   return (
     <motion.div
-      variants={container}
+      variants={containerVariants}
       initial="hidden"
       animate="show"
       className="flex flex-col items-center text-center"
     >
       <motion.div
-        variants={item}
+        variants={itemVariants}
         className="flex h-14 w-14 items-center justify-center rounded-2xl bg-muted"
       >
         <MessageCircle className="h-7 w-7 text-foreground/90" />
       </motion.div>
 
       <motion.h1
-        variants={item}
+        variants={itemVariants}
         className="mt-6 text-3xl font-light tracking-tight text-foreground"
       >
         {flowStep === 'done' ? 'Telegram connected' : 'Connect Telegram'}
       </motion.h1>
 
       <motion.p
-        variants={item}
+        variants={itemVariants}
         className="mt-2 text-[12px] font-medium uppercase tracking-[0.08em] text-muted-foreground"
       >
         {stepLabel}
       </motion.p>
 
       <motion.p
-        variants={item}
+        variants={itemVariants}
         className="mt-3 max-w-sm text-[15px] leading-relaxed text-muted-foreground"
       >
         {stepDescription}
       </motion.p>
 
-      <motion.div variants={item} className="mt-8 w-full max-w-sm space-y-4">
+      <motion.div
+        variants={itemVariants}
+        className="mt-8 w-full max-w-sm space-y-4"
+      >
         {softError ? (
           <div className="rounded-2xl border border-destructive/40 bg-destructive/15 px-3 py-2 text-left text-xs leading-relaxed text-destructive-foreground">
             {softError}
@@ -565,7 +543,7 @@ export default function TelegramStep({
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={onContinue}
+                onClick={() => onNavigate(null)}
                 className="h-12 w-full rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
               >
                 Go to dashboard

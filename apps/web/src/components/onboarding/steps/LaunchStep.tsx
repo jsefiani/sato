@@ -1,15 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { Check, Loader2, Sparkles } from 'lucide-react'
-import type { DashboardState } from '../onboarding-utils'
-
-interface LaunchStepProps {
-  state: DashboardState
-  onProvision: () => void
-  provisioning: boolean
-  provisionError?: string | null
-  launchIssue?: string | null
-}
+import { useOnboardingContext } from '../onboarding-context'
+import type { SetupState } from '../onboarding-utils'
 
 const PROGRESS_MESSAGES = [
   { key: 'provision', label: 'Creating a home for your assistant…' },
@@ -22,7 +15,7 @@ const ITEM_HEIGHT = 52
 const MAX_VISIBLE = 3
 const OPACITY_BY_OFFSET = [1, 0.4, 0.15] as const
 
-function getProgressIndex(state: DashboardState): number {
+function getProgressIndex(state: SetupState): number {
   const vps = state.vps
   if (!vps) return -1
   if (vps.status === 'provisioning') return 0
@@ -59,21 +52,20 @@ function IssueCard({ message }: { message: string }) {
   )
 }
 
-export default function LaunchStep({
-  state,
-  onProvision,
-  provisioning,
-  provisionError,
-  launchIssue,
-}: LaunchStepProps) {
+export default function LaunchStep() {
+  const { setupState, handleProvision, provisionPending, provisionError } =
+    useOnboardingContext()
+
+  // Safe: registry guarantees setupState is loaded for this step
+  const state = setupState!
+  const launchIssue = state.vpsFailureReason ?? state.bootstrappingError ?? null
+
   const rawProgressIndex = getProgressIndex(state)
   const isRetry =
     state.vps?.status === 'failed' || state.vps?.status === 'cleanup_pending'
   const hasProvisionError =
     !isRetry && !!provisionError && rawProgressIndex === -1
 
-  // When provisioning was just triggered but status hasn't updated yet,
-  // show the first progress step instead of a blank screen
   const progressIndex =
     rawProgressIndex === -1 && !isRetry && !hasProvisionError
       ? 0
@@ -90,18 +82,17 @@ export default function LaunchStep({
 
   const autoProvisioned = useRef(false)
 
-  // Safety net: if we land here without provisioning started (e.g. deep link)
   useEffect(() => {
     if (
       rawProgressIndex === -1 &&
       !isRetry &&
-      !provisioning &&
+      !provisionPending &&
       !autoProvisioned.current
     ) {
       autoProvisioned.current = true
-      onProvision()
+      handleProvision()
     }
-  }, [rawProgressIndex, isRetry, provisioning, onProvision])
+  }, [rawProgressIndex, isRetry, provisionPending, handleProvision])
 
   return (
     <motion.div
@@ -142,11 +133,11 @@ export default function LaunchStep({
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              onClick={onProvision}
-              disabled={provisioning}
-              className="h-12 w-full max-w-sm rounded-2xl bg-white text-[15px] font-semibold text-zinc-950 transition-colors hover:bg-zinc-200 disabled:opacity-60 px-8"
+              onClick={handleProvision}
+              disabled={provisionPending}
+              className="h-12 w-full max-w-sm rounded-2xl bg-white px-8 text-[15px] font-semibold text-zinc-950 transition-colors hover:bg-zinc-200 disabled:opacity-60"
             >
-              {provisioning ? (
+              {provisionPending ? (
                 <span className="inline-flex items-center gap-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   Starting…

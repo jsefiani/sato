@@ -44,6 +44,8 @@ export async function runVpsSshCommand(
 
   const sshArgs = [
     '-o',
+    'BatchMode=yes',
+    '-o',
     'StrictHostKeyChecking=no',
     '-o',
     'UserKnownHostsFile=/dev/null',

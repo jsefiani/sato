@@ -70,7 +70,7 @@ export interface ChannelSetupSummary {
   hasConnectedChannel: boolean
 }
 
-export interface DashboardState {
+export interface SetupState {
   access: AccessState
   credits: CreditState
   topupPacks: Array<TopupPack>
@@ -108,7 +108,7 @@ export interface TelegramState {
  * Returns the step the user should be at based on what's been accomplished.
  */
 export function deriveStep(
-  state: DashboardState | null,
+  state: SetupState | null,
   _telegramState: TelegramState | null,
 ): OnboardingStep {
   if (!state) return 'trial'

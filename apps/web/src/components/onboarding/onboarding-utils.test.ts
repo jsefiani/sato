@@ -4,9 +4,9 @@ import {
   getAutoAdvanceStep,
   resolveCurrentStep,
 } from './onboarding-utils'
-import type { DashboardState, TelegramState } from './onboarding-utils'
+import type { SetupState, TelegramState } from './onboarding-utils'
 
-const baseState: DashboardState = {
+const baseState: SetupState = {
   access: {
     status: 'active',
     hasAccess: true,
@@ -72,7 +72,7 @@ describe('deriveStep', () => {
   })
 
   it('moves to complete only when connected with no pending pairing', () => {
-    const stateWithConnectedChannel: DashboardState = {
+    const stateWithConnectedChannel: SetupState = {
       ...baseState,
       channelSetup: {
         channels: [],

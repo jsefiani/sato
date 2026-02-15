@@ -16,8 +16,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import type {
-  DashboardState,
-  TelegramState,
+  SetupState,
   TopupPack,
 } from '@/components/onboarding/onboarding-utils'
 import { authClient } from '@/lib/auth-client'
@@ -67,24 +66,22 @@ const item = {
   },
 }
 
-export default function NewDashboard() {
+export default function Dashboard() {
   const { data: session } = authClient.useSession()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
 
-  // ── Queries ───────────────────────────────────────────
-
-  const dashboardQuery = useQuery({
-    queryKey: ['dashboard-status'],
+  const setupQuery = useQuery({
+    queryKey: ['setup-status'],
     queryFn: async () => {
       const res = await fetch('/api/vps/status')
       if (!res.ok) throw new Error('Failed to load status')
-      return res.json() as Promise<DashboardState>
+      return res.json() as Promise<SetupState>
     },
     refetchOnMount: false,
   })
 
-  const state = dashboardQuery.data ?? null
+  const state = setupQuery.data ?? null
 
   const needsStatusStream =
     !!state?.vps &&
@@ -95,7 +92,7 @@ export default function NewDashboard() {
   useEventStream({
     url: '/api/vps/status-stream',
     enabled: needsStatusStream,
-    queryKey: ['dashboard-status'],
+    queryKey: ['setup-status'],
     merge: true,
   })
   const telegramSetup =
@@ -108,37 +105,12 @@ export default function NewDashboard() {
   const isAssistantLive =
     state?.vps?.status === 'active' && state.openClawReady === true
 
-  const telegramStatusKey = [
-    'telegram-status',
-    state?.vps?.ipv4Address,
-  ] as const
-
-  const { isConnected: telegramStreamConnected } = useEventStream({
-    url: '/api/vps/telegram/stream',
-    enabled: isAssistantLive,
-    queryKey: telegramStatusKey,
-  })
-
-  const telegramState =
-    useQuery<TelegramState>({ queryKey: telegramStatusKey, enabled: false })
-      .data ?? null
-  const hasRuntimeTelegramState = telegramState !== null
-  const normalizedTelegramBotUsername =
-    telegramState?.botUsername?.replace(/^@+/, '') ??
-    persistedTelegramBotUsername ??
-    null
-  const telegramBotHandle = normalizedTelegramBotUsername
-    ? `@${normalizedTelegramBotUsername}`
+  const telegramBotHandle = persistedTelegramBotUsername
+    ? `@${persistedTelegramBotUsername}`
     : null
   const telegramConnected = telegramSetup?.connected === true
   const telegramConfigured =
-    telegramConnected ||
-    telegramSetup?.setupState === 'configuring' ||
-    (hasRuntimeTelegramState && telegramState.configured === true)
-  const telegramInitialCheckInFlight =
-    isAssistantLive && !telegramStreamConnected && !hasRuntimeTelegramState
-
-  // ── Billing / Stripe ──────────────────────────────────
+    telegramConnected || telegramSetup?.setupState === 'configuring'
 
   const [stripeLoading, setStripeLoading] = useState(false)
 
@@ -180,8 +152,6 @@ export default function NewDashboard() {
     }
   }
 
-  // ── Advanced section ──────────────────────────────────
-
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [showLogs, setShowLogs] = useState(false)
 
@@ -195,10 +165,7 @@ export default function NewDashboard() {
     },
     onSuccess: () => {
       queryClient.removeQueries({
-        queryKey: ['telegram-status'],
-      })
-      queryClient.removeQueries({
-        queryKey: ['dashboard-status'],
+        queryKey: ['setup-status'],
       })
     },
   })
@@ -224,8 +191,6 @@ export default function NewDashboard() {
     enabled: showLogs,
     refetchInterval: showLogs ? 10_000 : false,
   })
-
-  // ── Computed ──────────────────────────────────────────
 
   const statusLabel = state?.vps
     ? ({
@@ -263,8 +228,6 @@ export default function NewDashboard() {
 
   const firstName = session?.user.name.split(' ')[0] ?? 'there'
 
-  // ── Loading ───────────────────────────────────────────
-
   if (!state) {
     return (
       <div className="flex flex-1 items-center justify-center">
@@ -272,8 +235,6 @@ export default function NewDashboard() {
       </div>
     )
   }
-
-  // ── Render ────────────────────────────────────────────
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto px-4 py-8 text-white">
@@ -283,7 +244,6 @@ export default function NewDashboard() {
         animate="show"
         className="mx-auto w-full max-w-xl space-y-4"
       >
-        {/* Greeting */}
         <motion.div variants={item} className="pb-2">
           <h1 className="text-2xl font-light tracking-tight text-white">
             Hey, {firstName}
@@ -293,7 +253,6 @@ export default function NewDashboard() {
           </p>
         </motion.div>
 
-        {/* Assistant Status */}
         <motion.div
           variants={item}
           className="rounded-2xl border border-white/[0.06] bg-zinc-900/50 p-5"
@@ -344,7 +303,6 @@ export default function NewDashboard() {
           </div>
         </motion.div>
 
-        {/* Messages Card */}
         <motion.div
           variants={item}
           className="rounded-2xl border border-white/[0.06] bg-zinc-900/50 p-5"
@@ -372,7 +330,6 @@ export default function NewDashboard() {
           </p>
         </motion.div>
 
-        {/* Telegram Card */}
         <motion.div
           variants={item}
           className="rounded-2xl border border-white/[0.06] bg-zinc-900/50 p-5"
@@ -385,18 +342,11 @@ export default function NewDashboard() {
               <div>
                 <p className="text-sm font-medium text-zinc-300">Telegram</p>
                 <p className="text-[13px] text-zinc-500">
-                  {telegramConnected ? (
-                    (telegramBotHandle ?? 'Connected')
-                  ) : telegramInitialCheckInFlight ? (
-                    <span className="inline-flex items-center gap-1.5">
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                      Checking status…
-                    </span>
-                  ) : telegramConfigured ? (
-                    'Configured, not connected'
-                  ) : (
-                    'Not connected'
-                  )}
+                  {telegramConnected
+                    ? (telegramBotHandle ?? 'Connected')
+                    : telegramConfigured
+                      ? 'Configured, not connected'
+                      : 'Not connected'}
                 </p>
               </div>
             </div>
@@ -410,9 +360,9 @@ export default function NewDashboard() {
               >
                 Fix Telegram
               </button>
-            ) : normalizedTelegramBotUsername ? (
+            ) : persistedTelegramBotUsername ? (
               <a
-                href={`https://t.me/${normalizedTelegramBotUsername}`}
+                href={`https://t.me/${persistedTelegramBotUsername}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 rounded-xl border border-white/[0.06] px-3 py-1.5 text-[13px] font-medium text-zinc-400 transition-colors hover:border-white/[0.12] hover:text-zinc-300"
@@ -423,7 +373,6 @@ export default function NewDashboard() {
           </div>
         </motion.div>
 
-        {/* Plan & Billing */}
         <motion.div
           variants={item}
           className="rounded-2xl border border-white/[0.06] bg-zinc-900/50 p-5"
@@ -451,7 +400,6 @@ export default function NewDashboard() {
           </div>
         </motion.div>
 
-        {/* Top-up packs */}
         {state.topupPacks.length > 0 && (
           <motion.div
             variants={item}
@@ -479,7 +427,6 @@ export default function NewDashboard() {
           </motion.div>
         )}
 
-        {/* Advanced / Settings */}
         <motion.div variants={item}>
           <button
             type="button"

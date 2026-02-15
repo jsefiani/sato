@@ -25,13 +25,11 @@ export function useEventStream({
       return
     }
 
-    const eventSource = new EventSource(url)
+    const source = new EventSource(url)
 
-    eventSource.addEventListener('open', () => {
-      setIsConnected(true)
-    })
+    source.addEventListener('open', () => setIsConnected(true))
 
-    eventSource.addEventListener('message', (event) => {
+    source.addEventListener('message', (event) => {
       try {
         const parsed = JSON.parse(event.data)
         if (merge) {
@@ -48,12 +46,10 @@ export function useEventStream({
       }
     })
 
-    eventSource.addEventListener('error', () => {
-      setIsConnected(false)
-    })
+    source.addEventListener('error', () => setIsConnected(false))
 
     return () => {
-      eventSource.close()
+      source.close()
       setIsConnected(false)
     }
   }, [url, enabled, merge, queryClient])

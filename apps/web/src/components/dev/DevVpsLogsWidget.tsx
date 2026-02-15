@@ -44,7 +44,7 @@ export default function DevVpsLogsWidget() {
   const [open, setOpen] = useState(false)
 
   const statusQuery = useQuery({
-    queryKey: ['dashboard-status'],
+    queryKey: ['setup-status'],
     queryFn: async () => {
       const res = await fetch('/api/vps/status')
       const payload = (await res.json()) as VpsStatusPayload & {
