@@ -107,7 +107,23 @@ export DEBIAN_FRONTEND=noninteractive
 
 # System packages
 apt-get update -qq
-apt-get install -y -qq curl git ufw fail2ban
+apt-get install -y -qq curl git ufw fail2ban unattended-upgrades
+
+# Automatic security updates
+cat > /etc/apt/apt.conf.d/50unattended-upgrades << 'UUCFG'
+Unattended-Upgrade::Allowed-Origins {
+    "${distro_id}:${distro_codename}-security";
+};
+Unattended-Upgrade::Automatic-Reboot "false";
+Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";
+Unattended-Upgrade::Remove-Unused-Dependencies "true";
+UUCFG
+
+cat > /etc/apt/apt.conf.d/20auto-upgrades << 'AUTOCFG'
+APT::Periodic::Update-Package-Lists "1";
+APT::Periodic::Unattended-Upgrade "1";
+APT::Periodic::AutocleanInterval "7";
+AUTOCFG
 
 # Install Tailscale
 curl -fsSL https://tailscale.com/install.sh | bash

@@ -28,6 +28,7 @@ import { Route as ApiVpsTelegramStreamRouteImport } from './routes/api/vps/teleg
 import { Route as ApiVpsTelegramStatusRouteImport } from './routes/api/vps/telegram/status'
 import { Route as ApiVpsTelegramConnectRouteImport } from './routes/api/vps/telegram/connect'
 import { Route as ApiVpsTelegramApproveRouteImport } from './routes/api/vps/telegram/approve'
+import { Route as ApiAdminVpsMaintainRouteImport } from './routes/api/admin/vps/maintain'
 
 const SignInRoute = SignInRouteImport.update({
   id: '/sign-in',
@@ -123,6 +124,11 @@ const ApiVpsTelegramApproveRoute = ApiVpsTelegramApproveRouteImport.update({
   path: '/api/vps/telegram/approve',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAdminVpsMaintainRoute = ApiAdminVpsMaintainRouteImport.update({
+  id: '/api/admin/vps/maintain',
+  path: '/api/admin/vps/maintain',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthedIndexRoute
@@ -139,6 +145,7 @@ export interface FileRoutesByFullPath {
   '/api/vps/status': typeof ApiVpsStatusRoute
   '/api/vps/status-stream': typeof ApiVpsStatusStreamRoute
   '/api/vps/verify': typeof ApiVpsVerifyRoute
+  '/api/admin/vps/maintain': typeof ApiAdminVpsMaintainRoute
   '/api/vps/telegram/approve': typeof ApiVpsTelegramApproveRoute
   '/api/vps/telegram/connect': typeof ApiVpsTelegramConnectRoute
   '/api/vps/telegram/status': typeof ApiVpsTelegramStatusRoute
@@ -159,6 +166,7 @@ export interface FileRoutesByTo {
   '/api/vps/status': typeof ApiVpsStatusRoute
   '/api/vps/status-stream': typeof ApiVpsStatusStreamRoute
   '/api/vps/verify': typeof ApiVpsVerifyRoute
+  '/api/admin/vps/maintain': typeof ApiAdminVpsMaintainRoute
   '/api/vps/telegram/approve': typeof ApiVpsTelegramApproveRoute
   '/api/vps/telegram/connect': typeof ApiVpsTelegramConnectRoute
   '/api/vps/telegram/status': typeof ApiVpsTelegramStatusRoute
@@ -181,6 +189,7 @@ export interface FileRoutesById {
   '/api/vps/status': typeof ApiVpsStatusRoute
   '/api/vps/status-stream': typeof ApiVpsStatusStreamRoute
   '/api/vps/verify': typeof ApiVpsVerifyRoute
+  '/api/admin/vps/maintain': typeof ApiAdminVpsMaintainRoute
   '/api/vps/telegram/approve': typeof ApiVpsTelegramApproveRoute
   '/api/vps/telegram/connect': typeof ApiVpsTelegramConnectRoute
   '/api/vps/telegram/status': typeof ApiVpsTelegramStatusRoute
@@ -203,6 +212,7 @@ export interface FileRouteTypes {
     | '/api/vps/status'
     | '/api/vps/status-stream'
     | '/api/vps/verify'
+    | '/api/admin/vps/maintain'
     | '/api/vps/telegram/approve'
     | '/api/vps/telegram/connect'
     | '/api/vps/telegram/status'
@@ -223,6 +233,7 @@ export interface FileRouteTypes {
     | '/api/vps/status'
     | '/api/vps/status-stream'
     | '/api/vps/verify'
+    | '/api/admin/vps/maintain'
     | '/api/vps/telegram/approve'
     | '/api/vps/telegram/connect'
     | '/api/vps/telegram/status'
@@ -244,6 +255,7 @@ export interface FileRouteTypes {
     | '/api/vps/status'
     | '/api/vps/status-stream'
     | '/api/vps/verify'
+    | '/api/admin/vps/maintain'
     | '/api/vps/telegram/approve'
     | '/api/vps/telegram/connect'
     | '/api/vps/telegram/status'
@@ -265,6 +277,7 @@ export interface RootRouteChildren {
   ApiVpsStatusRoute: typeof ApiVpsStatusRoute
   ApiVpsStatusStreamRoute: typeof ApiVpsStatusStreamRoute
   ApiVpsVerifyRoute: typeof ApiVpsVerifyRoute
+  ApiAdminVpsMaintainRoute: typeof ApiAdminVpsMaintainRoute
   ApiVpsTelegramApproveRoute: typeof ApiVpsTelegramApproveRoute
   ApiVpsTelegramConnectRoute: typeof ApiVpsTelegramConnectRoute
   ApiVpsTelegramStatusRoute: typeof ApiVpsTelegramStatusRoute
@@ -406,6 +419,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiVpsTelegramApproveRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/admin/vps/maintain': {
+      id: '/api/admin/vps/maintain'
+      path: '/api/admin/vps/maintain'
+      fullPath: '/api/admin/vps/maintain'
+      preLoaderRoute: typeof ApiAdminVpsMaintainRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -435,6 +455,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiVpsStatusRoute: ApiVpsStatusRoute,
   ApiVpsStatusStreamRoute: ApiVpsStatusStreamRoute,
   ApiVpsVerifyRoute: ApiVpsVerifyRoute,
+  ApiAdminVpsMaintainRoute: ApiAdminVpsMaintainRoute,
   ApiVpsTelegramApproveRoute: ApiVpsTelegramApproveRoute,
   ApiVpsTelegramConnectRoute: ApiVpsTelegramConnectRoute,
   ApiVpsTelegramStatusRoute: ApiVpsTelegramStatusRoute,

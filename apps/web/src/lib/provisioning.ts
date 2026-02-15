@@ -285,7 +285,6 @@ async function cleanupStaleResourcesForUser(userId: string): Promise<void> {
       status: hasCleanupErrors ? 'cleanup_pending' : 'pending',
       hetznerServerId: cleanup.remainingServerId,
       hetznerFirewallId: cleanup.remainingFirewallId,
-      updatedAt: new Date(),
     })
     .where(eq(vpsInstance.userId, userId))
 
@@ -344,7 +343,6 @@ export async function provisionUserServer(input: ProvisionInput) {
     status: 'started',
     requestId,
     createdAt: now,
-    updatedAt: now,
   })
 
   await db
@@ -360,8 +358,10 @@ export async function provisionUserServer(input: ProvisionInput) {
       ipv4Address: null,
       tailscaleIp: null,
       tailscaleHostname: null,
+      snapshotVersion: snapshotId,
+      openclawVersion: null,
+      lastUpdatedAt: null,
       createdAt: now,
-      updatedAt: now,
     })
     .onConflictDoUpdate({
       target: vpsInstance.userId,
@@ -374,6 +374,9 @@ export async function provisionUserServer(input: ProvisionInput) {
         ipv4Address: null,
         tailscaleIp: null,
         tailscaleHostname: null,
+        snapshotVersion: snapshotId,
+        openclawVersion: null,
+        lastUpdatedAt: null,
         updatedAt: now,
       },
     })
@@ -406,7 +409,6 @@ export async function provisionUserServer(input: ProvisionInput) {
       .update(vpsInstance)
       .set({
         hetznerFirewallId: firewallId,
-        updatedAt: new Date(),
       })
       .where(eq(vpsInstance.userId, input.userId))
 
@@ -434,7 +436,6 @@ export async function provisionUserServer(input: ProvisionInput) {
         ipv4Address: server.ipv4Address,
         tailscaleHostname,
         provisionedAt: null,
-        updatedAt: new Date(),
       })
       .where(eq(vpsInstance.userId, input.userId))
 
@@ -442,7 +443,6 @@ export async function provisionUserServer(input: ProvisionInput) {
       .update(provisioningJob)
       .set({
         status: 'completed',
-        updatedAt: new Date(),
       })
       .where(eq(provisioningJob.id, jobId))
 
@@ -481,7 +481,6 @@ export async function provisionUserServer(input: ProvisionInput) {
         hetznerServerId: cleanup.remainingServerId,
         hetznerFirewallId: cleanup.remainingFirewallId,
         ipv4Address: null,
-        updatedAt: new Date(),
       })
       .where(eq(vpsInstance.userId, input.userId))
 
@@ -494,7 +493,6 @@ export async function provisionUserServer(input: ProvisionInput) {
       .set({
         status: hasCleanupErrors ? 'cleanup_pending' : 'failed',
         errorMessage,
-        updatedAt: new Date(),
       })
       .where(eq(provisioningJob.id, jobId))
 
@@ -548,7 +546,6 @@ export async function destroyUserServer(userId: string): Promise<void> {
         hetznerServerId: cleanup.remainingServerId,
         hetznerFirewallId: cleanup.remainingFirewallId,
         ipv4Address: null,
-        updatedAt: new Date(),
       })
       .where(eq(vpsInstance.userId, userId))
   } else {

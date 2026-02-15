@@ -29,12 +29,18 @@ export function safeApiResponse(
   fallbackStatus = 500,
 ): Response {
   const message = safeErrorMessage(error)
-  const status = message === 'Unauthorized' ? 401 : fallbackStatus
+  const status =
+    message === 'Unauthorized'
+      ? 401
+      : message === 'Forbidden'
+        ? 403
+        : fallbackStatus
   return Response.json({ error: message }, { status })
 }
 
 const SAFE_ERROR_MESSAGES = new Set([
   'Unauthorized',
+  'Forbidden',
   'Missing stripe-signature header',
   'No VPS instance found',
   'VPS has no IP address yet',

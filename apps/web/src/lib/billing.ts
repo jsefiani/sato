@@ -120,7 +120,6 @@ async function ensureStripeCustomer(
     id: customer.id,
     userId,
     createdAt: new Date(),
-    updatedAt: new Date(),
   })
 
   return customer.id
@@ -286,7 +285,6 @@ async function saveSubscription(
       id: subscription.customer,
       userId,
       createdAt: new Date(),
-      updatedAt: new Date(),
     })
   }
 
@@ -308,7 +306,6 @@ async function saveSubscription(
         ? new Date(subscription.canceled_at * 1000)
         : null,
       createdAt: new Date(),
-      updatedAt: new Date(),
     })
     .onConflictDoUpdate({
       target: billingSubscription.userId,

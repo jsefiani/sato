@@ -151,7 +151,6 @@ async function ensureWallet(userId: string) {
     purchasedCreditsRemaining: 0,
     monthlyCreditsGrant: monthlyGrant,
     createdAt: new Date(),
-    updatedAt: new Date(),
   })
 
   if (trialGrant > 0) {
@@ -274,7 +273,6 @@ async function ensureUserOpenRouterKeyRecord(
     lastKnownUsageUsd: String(key.usageUsd),
     usageRemainderUsd: '0',
     createdAt: new Date(),
-    updatedAt: new Date(),
   })
 
   return {
@@ -375,7 +373,6 @@ export async function syncUserCreditsWithOpenRouter(
         trialCreditsRemaining: consumption.trialCreditsRemaining,
         monthlyCreditsRemaining: consumption.monthlyCreditsRemaining,
         purchasedCreditsRemaining: consumption.purchasedCreditsRemaining,
-        updatedAt: new Date(),
       })
       .where(eq(creditWallet.userId, userId))
 
@@ -400,7 +397,6 @@ export async function syncUserCreditsWithOpenRouter(
       lastKnownUsageUsd: String(key.usageUsd),
       usageRemainderUsd: String(newRemainderUsd),
       lastSyncedAt: new Date(),
-      updatedAt: new Date(),
     })
     .where(eq(userOpenRouterKey.userId, userId))
 
@@ -491,7 +487,6 @@ export async function grantTopupCredits(
     .update(creditWallet)
     .set({
       purchasedCreditsRemaining: wallet.purchasedCreditsRemaining + credits,
-      updatedAt: new Date(),
     })
     .where(eq(creditWallet.userId, userId))
 
@@ -520,7 +515,6 @@ export async function grantMonthlyCredits(
     .set({
       monthlyCreditsRemaining: wallet.monthlyCreditsGrant,
       monthlyCycleAnchor: now,
-      updatedAt: now,
     })
     .where(eq(creditWallet.userId, userId))
 

@@ -59,6 +59,8 @@ Key points:
 
 - **fail2ban on VPS snapshot**: Installed and enabled in the base snapshot to protect against brute-force attempts on any exposed service.
 
+- **Automatic OS security patching**: `unattended-upgrades` is installed and configured in the VPS snapshot to apply security-only updates daily (`${distro_codename}-security`). Automatic reboot is disabled so OpenClaw is not disrupted. Older VPSes provisioned before this snapshot can be retroactively patched via the `enable-unattended-upgrades` maintenance action.
+
 - **No `--accept-routes` on VPSes**: VPSes do not accept subnet routes from other Tailscale nodes, preventing lateral network access if another node advertises routes.
 
 ### Application Security
@@ -90,6 +92,8 @@ Key points:
   - Session rotation: every 24 hours
   - Trusted origins: restricted to `APP_URL`
 
+- **Admin role**: Better Auth's built-in `admin` plugin adds a `role` column to the `user` table (default `'user'`). The `requireAdminSession()` helper checks `session.user.role === 'admin'` and rejects non-admin requests with 403. Admin-only endpoints (e.g., `POST /api/admin/vps/maintain`) use this check for authorization. Bootstrap: promote the first admin via a direct SQL `UPDATE "user" SET role = 'admin' WHERE email = '...'`, then use the plugin's `/admin/set-role` API for subsequent admins.
+
 ### Data Protection
 
 - **Encrypted secrets at rest**: Sensitive values (e.g., Telegram bot tokens) are encrypted with AES-256-GCM before database storage (`crypto.ts`). Each encrypted value includes a unique IV and authentication tag.
@@ -118,6 +122,7 @@ Key points:
 
 - **Audit logging**: Key events are written to the `audit_log` table with structured JSON metadata:
   - `vps.provisioned`, `vps.provisioning_failed`, `vps.destroyed`
+  - `vps.maintenance_succeeded`, `vps.maintenance_failed` (admin-triggered VPS maintenance)
   - Billing events (subscription changes, top-up purchases)
   - Stripe webhook processing
 

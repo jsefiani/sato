@@ -14,8 +14,15 @@ export const user = pgTable('user', {
   email: text('email').notNull().unique(),
   emailVerified: boolean('email_verified').notNull().default(false),
   image: text('image'),
+  role: text('role').notNull().default('user'),
+  banned: boolean('banned').notNull().default(false),
+  banReason: text('ban_reason'),
+  banExpires: integer('ban_expires'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at')
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
 })
 
 export const session = pgTable('session', {
@@ -28,7 +35,10 @@ export const session = pgTable('session', {
     .notNull()
     .references(() => user.id, { onDelete: 'cascade' }),
   createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at')
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
 })
 
 export const account = pgTable('account', {
@@ -46,7 +56,10 @@ export const account = pgTable('account', {
   scope: text('scope'),
   password: text('password'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at')
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
 })
 
 export const verification = pgTable('verification', {
@@ -55,7 +68,10 @@ export const verification = pgTable('verification', {
   value: text('value').notNull(),
   expiresAt: timestamp('expires_at').notNull(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at')
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
 })
 
 export const billingCustomer = pgTable('billing_customer', {
@@ -65,7 +81,10 @@ export const billingCustomer = pgTable('billing_customer', {
     .unique()
     .references(() => user.id, { onDelete: 'cascade' }),
   createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at')
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
 })
 
 export const billingSubscription = pgTable('billing_subscription', {
@@ -83,7 +102,10 @@ export const billingSubscription = pgTable('billing_subscription', {
   trialEndsAt: timestamp('trial_ends_at'),
   canceledAt: timestamp('canceled_at'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at')
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
 })
 
 export const userOpenRouterKey = pgTable('user_openrouter_key', {
@@ -99,7 +121,10 @@ export const userOpenRouterKey = pgTable('user_openrouter_key', {
   lastSyncedAt: timestamp('last_synced_at'),
   disabledAt: timestamp('disabled_at'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at')
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
 })
 
 export const creditWallet = pgTable('credit_wallet', {
@@ -120,7 +145,10 @@ export const creditWallet = pgTable('credit_wallet', {
   monthlyCreditsGrant: integer('monthly_credits_grant').notNull().default(0),
   monthlyCycleAnchor: timestamp('monthly_cycle_anchor'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at')
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
 })
 
 export const creditLedger = pgTable('credit_ledger', {
@@ -154,9 +182,15 @@ export const vpsInstance = pgTable('vps_instance', {
   tailscaleIp: text('tailscale_ip'),
   tailscaleHostname: text('tailscale_hostname'),
   status: text('status').notNull().default('pending'),
+  openclawVersion: text('openclaw_version'),
+  snapshotVersion: text('snapshot_version'),
+  lastUpdatedAt: timestamp('last_updated_at'),
   provisionedAt: timestamp('provisioned_at'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at')
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
 })
 
 export const channelConnection = pgTable(
@@ -175,7 +209,10 @@ export const channelConnection = pgTable(
     lastCheckedAt: timestamp('last_checked_at'),
     lastError: text('last_error'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
-    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at')
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
   },
   (table) => ({
     userChannelUnique: uniqueIndex('channel_connection_user_channel_idx').on(
@@ -195,7 +232,10 @@ export const provisioningJob = pgTable('provisioning_job', {
   requestId: text('request_id').notNull().unique(),
   errorMessage: text('error_message'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at')
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
 })
 
 export const auditLog = pgTable('audit_log', {

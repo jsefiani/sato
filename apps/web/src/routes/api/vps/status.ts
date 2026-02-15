@@ -6,6 +6,7 @@ import {
 } from '@/lib/channel-connections'
 import { db } from '@/db'
 import { provisioningJob, user, vpsInstance } from '@/db/schema'
+import { getOpenClawVersion } from '@/lib/vps-maintenance'
 import { getUserAccessState } from '@/lib/access-control'
 import { safeApiResponse } from '@/lib/api-error'
 import {
@@ -128,7 +129,7 @@ export async function computeVpsProbeState({ userId }: { userId: string }) {
         if (discoveredIp) {
           await db
             .update(vpsInstance)
-            .set({ tailscaleIp: discoveredIp, updatedAt: new Date() })
+            .set({ tailscaleIp: discoveredIp })
             .where(eq(vpsInstance.userId, userId))
           instance = { ...instance, tailscaleIp: discoveredIp }
         }
@@ -177,13 +178,23 @@ export async function computeVpsProbeState({ userId }: { userId: string }) {
       (instance.status === 'provisioning' ||
         instance.status === 'bootstrapping')
     ) {
+      const activationFields: Record<string, unknown> = {
+        status: 'active',
+        provisionedAt: new Date(),
+      }
+
+      const sshHost = instance.tailscaleIp
+
+      if (sshHost) {
+        const version = await getOpenClawVersion({ host: sshHost })
+        if (version) {
+          activationFields.openclawVersion = version
+        }
+      }
+
       await db
         .update(vpsInstance)
-        .set({
-          status: 'active',
-          provisionedAt: new Date(),
-          updatedAt: new Date(),
-        })
+        .set(activationFields)
         .where(eq(vpsInstance.userId, userId))
 
       instance = {
@@ -224,11 +235,11 @@ async function markFailed({
   await Promise.all([
     db
       .update(vpsInstance)
-      .set({ status: 'failed', updatedAt: new Date() })
+      .set({ status: 'failed' })
       .where(eq(vpsInstance.userId, userId)),
     db
       .update(provisioningJob)
-      .set({ status: 'failed', errorMessage: reason, updatedAt: new Date() })
+      .set({ status: 'failed', errorMessage: reason })
       .where(eq(provisioningJob.userId, userId)),
   ])
 }

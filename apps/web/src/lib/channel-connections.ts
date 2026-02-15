@@ -133,7 +133,6 @@ export async function getUserChannelSetupSummary(
 export async function upsertUserChannelConnection(
   input: UpsertUserChannelConnectionInput,
 ): Promise<void> {
-  const now = new Date()
   const channel = normalizeChannel(input.channel)
 
   await db
@@ -149,8 +148,6 @@ export async function upsertUserChannelConnection(
       healthStatus: input.healthStatus ?? 'unknown',
       lastCheckedAt: input.lastCheckedAt ?? null,
       lastError: input.lastError ?? null,
-      createdAt: now,
-      updatedAt: now,
     })
     .onConflictDoUpdate({
       target: [channelConnection.userId, channelConnection.channel],
@@ -162,7 +159,6 @@ export async function upsertUserChannelConnection(
         healthStatus: input.healthStatus ?? 'unknown',
         lastCheckedAt: input.lastCheckedAt ?? null,
         lastError: input.lastError ?? null,
-        updatedAt: now,
       },
     })
 }
