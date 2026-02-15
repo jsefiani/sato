@@ -362,14 +362,18 @@ export default function Dashboard() {
                   Fix Telegram
                 </Button>
               ) : persistedTelegramBotUsername ? (
-                <Button variant="outline" size="sm" asChild>
-                  <a
-                    href={`https://t.me/${persistedTelegramBotUsername}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Open chat <ExternalLink className="h-3 w-3" />
-                  </a>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  render={
+                    <a
+                      href={`https://t.me/${persistedTelegramBotUsername}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    />
+                  }
+                >
+                  Open chat <ExternalLink />
                 </Button>
               ) : null}
             </div>

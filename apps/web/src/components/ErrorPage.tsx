@@ -40,15 +40,13 @@ export default function ErrorPage({
           <div className="flex items-center justify-center gap-3">
             {showRetry && (
               <Button variant="outline" onClick={() => router.invalidate()}>
-                <RefreshCw className="h-4 w-4" />
+                <RefreshCw />
                 Try again
               </Button>
             )}
-            <Button asChild>
-              <Link to="/">
-                <Home className="h-4 w-4" />
-                Go home
-              </Link>
+            <Button render={<Link to="/" />}>
+              <Home />
+              Go home
             </Button>
           </div>
         </CardContent>

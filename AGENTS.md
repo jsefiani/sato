@@ -19,14 +19,19 @@ Prefer a **single object parameter** over multiple separate parameters for maint
 ## Commands
 
 ```sh
-pnpm --filter=web lint      # lint
-pnpm --filter=web check     # format + lint fix
-pnpm --filter=web test      # run tests
-pnpm --filter=web dev       # dev server on port 3000
-pnpm --filter=web build     # production build
+pnpm --filter=web typecheck  # type-check
+pnpm --filter=web lint       # lint
+pnpm --filter=web check      # format + lint fix
+pnpm --filter=web test       # run tests
+pnpm --filter=web dev        # dev server on port 3000
+pnpm --filter=web build      # production build
 ```
 
 Always use `pnpm --filter=web <script>` — never `cd` into the directory or run `eslint`/`vitest` directly.
+
+## UI Components (shadcn + Base UI)
+
+shadcn is configured with the `base-vega` style, which uses **Base UI** (`@base-ui/react`) as the primitive library — **not Radix UI**. Never use `asChild`; use the `render` prop instead (e.g. `<Button render={<a href="/" />}>Link</Button>`). Don't add size classes to icons inside `<Button>` — the button variants already auto-size SVGs via `[&_svg]:size-*`.
 
 ## Colors & Styling
 
@@ -34,6 +39,9 @@ Never use Tailwind's default palette (`zinc-*`, `gray-*`, `red-*`, etc.) — it'
 
 ## After making changes
 
-Always run linting and formatting after any code changes: `pnpm --filter=web check` (format + lint fix).
+Always run type-checking, linting, and formatting after any code changes:
+
+- `pnpm --filter=web typecheck` (type-check)
+- `pnpm --filter=web check` (format + lint fix)
 
 After code changes, check whether any docs need updating (e.g. `apps/web/SECURITY.md` for security-related changes). Keep docs in sync with the implementation.

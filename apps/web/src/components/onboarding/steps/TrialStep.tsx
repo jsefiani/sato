@@ -111,7 +111,7 @@ export default function TrialStep() {
               onClick={openCheckout}
               disabled={stripeLoading}
             >
-              <CreditCard className="h-4 w-4" />
+              <CreditCard />
               {stripeLoading ? 'Opening checkout…' : 'Subscribe to continue'}
             </Button>
           </motion.div>

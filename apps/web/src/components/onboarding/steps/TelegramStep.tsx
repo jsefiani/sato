@@ -317,14 +317,18 @@ export default function TelegramStep() {
                     </div>
                   </div>
 
-                  <Button variant="outline" className="w-full" asChild>
-                    <a
-                      href="https://t.me/BotFather"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Open BotFather <ExternalLink className="h-3 w-3" />
-                    </a>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    render={
+                      <a
+                        href="https://t.me/BotFather"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      />
+                    }
+                  >
+                    Open BotFather <ExternalLink />
                   </Button>
 
                   <div className="space-y-2">
