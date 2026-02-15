@@ -13,7 +13,7 @@ import type {
 import { authClient } from '@/lib/auth-client'
 import { useEventStream } from '@/lib/use-event-stream'
 
-export interface OnboardingContextValue {
+interface OnboardingBaseValue {
   setupState: SetupState | null
   currentStep: OnboardingStep
   onNavigate: (step: OnboardingStep | null) => void
@@ -35,13 +35,17 @@ export interface OnboardingContextValue {
   handleWelcomeContinue: () => void
 }
 
+export type OnboardingContextValue = OnboardingBaseValue & {
+  skipInitialAnimation: boolean
+}
+
 export function useOnboarding({
   urlStep,
   onNavigate,
 }: {
   urlStep: OnboardingStep
   onNavigate: (step: OnboardingStep | null) => void
-}): OnboardingContextValue {
+}): OnboardingBaseValue {
   const { data: session } = authClient.useSession()
   const queryClient = useQueryClient()
 

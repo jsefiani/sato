@@ -22,13 +22,14 @@ const features = [
 ]
 
 export default function WelcomeStep() {
-  const { userName, userImage, handleWelcomeContinue } = useOnboardingContext()
+  const { userName, userImage, handleWelcomeContinue, skipInitialAnimation } =
+    useOnboardingContext()
   const firstName = userName.split(' ')[0]
 
   return (
     <motion.div
       variants={containerVariants}
-      initial="hidden"
+      initial={skipInitialAnimation ? false : 'hidden'}
       animate="show"
       className="flex flex-col items-center text-center"
     >

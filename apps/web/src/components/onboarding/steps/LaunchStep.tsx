@@ -53,8 +53,13 @@ function IssueCard({ message }: { message: string }) {
 }
 
 export default function LaunchStep() {
-  const { setupState, handleProvision, provisionPending, provisionError } =
-    useOnboardingContext()
+  const {
+    setupState,
+    handleProvision,
+    provisionPending,
+    provisionError,
+    skipInitialAnimation,
+  } = useOnboardingContext()
 
   // Safe: registry guarantees setupState is loaded for this step
   const state = setupState!
@@ -96,7 +101,7 @@ export default function LaunchStep() {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={skipInitialAnimation ? false : { opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className="flex w-full flex-col items-center text-center"
     >

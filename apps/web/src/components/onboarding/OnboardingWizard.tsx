@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { Sparkles } from 'lucide-react'
 import { useOnboarding } from './use-onboarding'
@@ -18,6 +19,11 @@ export default function OnboardingWizard({
   const ctx = useOnboarding({ urlStep, onNavigate })
   const stepConfig = getStepConfig(ctx.currentStep)
 
+  const hasMounted = useRef(false)
+  useEffect(() => {
+    hasMounted.current = true
+  }, [])
+
   if (stepConfig?.requiresSetupState && !ctx.setupState) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center px-4 py-12">
@@ -36,14 +42,16 @@ export default function OnboardingWizard({
   if (!StepComponent) return null
 
   return (
-    <OnboardingProvider value={ctx}>
+    <OnboardingProvider
+      value={{ ...ctx, skipInitialAnimation: !hasMounted.current }}
+    >
       <div className="flex flex-1 flex-col px-4 py-12">
         <div className="flex flex-1 items-center justify-center">
           <div className="w-full max-w-md">
-            <AnimatePresence mode="wait">
+            <AnimatePresence initial={false} mode="wait">
               <motion.div
                 key={ctx.currentStep}
-                initial={{ opacity: 0 }}
+                initial={hasMounted.current ? { opacity: 0 } : false}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.25, ease: 'easeInOut' }}

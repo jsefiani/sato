@@ -107,6 +107,7 @@ export default function TelegramStep() {
     approvingPairing,
     approveError,
     onNavigate,
+    skipInitialAnimation,
   } = useOnboardingContext()
 
   const normalizedBotUsername =
@@ -225,7 +226,7 @@ export default function TelegramStep() {
   return (
     <motion.div
       variants={containerVariants}
-      initial="hidden"
+      initial={skipInitialAnimation ? false : 'hidden'}
       animate="show"
       className="flex flex-col items-center text-center"
     >

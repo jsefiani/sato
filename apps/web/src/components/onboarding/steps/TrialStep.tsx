@@ -11,8 +11,13 @@ const included = [
 ]
 
 export default function TrialStep() {
-  const { setupState, onNavigate, openCheckout, stripeLoading } =
-    useOnboardingContext()
+  const {
+    setupState,
+    onNavigate,
+    openCheckout,
+    stripeLoading,
+    skipInitialAnimation,
+  } = useOnboardingContext()
 
   if (!setupState) return null
   const access = setupState.access
@@ -23,7 +28,7 @@ export default function TrialStep() {
   return (
     <motion.div
       variants={containerVariants}
-      initial="hidden"
+      initial={skipInitialAnimation ? false : 'hidden'}
       animate="show"
       className="flex flex-col items-center text-center"
     >
