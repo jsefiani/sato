@@ -228,6 +228,9 @@ journalctl --rotate && journalctl --vacuum-time=1s 2>/dev/null || true
 history -c 2>/dev/null || true
 > /root/.bash_history 2>/dev/null || true
 
+# Clear stale hostname so cloud-init sets it fresh from Hetzner metadata on next boot
+truncate -s 0 /etc/hostname
+
 # Reset cloud-init state so it re-runs with new user_data on the next boot
 cloud-init clean --logs
 
