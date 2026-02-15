@@ -94,16 +94,16 @@ export default function DevVpsLogsWidget() {
   return (
     <div className="pointer-events-none fixed bottom-4 right-4 z-[60]">
       {open ? (
-        <div className="pointer-events-auto w-[min(92vw,36rem)] overflow-hidden rounded-2xl border border-emerald-300/20 bg-zinc-950/95 shadow-[0_16px_40px_rgba(0,0,0,0.45)] backdrop-blur">
-          <div className="flex items-center gap-2 border-b border-white/10 px-3 py-2">
-            <div className="inline-flex items-center gap-2 rounded-lg bg-emerald-500/10 px-2 py-1 text-[11px] font-medium text-emerald-200">
+        <div className="pointer-events-auto w-[min(92vw,36rem)] overflow-hidden rounded-2xl border border-success/30 bg-background/95 shadow-[0_16px_40px_rgba(0,0,0,0.45)] backdrop-blur">
+          <div className="flex items-center gap-2 border-b border-input px-3 py-2">
+            <div className="inline-flex items-center gap-2 rounded-lg bg-success/15 px-2 py-1 text-[11px] font-medium text-success-foreground">
               <Terminal className="h-3.5 w-3.5" />
               DEV LOGS
             </div>
-            <span className="text-[11px] text-zinc-500">
+            <span className="text-[11px] text-muted-foreground/80">
               status: {statusLabel}
             </span>
-            <span className="ml-auto text-[11px] text-zinc-600">
+            <span className="ml-auto text-[11px] text-muted-foreground/50">
               updated {lastUpdated}
             </span>
             <button
@@ -112,7 +112,7 @@ export default function DevVpsLogsWidget() {
                 void statusQuery.refetch()
                 void logsQuery.refetch()
               }}
-              className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-white/10 text-zinc-400 transition-colors hover:border-white/20 hover:text-zinc-200"
+              className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-input text-muted-foreground transition-colors hover:border-foreground/20 hover:text-foreground/80"
               title="Refresh logs"
             >
               <RefreshCw className="h-3.5 w-3.5" />
@@ -120,7 +120,7 @@ export default function DevVpsLogsWidget() {
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-white/10 text-zinc-400 transition-colors hover:border-white/20 hover:text-zinc-200"
+              className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-input text-muted-foreground transition-colors hover:border-foreground/20 hover:text-foreground/80"
               title="Collapse"
             >
               <ChevronDown className="h-3.5 w-3.5" />
@@ -129,43 +129,43 @@ export default function DevVpsLogsWidget() {
 
           <div className="grid gap-2 p-3">
             {statusQuery.data?.vpsFailureReason ? (
-              <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 p-3 text-xs text-amber-100">
+              <div className="rounded-xl border border-warning/30 bg-warning/15 p-3 text-xs text-warning-foreground">
                 {statusQuery.data.vpsFailureReason}
               </div>
             ) : null}
 
             {logsQuery.isLoading ? (
-              <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-zinc-900/80 p-3 text-xs text-zinc-400">
+              <div className="flex items-center gap-2 rounded-xl border border-input bg-card/80 p-3 text-xs text-muted-foreground">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 Fetching VPS logs...
               </div>
             ) : logsQuery.isError ? (
-              <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-200">
+              <div className="rounded-xl border border-destructive/40 bg-destructive/15 p-3 text-xs text-destructive-foreground">
                 {summarizeError(logsQuery.error)}
               </div>
             ) : (
               <>
                 <section>
-                  <h3 className="mb-1.5 text-[11px] font-medium tracking-wide text-zinc-400">
+                  <h3 className="mb-1.5 text-[11px] font-medium tracking-wide text-muted-foreground">
                     bootstrap
                   </h3>
-                  <pre className="max-h-52 overflow-auto rounded-xl border border-white/10 bg-black/40 p-3 font-mono text-[11px] leading-relaxed text-zinc-300">
+                  <pre className="max-h-52 overflow-auto rounded-xl border border-input bg-background/80 p-3 font-mono text-[11px] leading-relaxed text-foreground/80">
                     {clampLog(logsQuery.data?.bootstrapLog)}
                   </pre>
                 </section>
                 <section>
-                  <h3 className="mb-1.5 text-[11px] font-medium tracking-wide text-zinc-400">
+                  <h3 className="mb-1.5 text-[11px] font-medium tracking-wide text-muted-foreground">
                     cloud-init
                   </h3>
-                  <pre className="max-h-44 overflow-auto rounded-xl border border-white/10 bg-black/40 p-3 font-mono text-[11px] leading-relaxed text-zinc-300">
+                  <pre className="max-h-44 overflow-auto rounded-xl border border-input bg-background/80 p-3 font-mono text-[11px] leading-relaxed text-foreground/80">
                     {clampLog(logsQuery.data?.cloudInitStatus)}
                   </pre>
                 </section>
                 <section>
-                  <h3 className="mb-1.5 text-[11px] font-medium tracking-wide text-zinc-400">
+                  <h3 className="mb-1.5 text-[11px] font-medium tracking-wide text-muted-foreground">
                     cloud-init-output
                   </h3>
-                  <pre className="max-h-44 overflow-auto rounded-xl border border-white/10 bg-black/40 p-3 font-mono text-[11px] leading-relaxed text-zinc-300">
+                  <pre className="max-h-44 overflow-auto rounded-xl border border-input bg-background/80 p-3 font-mono text-[11px] leading-relaxed text-foreground/80">
                     {clampLog(logsQuery.data?.cloudInitOutput)}
                   </pre>
                 </section>
@@ -177,7 +177,7 @@ export default function DevVpsLogsWidget() {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-emerald-300/30 bg-zinc-950/90 px-3 py-2 text-xs font-medium text-emerald-100 shadow-[0_8px_24px_rgba(0,0,0,0.35)] transition-colors hover:border-emerald-200/40 hover:text-white"
+          className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-success/40 bg-background/90 px-3 py-2 text-xs font-medium text-success-foreground shadow-[0_8px_24px_rgba(0,0,0,0.35)] transition-colors hover:border-success/50 hover:text-foreground"
           title="Open development VPS logs"
         >
           <Terminal className="h-3.5 w-3.5" />

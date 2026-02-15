@@ -88,7 +88,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       <head>
         <HeadContent />
       </head>
-      <body className="bg-zinc-950">
+      <body className="bg-background">
         {children}
         <Scripts />
       </body>

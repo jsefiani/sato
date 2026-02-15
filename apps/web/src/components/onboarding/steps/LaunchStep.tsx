@@ -32,22 +32,25 @@ function StepIcon({ done, active }: { done: boolean; active: boolean }) {
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
         transition={{ type: 'spring' as const, stiffness: 400, damping: 15 }}
-        className="flex h-6 w-6 items-center justify-center rounded-full bg-white/[0.03]"
+        className="flex h-6 w-6 items-center justify-center rounded-full bg-foreground/3"
       >
-        <Check className="h-3.5 w-3.5 text-zinc-300" />
+        <Check className="h-3.5 w-3.5 text-foreground/80" />
       </motion.div>
     )
-  if (active) return <Loader2 className="h-4 w-4 animate-spin text-zinc-400" />
-  return <div className="mx-auto h-1.5 w-1.5 rounded-full bg-zinc-700" />
+  if (active)
+    return <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+  return <div className="mx-auto h-1.5 w-1.5 rounded-full bg-secondary" />
 }
 
 function IssueCard({ message }: { message: string }) {
   return (
-    <div className="mt-4 w-full max-w-sm rounded-xl border border-red-400/25 bg-red-500/10 px-3 py-2 text-left">
-      <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-red-200/90">
+    <div className="mt-4 w-full max-w-sm rounded-xl border border-destructive/40 bg-destructive/15 px-3 py-2 text-left">
+      <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-destructive-foreground">
         Setup issue detected
       </p>
-      <p className="mt-1 text-sm leading-relaxed text-red-100/80">{message}</p>
+      <p className="mt-1 text-sm leading-relaxed text-destructive-foreground/80">
+        {message}
+      </p>
     </div>
   )
 }
@@ -106,20 +109,20 @@ export default function LaunchStep() {
       className="flex w-full flex-col items-center text-center"
     >
       <motion.div
-        className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/[0.04]"
+        className="flex h-14 w-14 items-center justify-center rounded-2xl bg-foreground/4"
         animate={isReady ? {} : { scale: [1, 1.06, 1] }}
         transition={{ duration: 2, repeat: Infinity }}
       >
         <Sparkles
-          className={`h-7 w-7 ${isReady ? 'text-zinc-300' : 'text-white/80'}`}
+          className={`h-7 w-7 ${isReady ? 'text-foreground/80' : 'text-foreground/80'}`}
         />
       </motion.div>
 
-      <h1 className="mt-6 text-2xl font-light tracking-tight text-white">
+      <h1 className="mt-6 text-2xl font-light tracking-tight text-foreground">
         {isReady ? 'All set' : 'Setting things up…'}
       </h1>
 
-      <p className="mt-2 text-sm text-zinc-500">
+      <p className="mt-2 text-sm text-muted-foreground/80">
         {isReady
           ? 'Your assistant is ready to go.'
           : 'This usually takes 2–3 minutes.'}
@@ -140,7 +143,7 @@ export default function LaunchStep() {
               whileTap={{ scale: 0.98 }}
               onClick={handleProvision}
               disabled={provisionPending}
-              className="h-12 w-full max-w-sm rounded-2xl bg-white px-8 text-[15px] font-semibold text-zinc-950 transition-colors hover:bg-zinc-200 disabled:opacity-60"
+              className="h-12 w-full max-w-sm rounded-2xl bg-primary px-8 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
             >
               {provisionPending ? (
                 <span className="inline-flex items-center gap-2">
@@ -185,10 +188,10 @@ export default function LaunchStep() {
                     <span
                       className={`text-sm ${
                         i < progressIndex
-                          ? 'text-zinc-300'
+                          ? 'text-foreground/80'
                           : i === progressIndex
-                            ? 'font-medium text-zinc-300'
-                            : 'text-zinc-600'
+                            ? 'font-medium text-foreground/80'
+                            : 'text-muted-foreground/50'
                       }`}
                     >
                       {msg.label}

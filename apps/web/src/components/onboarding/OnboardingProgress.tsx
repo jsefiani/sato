@@ -19,10 +19,10 @@ export default function OnboardingProgress({
           layout
           className={`rounded-full transition-all duration-500 ${
             i === current
-              ? 'h-2 w-10 bg-white'
+              ? 'h-2 w-10 bg-foreground'
               : i < current
-                ? 'h-2 w-2 bg-white/50'
-                : 'h-2 w-2 bg-zinc-800'
+                ? 'h-2 w-2 bg-foreground/50'
+                : 'h-2 w-2 bg-secondary'
           }`}
         />
       ))}

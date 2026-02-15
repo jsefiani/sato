@@ -27,13 +27,15 @@ export default function OnboardingWizard({
   if (stepConfig?.requiresSetupState && !ctx.setupState) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center px-4 py-12">
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/[0.04]">
-          <Sparkles className="h-7 w-7 text-white/80" />
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-foreground/4">
+          <Sparkles className="h-7 w-7 text-foreground/80" />
         </div>
-        <h1 className="mt-6 text-2xl font-light tracking-tight text-white">
+        <h1 className="mt-6 text-2xl font-light tracking-tight text-foreground">
           Setting things up…
         </h1>
-        <p className="mt-2 text-sm text-zinc-500">Preparing your assistant…</p>
+        <p className="mt-2 text-sm text-muted-foreground/80">
+          Preparing your assistant…
+        </p>
       </div>
     )
   }

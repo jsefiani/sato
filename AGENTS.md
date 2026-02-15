@@ -28,6 +28,10 @@ pnpm --filter=web build     # production build
 
 Always use `pnpm --filter=web <script>` — never `cd` into the directory or run `eslint`/`vitest` directly.
 
+## Colors & Styling
+
+Never use Tailwind's default palette (`zinc-*`, `gray-*`, `red-*`, etc.) — it's reset. Only use semantic tokens defined in `apps/web/src/styles.css`.
+
 ## After making changes
 
 Always run linting and formatting after any code changes: `pnpm --filter=web check` (format + lint fix).

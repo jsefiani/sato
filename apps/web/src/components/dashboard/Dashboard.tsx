@@ -231,13 +231,13 @@ export default function Dashboard() {
   if (!state) {
     return (
       <div className="flex flex-1 items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-zinc-500" />
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground/80" />
       </div>
     )
   }
 
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto px-4 py-8 text-white">
+    <div className="min-h-0 flex-1 overflow-y-auto px-4 py-8 text-foreground">
       <motion.div
         variants={container}
         initial="hidden"
@@ -245,36 +245,36 @@ export default function Dashboard() {
         className="mx-auto w-full max-w-xl space-y-4"
       >
         <motion.div variants={item} className="pb-2">
-          <h1 className="text-2xl font-light tracking-tight text-white">
+          <h1 className="text-2xl font-light tracking-tight text-foreground">
             Hey, {firstName}
           </h1>
-          <p className="mt-1 text-sm text-zinc-500">
+          <p className="mt-1 text-sm text-muted-foreground/80">
             Here's how your assistant is doing.
           </p>
         </motion.div>
 
         <motion.div
           variants={item}
-          className="rounded-2xl border border-white/[0.06] bg-zinc-900/50 p-5"
+          className="rounded-2xl border border-border bg-card/50 p-5"
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div
                 className={`flex h-9 w-9 items-center justify-center rounded-xl ${
-                  isAssistantLive ? 'bg-white/[0.04]' : 'bg-zinc-800/80'
+                  isAssistantLive ? 'bg-foreground/4' : 'bg-secondary/80'
                 }`}
               >
                 <Activity
-                  className={`h-4 w-4 ${isAssistantLive ? 'text-white/80' : 'text-zinc-600'}`}
+                  className={`h-4 w-4 ${isAssistantLive ? 'text-foreground/80' : 'text-muted-foreground/50'}`}
                 />
               </div>
               <div>
-                <p className="text-sm font-medium text-zinc-300">
+                <p className="text-sm font-medium text-foreground/80">
                   {isAssistantLive
                     ? 'Your assistant is running'
                     : 'Assistant offline'}
                 </p>
-                <p className="text-[13px] text-zinc-500">
+                <p className="text-[13px] text-muted-foreground/80">
                   {isAssistantLive ? 'Everything looks good' : statusLabel}
                 </p>
               </div>
@@ -286,7 +286,7 @@ export default function Dashboard() {
                   onClick={() =>
                     navigate({ to: '/', search: { step: 'launch' } })
                   }
-                  className="rounded-xl border border-white/[0.08] px-3 py-1.5 text-[13px] font-medium text-zinc-300 transition-colors hover:border-white/[0.16] hover:text-white"
+                  className="rounded-xl border border-input px-3 py-1.5 text-[13px] font-medium text-foreground/80 transition-colors hover:border-foreground/16 hover:text-foreground"
                 >
                   Set up again
                 </button>
@@ -294,8 +294,8 @@ export default function Dashboard() {
                 <div
                   className={`h-2.5 w-2.5 rounded-full ${
                     isAssistantLive
-                      ? 'bg-white shadow-[0_0_8px_rgba(255,255,255,0.3)]'
-                      : 'bg-zinc-700'
+                      ? 'bg-foreground shadow-[0_0_8px_rgba(255,255,255,0.3)]'
+                      : 'bg-secondary'
                   }`}
                 />
               )}
@@ -305,25 +305,25 @@ export default function Dashboard() {
 
         <motion.div
           variants={item}
-          className="rounded-2xl border border-white/[0.06] bg-zinc-900/50 p-5"
+          className="rounded-2xl border border-border bg-card/50 p-5"
         >
           <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-zinc-300">
+            <p className="text-sm font-medium text-foreground/80">
               Messages remaining
             </p>
-            <p className="text-lg font-semibold tabular-nums text-white">
+            <p className="text-lg font-semibold tabular-nums text-foreground">
               {formatMessages(totalMessages)}
             </p>
           </div>
-          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-zinc-800">
+          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-secondary">
             <motion.div
-              className="h-full rounded-full bg-white"
+              className="h-full rounded-full bg-foreground"
               initial={{ width: 0 }}
               animate={{ width: `${messagesPercent}%` }}
               transition={{ duration: 0.8, ease: 'easeOut' }}
             />
           </div>
-          <p className="mt-2.5 text-[12px] text-zinc-500">
+          <p className="mt-2.5 text-[12px] text-muted-foreground/80">
             {formatMessages(state.credits.trialCreditsRemaining)} trial ·{' '}
             {formatMessages(state.credits.monthlyCreditsRemaining)} monthly ·{' '}
             {formatMessages(state.credits.purchasedCreditsRemaining)} extra
@@ -332,16 +332,18 @@ export default function Dashboard() {
 
         <motion.div
           variants={item}
-          className="rounded-2xl border border-white/[0.06] bg-zinc-900/50 p-5"
+          className="rounded-2xl border border-border bg-card/50 p-5"
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/[0.04]">
-                <MessageCircle className="h-4 w-4 text-white/80" />
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-foreground/4">
+                <MessageCircle className="h-4 w-4 text-foreground/80" />
               </div>
               <div>
-                <p className="text-sm font-medium text-zinc-300">Telegram</p>
-                <p className="text-[13px] text-zinc-500">
+                <p className="text-sm font-medium text-foreground/80">
+                  Telegram
+                </p>
+                <p className="text-[13px] text-muted-foreground/80">
                   {telegramConnected
                     ? (telegramBotHandle ?? 'Connected')
                     : telegramConfigured
@@ -356,7 +358,7 @@ export default function Dashboard() {
                 onClick={() =>
                   navigate({ to: '/', search: { step: 'telegram' } })
                 }
-                className="inline-flex items-center gap-1.5 rounded-xl border border-white/[0.06] px-3 py-1.5 text-[13px] font-medium text-zinc-400 transition-colors hover:border-white/[0.12] hover:text-zinc-300"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-1.5 text-[13px] font-medium text-muted-foreground transition-colors hover:border-foreground/12 hover:text-foreground/80"
               >
                 Fix Telegram
               </button>
@@ -365,7 +367,7 @@ export default function Dashboard() {
                 href={`https://t.me/${persistedTelegramBotUsername}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-xl border border-white/[0.06] px-3 py-1.5 text-[13px] font-medium text-zinc-400 transition-colors hover:border-white/[0.12] hover:text-zinc-300"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-1.5 text-[13px] font-medium text-muted-foreground transition-colors hover:border-foreground/12 hover:text-foreground/80"
               >
                 Open chat <ExternalLink className="h-3 w-3" />
               </a>
@@ -375,25 +377,27 @@ export default function Dashboard() {
 
         <motion.div
           variants={item}
-          className="rounded-2xl border border-white/[0.06] bg-zinc-900/50 p-5"
+          className="rounded-2xl border border-border bg-card/50 p-5"
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/[0.04]">
-                <CreditCard className="h-4 w-4 text-white/80" />
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-foreground/4">
+                <CreditCard className="h-4 w-4 text-foreground/80" />
               </div>
               <div>
-                <p className="text-sm font-medium text-zinc-300">
+                <p className="text-sm font-medium text-foreground/80">
                   Plan & billing
                 </p>
-                <p className="text-[13px] text-zinc-500">{planLabel}</p>
+                <p className="text-[13px] text-muted-foreground/80">
+                  {planLabel}
+                </p>
               </div>
             </div>
             <button
               type="button"
               onClick={openPortal}
               disabled={stripeLoading}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-white/[0.06] px-3 py-1.5 text-[13px] font-medium text-zinc-400 transition-colors hover:border-white/[0.12] hover:text-zinc-300 disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-1.5 text-[13px] font-medium text-muted-foreground transition-colors hover:border-foreground/12 hover:text-foreground/80 disabled:opacity-60"
             >
               Manage
             </button>
@@ -403,12 +407,12 @@ export default function Dashboard() {
         {state.topupPacks.length > 0 && (
           <motion.div
             variants={item}
-            className="rounded-2xl border border-white/[0.06] bg-zinc-900/50 p-5"
+            className="rounded-2xl border border-border bg-card/50 p-5"
           >
-            <p className="text-sm font-medium text-zinc-300">
+            <p className="text-sm font-medium text-foreground/80">
               Need more messages?
             </p>
-            <p className="mt-1 text-[13px] text-zinc-500">
+            <p className="mt-1 text-[13px] text-muted-foreground/80">
               Top up your balance anytime.
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
@@ -418,7 +422,7 @@ export default function Dashboard() {
                   type="button"
                   onClick={() => openTopupCheckout(pack.id)}
                   disabled={stripeLoading}
-                  className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-4 py-2 text-sm font-medium text-zinc-300 transition-colors hover:bg-white/[0.06] disabled:opacity-60"
+                  className="rounded-xl border border-border bg-foreground/3 px-4 py-2 text-sm font-medium text-foreground/80 transition-colors hover:bg-foreground/6 disabled:opacity-60"
                 >
                   {pack.label}
                 </button>
@@ -431,7 +435,7 @@ export default function Dashboard() {
           <button
             type="button"
             onClick={() => setShowAdvanced((v) => !v)}
-            className="flex w-full items-center gap-2 rounded-2xl border border-white/[0.04] bg-zinc-900/30 p-4 text-sm text-zinc-500 transition-colors hover:text-zinc-400"
+            className="flex w-full items-center gap-2 rounded-2xl border border-border/70 bg-card/30 p-4 text-sm text-muted-foreground/80 transition-colors hover:text-muted-foreground"
           >
             <Settings className="h-3.5 w-3.5" />
             Advanced
@@ -444,7 +448,7 @@ export default function Dashboard() {
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
-              className="mt-2 space-y-3 rounded-2xl border border-white/[0.04] bg-zinc-900/30 p-5"
+              className="mt-2 space-y-3 rounded-2xl border border-border/70 bg-card/30 p-5"
             >
               {isAssistantLive && (
                 <div className="space-y-3">
@@ -452,7 +456,7 @@ export default function Dashboard() {
                     type="button"
                     onClick={() => verifyMutation.mutate()}
                     disabled={verifyMutation.isPending}
-                    className="inline-flex items-center gap-2 rounded-xl border border-white/[0.06] px-3 py-2 text-[13px] text-zinc-400 transition-colors hover:border-white/[0.1] hover:text-zinc-300 disabled:opacity-60"
+                    className="inline-flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-[13px] text-muted-foreground transition-colors hover:border-input hover:text-foreground/80 disabled:opacity-60"
                   >
                     <ShieldCheck className="h-3.5 w-3.5" />
                     {verifyMutation.isPending
@@ -461,14 +465,14 @@ export default function Dashboard() {
                   </button>
 
                   {verifyMutation.data && (
-                    <div className="grid gap-1.5 text-[13px] text-zinc-400 sm:grid-cols-2">
+                    <div className="grid gap-1.5 text-[13px] text-muted-foreground sm:grid-cols-2">
                       <p>
                         Connection:{' '}
                         <span
                           className={
                             verifyMutation.data.gateway.loaded
-                              ? 'text-zinc-300'
-                              : 'text-red-400/70'
+                              ? 'text-foreground/80'
+                              : 'text-destructive'
                           }
                         >
                           {verifyMutation.data.gateway.loaded
@@ -481,8 +485,8 @@ export default function Dashboard() {
                         <span
                           className={
                             verifyMutation.data.gateway.rpcOk
-                              ? 'text-zinc-300'
-                              : 'text-red-400/70'
+                              ? 'text-foreground/80'
+                              : 'text-destructive'
                           }
                         >
                           {verifyMutation.data.gateway.rpcOk
@@ -495,8 +499,8 @@ export default function Dashboard() {
                         <span
                           className={
                             verifyMutation.data.health.ok
-                              ? 'text-zinc-300'
-                              : 'text-red-400/70'
+                              ? 'text-foreground/80'
+                              : 'text-destructive'
                           }
                         >
                           {verifyMutation.data.health.ok
@@ -519,38 +523,38 @@ export default function Dashboard() {
                   <button
                     type="button"
                     onClick={() => setShowLogs((v) => !v)}
-                    className="inline-flex items-center gap-2 rounded-xl border border-white/[0.06] px-3 py-2 text-[13px] text-zinc-400 transition-colors hover:border-white/[0.1] hover:text-zinc-300"
+                    className="inline-flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-[13px] text-muted-foreground transition-colors hover:border-input hover:text-foreground/80"
                   >
                     <Terminal className="h-3.5 w-3.5" />
                     {showLogs ? 'Hide logs' : 'Setup logs'}
                   </button>
 
                   {showLogs && (
-                    <div className="space-y-3 rounded-xl border border-white/[0.04] bg-zinc-950/50 p-4">
+                    <div className="space-y-3 rounded-xl border border-border/70 bg-background/50 p-4">
                       {logsQuery.isLoading ? (
-                        <div className="flex items-center gap-2 text-sm text-zinc-500">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground/80">
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
                           Fetching logs…
                         </div>
                       ) : logsQuery.isError ? (
-                        <p className="text-sm text-red-400/70">
+                        <p className="text-sm text-destructive">
                           Failed to load logs.
                         </p>
                       ) : (
                         <>
                           <div>
-                            <h3 className="mb-2 text-[13px] font-medium text-zinc-300">
+                            <h3 className="mb-2 text-[13px] font-medium text-foreground/80">
                               Setup Log
                             </h3>
-                            <pre className="max-h-48 overflow-auto whitespace-pre-wrap rounded-lg bg-zinc-950 p-3 font-mono text-[12px] text-zinc-500">
+                            <pre className="max-h-48 overflow-auto whitespace-pre-wrap rounded-lg bg-background p-3 font-mono text-[12px] text-muted-foreground/80">
                               {logsQuery.data?.bootstrapLog}
                             </pre>
                           </div>
                           <div>
-                            <h3 className="mb-2 text-[13px] font-medium text-zinc-300">
+                            <h3 className="mb-2 text-[13px] font-medium text-foreground/80">
                               Server setup
                             </h3>
-                            <pre className="max-h-48 overflow-auto whitespace-pre-wrap rounded-lg bg-zinc-950 p-3 font-mono text-[12px] text-zinc-500">
+                            <pre className="max-h-48 overflow-auto whitespace-pre-wrap rounded-lg bg-background p-3 font-mono text-[12px] text-muted-foreground/80">
                               {logsQuery.data?.cloudInitStatus}
                             </pre>
                           </div>
@@ -562,7 +566,7 @@ export default function Dashboard() {
               )}
 
               {state.vps && state.vps.status !== 'terminated' && (
-                <div className="border-t border-white/[0.04] pt-3">
+                <div className="border-t border-border/70 pt-3">
                   <button
                     type="button"
                     onClick={() => {
@@ -573,7 +577,7 @@ export default function Dashboard() {
                       }
                     }}
                     disabled={destroyMutation.isPending}
-                    className="inline-flex items-center gap-2 rounded-xl border border-red-400/10 px-3 py-2 text-[13px] text-red-400/70 transition-colors hover:bg-red-500/5 disabled:opacity-60"
+                    className="inline-flex items-center gap-2 rounded-xl border border-destructive/20 px-3 py-2 text-[13px] text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-60"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                     {destroyMutation.isPending
@@ -581,7 +585,7 @@ export default function Dashboard() {
                       : 'Remove assistant'}
                   </button>
                   {destroyMutation.isSuccess && (
-                    <p className="mt-2 flex items-center gap-1.5 text-[13px] text-zinc-300">
+                    <p className="mt-2 flex items-center gap-1.5 text-[13px] text-foreground/80">
                       <Check className="h-3 w-3" />
                       Assistant removed.
                     </p>

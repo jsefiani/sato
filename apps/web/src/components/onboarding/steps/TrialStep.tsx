@@ -34,14 +34,14 @@ export default function TrialStep() {
     >
       <motion.div
         variants={itemVariants}
-        className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/[0.04]"
+        className="flex h-14 w-14 items-center justify-center rounded-2xl bg-foreground/4"
       >
-        <Gift className="h-7 w-7 text-white/80" />
+        <Gift className="h-7 w-7 text-foreground/80" />
       </motion.div>
 
       <motion.h1
         variants={itemVariants}
-        className="mt-6 text-3xl font-light tracking-tight text-white"
+        className="mt-6 text-3xl font-light tracking-tight text-foreground"
       >
         {hasAccess ? 'Your free trial' : 'Subscribe to continue'}
       </motion.h1>
@@ -50,10 +50,10 @@ export default function TrialStep() {
         <>
           <motion.p
             variants={itemVariants}
-            className="mt-3 max-w-sm text-[15px] leading-relaxed text-zinc-500"
+            className="mt-3 max-w-sm text-[15px] leading-relaxed text-muted-foreground/80"
           >
             Great news — you have a{' '}
-            <span className="font-medium text-white">
+            <span className="font-medium text-foreground">
               {daysLeft}-day free trial
             </span>
             . Explore everything, no strings attached.
@@ -65,10 +65,10 @@ export default function TrialStep() {
           >
             {included.map((text) => (
               <div key={text} className="flex items-center gap-3 text-left">
-                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/[0.03]">
-                  <Check className="h-3 w-3 text-zinc-300" />
+                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-foreground/3">
+                  <Check className="h-3 w-3 text-foreground/80" />
                 </div>
-                <span className="text-sm text-zinc-400">{text}</span>
+                <span className="text-sm text-muted-foreground">{text}</span>
               </div>
             ))}
           </motion.div>
@@ -78,7 +78,7 @@ export default function TrialStep() {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => onNavigate('launch')}
-            className="mt-10 h-12 w-full max-w-sm rounded-2xl bg-white text-[15px] font-semibold text-zinc-950 transition-colors hover:bg-zinc-200"
+            className="mt-10 h-12 w-full max-w-sm rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
           >
             Continue
           </motion.button>
@@ -87,7 +87,7 @@ export default function TrialStep() {
         <>
           <motion.p
             variants={itemVariants}
-            className="mt-3 max-w-sm text-[15px] leading-relaxed text-zinc-500"
+            className="mt-3 max-w-sm text-[15px] leading-relaxed text-muted-foreground/80"
           >
             You have an active subscription. Let's continue setting up your
             assistant.
@@ -98,7 +98,7 @@ export default function TrialStep() {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => onNavigate('launch')}
-            className="mt-10 h-12 w-full max-w-sm rounded-2xl bg-white text-[15px] font-semibold text-zinc-950 transition-colors hover:bg-zinc-200"
+            className="mt-10 h-12 w-full max-w-sm rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
           >
             Continue
           </motion.button>
@@ -107,7 +107,7 @@ export default function TrialStep() {
         <>
           <motion.p
             variants={itemVariants}
-            className="mt-3 max-w-sm text-[15px] leading-relaxed text-zinc-500"
+            className="mt-3 max-w-sm text-[15px] leading-relaxed text-muted-foreground/80"
           >
             Your free trial has ended. Subscribe to keep your assistant running.
           </motion.p>
@@ -118,7 +118,7 @@ export default function TrialStep() {
             whileTap={{ scale: 0.98 }}
             onClick={openCheckout}
             disabled={stripeLoading}
-            className="mt-10 h-12 w-full max-w-sm rounded-2xl bg-white text-[15px] font-semibold text-zinc-950 transition-colors hover:bg-zinc-200 disabled:opacity-60"
+            className="mt-10 h-12 w-full max-w-sm rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
           >
             <span className="inline-flex items-center gap-2">
               <CreditCard className="h-4 w-4" />

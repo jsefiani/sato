@@ -20,7 +20,7 @@ export default function UserMenu() {
 
   if (isPending) {
     return (
-      <div className="h-8 w-8 rounded-full bg-white/[0.06] animate-pulse" />
+      <div className="h-8 w-8 rounded-full bg-foreground/6 animate-pulse" />
     )
   }
 
@@ -32,7 +32,7 @@ export default function UserMenu() {
     <div className="relative" ref={menuRef}>
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2.5 rounded-full border border-transparent py-1.5 pl-1.5 pr-3 text-sm text-zinc-400 transition-colors hover:border-white/[0.06] hover:text-zinc-200"
+        className="flex items-center gap-2.5 rounded-full border border-transparent py-1.5 pl-1.5 pr-3 text-sm text-muted-foreground transition-colors hover:border-border hover:text-foreground/80"
       >
         {session.user.image ? (
           <img
@@ -41,8 +41,8 @@ export default function UserMenu() {
             className="h-7 w-7 rounded-full object-cover"
           />
         ) : (
-          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-white/[0.08]">
-            <span className="text-xs font-medium text-zinc-300">
+          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-foreground/8">
+            <span className="text-xs font-medium text-foreground/80">
               {initials}
             </span>
           </div>
@@ -50,18 +50,18 @@ export default function UserMenu() {
         <span className="max-w-[120px] truncate">{session.user.name}</span>
         <ChevronDown
           size={14}
-          className={`text-zinc-600 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+          className={`text-muted-foreground/50 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
         />
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-1.5 w-48 overflow-hidden rounded-xl border border-white/[0.06] bg-zinc-900/80 p-1 shadow-2xl backdrop-blur-xl">
+        <div className="absolute right-0 mt-1.5 w-48 overflow-hidden rounded-xl border border-border bg-card/80 p-1 shadow-2xl backdrop-blur-xl">
           <button
             onClick={async () => {
               await authClient.signOut()
               window.location.href = '/sign-in'
             }}
-            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-zinc-400 transition-colors hover:bg-white/[0.06] hover:text-zinc-200"
+            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground/80"
           >
             <LogOut size={14} />
             Sign out

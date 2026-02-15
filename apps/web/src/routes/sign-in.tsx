@@ -22,11 +22,13 @@ function SignIn() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-background flex items-center justify-center px-4">
       <div className="w-full max-w-sm p-8 space-y-6">
         <div className="space-y-2 text-center">
-          <h1 className="text-2xl font-bold text-white">Sign in to Sato</h1>
-          <p className="text-sm text-gray-400">
+          <h1 className="text-2xl font-bold text-foreground">
+            Sign in to Sato
+          </h1>
+          <p className="text-sm text-muted-foreground">
             Continue with your Google account
           </p>
         </div>
@@ -34,7 +36,7 @@ function SignIn() {
         <button
           type="button"
           onClick={handleGoogleSignIn}
-          className="w-full h-10 px-4 text-sm font-medium text-white bg-gray-800 border border-gray-700 hover:bg-gray-700 transition-colors flex items-center justify-center gap-2 rounded-lg cursor-pointer"
+          className="w-full h-10 px-4 text-sm font-medium text-foreground bg-secondary border border-border hover:bg-accent transition-colors flex items-center justify-center gap-2 rounded-lg cursor-pointer"
         >
           <svg className="h-4 w-4" viewBox="0 0 24 24">
             <path
