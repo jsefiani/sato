@@ -51,6 +51,7 @@ function buildResourceName(prefix: 'srv' | 'fw', userId: string): string {
 function buildSnapshotCloudInit(
   openRouterApiKey: string,
   tailscaleAuthKey: string,
+  tailscaleHostname: string,
 ): string {
   const safeApiKey = openRouterApiKey.replace(/'/g, `'"'"'`)
   const safeTsKey = tailscaleAuthKey.replace(/'/g, `'"'"'`)
@@ -86,7 +87,7 @@ function buildSnapshotCloudInit(
     '      # Join Tailscale mesh (retry up to 3 times for transient DNS/network issues)',
     '      TS_JOINED=0',
     '      for TS_ATTEMPT in 1 2 3; do',
-    `        if tailscale up --ssh --authkey '${safeTsKey}' --hostname "sato-vps-$(hostname -s)"; then`,
+    `        if tailscale up --ssh --authkey '${safeTsKey}' --hostname '${tailscaleHostname}'; then`,
     '          TS_JOINED=1',
     '          break',
     '        fi',
@@ -436,7 +437,11 @@ export async function provisionUserServer(input: ProvisionInput) {
       })
       .where(eq(vpsInstance.userId, input.userId))
 
-    const userData = buildSnapshotCloudInit(openRouterApiKey, tailscaleAuth.key)
+    const userData = buildSnapshotCloudInit(
+      openRouterApiKey,
+      tailscaleAuth.key,
+      tailscaleHostname,
+    )
 
     const server = await createServer(
       {

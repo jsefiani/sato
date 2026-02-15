@@ -80,13 +80,13 @@ export async function createEphemeralAuthKey(): Promise<TailscaleAuthKey> {
           },
         },
       },
-      expirySeconds: 300,
+      expirySeconds: 600,
     },
   )
 
   return {
     id: response.id,
     key: response.key,
-    expirySeconds: 300,
+    expirySeconds: 600,
   }
 }
