@@ -2,6 +2,7 @@ import { motion } from 'motion/react'
 import { Check, CreditCard, Gift } from 'lucide-react'
 import { containerVariants, itemVariants } from '../onboarding-animations'
 import { useOnboardingContext } from '../onboarding-context'
+import { Button } from '@/components/ui/button'
 
 const included = [
   'Your own private AI assistant',
@@ -73,15 +74,11 @@ export default function TrialStep() {
             ))}
           </motion.div>
 
-          <motion.button
-            variants={itemVariants}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => onNavigate('launch')}
-            className="mt-10 h-12 w-full max-w-sm rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            Continue
-          </motion.button>
+          <motion.div variants={itemVariants} className="mt-10 w-full max-w-sm">
+            <Button className="w-full" onClick={() => onNavigate('launch')}>
+              Continue
+            </Button>
+          </motion.div>
         </>
       ) : hasAccess ? (
         <>
@@ -93,15 +90,11 @@ export default function TrialStep() {
             assistant.
           </motion.p>
 
-          <motion.button
-            variants={itemVariants}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => onNavigate('launch')}
-            className="mt-10 h-12 w-full max-w-sm rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            Continue
-          </motion.button>
+          <motion.div variants={itemVariants} className="mt-10 w-full max-w-sm">
+            <Button className="w-full" onClick={() => onNavigate('launch')}>
+              Continue
+            </Button>
+          </motion.div>
         </>
       ) : (
         <>
@@ -112,19 +105,16 @@ export default function TrialStep() {
             Your free trial has ended. Subscribe to keep your assistant running.
           </motion.p>
 
-          <motion.button
-            variants={itemVariants}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={openCheckout}
-            disabled={stripeLoading}
-            className="mt-10 h-12 w-full max-w-sm rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
-          >
-            <span className="inline-flex items-center gap-2">
+          <motion.div variants={itemVariants} className="mt-10 w-full max-w-sm">
+            <Button
+              className="w-full"
+              onClick={openCheckout}
+              disabled={stripeLoading}
+            >
               <CreditCard className="h-4 w-4" />
               {stripeLoading ? 'Opening checkout…' : 'Subscribe to continue'}
-            </span>
-          </motion.button>
+            </Button>
+          </motion.div>
         </>
       )}
     </motion.div>

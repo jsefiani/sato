@@ -12,6 +12,10 @@ import {
 import { containerVariants, itemVariants } from '../onboarding-animations'
 import { useOnboardingContext } from '../onboarding-context'
 import type { TelegramPairingRequest, TelegramState } from '../onboarding-utils'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 
 type TelegramFlowStep = 'token' | 'message' | 'approval' | 'done'
 
@@ -263,9 +267,9 @@ export default function TelegramStep() {
         className="mt-8 w-full max-w-sm space-y-4"
       >
         {softError ? (
-          <div className="rounded-2xl border border-destructive/40 bg-destructive/15 px-3 py-2 text-left text-xs leading-relaxed text-destructive-foreground">
-            {softError}
-          </div>
+          <Alert variant="destructive">
+            <AlertDescription>{softError}</AlertDescription>
+          </Alert>
         ) : null}
 
         <AnimatePresence mode="wait">
@@ -277,77 +281,77 @@ export default function TelegramStep() {
               exit={{ opacity: 0, y: -8 }}
               className="space-y-4"
             >
-              <div className="space-y-5 rounded-2xl border border-border bg-card p-5 text-left">
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-card-foreground">
-                    Create your assistant in BotFather
-                  </p>
-                  <p className="text-[13px] leading-relaxed text-muted-foreground">
-                    Send <span className="font-mono">/newbot</span> in
-                    BotFather, follow the prompts, then paste your Telegram
-                    token below.
-                  </p>
-                </div>
-
-                <div className="space-y-2 rounded-xl border border-border bg-muted/60 p-3">
-                  <p className="text-[12px] text-muted-foreground">
-                    Command for BotFather:
-                  </p>
-                  <div className="flex items-center justify-between rounded-lg border border-border bg-background/80 px-2.5 py-2">
-                    <span className="font-mono text-[13px] text-card-foreground">
-                      /newbot
-                    </span>
-                    <button
-                      type="button"
-                      onClick={handleCopyBotfather}
-                      className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[12px] text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                    >
-                      {copied ? 'Copied' : 'Copy'}
-                      {copied ? (
-                        <Check className="h-3.5 w-3.5" />
-                      ) : (
-                        <Copy className="h-3.5 w-3.5" />
-                      )}
-                    </button>
+              <Card>
+                <CardContent className="space-y-5 text-left">
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-card-foreground">
+                      Create your assistant in BotFather
+                    </p>
+                    <p className="text-[13px] leading-relaxed text-muted-foreground">
+                      Send <span className="font-mono">/newbot</span> in
+                      BotFather, follow the prompts, then paste your Telegram
+                      token below.
+                    </p>
                   </div>
-                </div>
 
-                <a
-                  href="https://t.me/BotFather"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-border bg-muted text-[13px] font-medium text-card-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                >
-                  Open BotFather <ExternalLink className="h-3 w-3" />
-                </a>
+                  <div className="space-y-2 rounded-xl border border-border bg-muted/60 p-3">
+                    <p className="text-[12px] text-muted-foreground">
+                      Command for BotFather:
+                    </p>
+                    <div className="flex items-center justify-between rounded-lg border border-border bg-background/80 px-2.5 py-2">
+                      <span className="font-mono text-[13px] text-card-foreground">
+                        /newbot
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleCopyBotfather}
+                      >
+                        {copied ? 'Copied' : 'Copy'}
+                        {copied ? (
+                          <Check className="h-3.5 w-3.5" />
+                        ) : (
+                          <Copy className="h-3.5 w-3.5" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
 
-                <div className="space-y-2">
-                  <label
-                    htmlFor="telegram-token"
-                    className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground"
-                  >
-                    Telegram token
-                  </label>
-                  <input
-                    id="telegram-token"
-                    type="password"
-                    value={token}
-                    onChange={(event) => setToken(event.target.value)}
-                    placeholder="123456:ABC-DEF..."
-                    className="h-10 w-full rounded-xl border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground/70 focus:border-ring focus:outline-none"
-                  />
-                  <p className="text-[12px] text-muted-foreground">
-                    Paste the Telegram token BotFather gives you.
-                  </p>
-                </div>
-              </div>
+                  <Button variant="outline" className="w-full" asChild>
+                    <a
+                      href="https://t.me/BotFather"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Open BotFather <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </Button>
 
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                  <div className="space-y-2">
+                    <label
+                      htmlFor="telegram-token"
+                      className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground"
+                    >
+                      Telegram token
+                    </label>
+                    <Input
+                      id="telegram-token"
+                      type="password"
+                      value={token}
+                      onChange={(event) => setToken(event.target.value)}
+                      placeholder="123456:ABC-DEF..."
+                    />
+                    <p className="text-[12px] text-muted-foreground">
+                      Paste the Telegram token BotFather gives you.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Button
+                className="w-full"
                 onClick={handleConnectBot}
                 disabled={!token.trim() || connectingToken}
-                className="h-12 w-full rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
               >
                 {connectingToken ? (
                   <span className="inline-flex items-center gap-2">
@@ -357,7 +361,7 @@ export default function TelegramStep() {
                 ) : (
                   'Verify token'
                 )}
-              </motion.button>
+              </Button>
 
               <p className="text-center text-[12px] text-muted-foreground">
                 Next: send one message to your assistant on Telegram.
@@ -373,37 +377,41 @@ export default function TelegramStep() {
               exit={{ opacity: 0, y: -8 }}
               className="space-y-4"
             >
-              <div className="space-y-3 rounded-2xl border border-border bg-card p-5 text-left">
-                <div className="flex items-center gap-2 text-sm font-medium text-card-foreground">
-                  <Check className="h-4 w-4" />
-                  Token verified
-                </div>
+              <Card>
+                <CardContent className="space-y-3 text-left">
+                  <div className="flex items-center gap-2 text-sm font-medium text-card-foreground">
+                    <Check className="h-4 w-4" />
+                    Token verified
+                  </div>
 
-                <p className="text-sm text-card-foreground">
-                  Send one message to your assistant on Telegram.
-                </p>
+                  <p className="text-sm text-card-foreground">
+                    Send one message to your assistant on Telegram.
+                  </p>
 
-                {normalizedBotUsername && botHandle ? (
-                  <a
-                    href={`https://t.me/${normalizedBotUsername}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-[13px] font-medium text-card-foreground hover:text-accent-foreground"
-                  >
-                    Open {botHandle} <ExternalLink className="h-3 w-3" />
-                  </a>
-                ) : null}
+                  {normalizedBotUsername && botHandle ? (
+                    <a
+                      href={`https://t.me/${normalizedBotUsername}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-[13px] font-medium text-card-foreground hover:text-accent-foreground"
+                    >
+                      Open {botHandle} <ExternalLink className="h-3 w-3" />
+                    </a>
+                  ) : null}
 
-                <p className="text-[12px] leading-relaxed text-muted-foreground">
-                  If Telegram shows a pairing code message, do nothing here -
-                  approval is automatic.
-                </p>
-              </div>
+                  <p className="text-[12px] leading-relaxed text-muted-foreground">
+                    If Telegram shows a pairing code message, do nothing here -
+                    approval is automatic.
+                  </p>
+                </CardContent>
+              </Card>
 
-              <div className="flex items-center justify-center gap-2 rounded-2xl border border-border bg-muted px-3 py-3 text-[13px] text-muted-foreground">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                Waiting for your message...
-              </div>
+              <Card className="flex-row items-center justify-center gap-2 p-3">
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                <span className="text-[13px] text-muted-foreground">
+                  Waiting for your message...
+                </span>
+              </Card>
             </motion.div>
           )}
 
@@ -415,47 +423,47 @@ export default function TelegramStep() {
               exit={{ opacity: 0, y: -8 }}
               className="space-y-4"
             >
-              <div className="rounded-2xl border border-border bg-card p-4 text-left">
-                <p className="text-sm font-medium text-card-foreground">
-                  Connection request received
-                </p>
-                {autoApproveCandidate ? (
-                  <p className="mt-1 text-[13px] text-muted-foreground">
-                    Approving access automatically...
+              <Card>
+                <CardContent className="text-left">
+                  <p className="text-sm font-medium text-card-foreground">
+                    Connection request received
                   </p>
-                ) : (
-                  <p className="mt-1 text-[13px] text-muted-foreground">
-                    {autoApproveBlockedReason}
-                  </p>
-                )}
-              </div>
+                  {autoApproveCandidate ? (
+                    <p className="mt-1 text-[13px] text-muted-foreground">
+                      Approving access automatically...
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-[13px] text-muted-foreground">
+                      {autoApproveBlockedReason}
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
 
               {autoApproveCandidate ? (
                 autoApproveFailed ? (
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
+                  <Button
+                    className="w-full"
                     onClick={() => onApprovePairing(autoApproveCandidate.code)}
                     disabled={approvingPairing}
-                    className="h-12 w-full rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
                   >
                     Retry automatic approval
-                  </motion.button>
+                  </Button>
                 ) : (
-                  <div className="flex items-center justify-center gap-2 rounded-2xl border border-border bg-muted px-3 py-3 text-[13px] text-muted-foreground">
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    {approvingPairing
-                      ? 'Approving access...'
-                      : 'Finalizing approval...'}
-                  </div>
+                  <Card className="flex-row items-center justify-center gap-2 p-3">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                    <span className="text-[13px] text-muted-foreground">
+                      {approvingPairing
+                        ? 'Approving access...'
+                        : 'Finalizing approval...'}
+                    </span>
+                  </Card>
                 )
               ) : fallbackPairingRequest ? (
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                <Button
+                  className="w-full"
                   onClick={() => onApprovePairing(fallbackPairingRequest.code)}
                   disabled={approvingPairing}
-                  className="h-12 w-full rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
                 >
                   {approvingPairing ? (
                     <span className="inline-flex items-center gap-2">
@@ -465,12 +473,14 @@ export default function TelegramStep() {
                   ) : (
                     'Approve latest request'
                   )}
-                </motion.button>
+                </Button>
               ) : (
-                <div className="rounded-2xl border border-border bg-muted px-3 py-3 text-[13px] text-muted-foreground">
-                  Send one more message to your assistant on Telegram to create
-                  a fresh request.
-                </div>
+                <Card className="p-3">
+                  <span className="text-[13px] text-muted-foreground">
+                    Send one more message to your assistant on Telegram to
+                    create a fresh request.
+                  </span>
+                </Card>
               )}
 
               {(autoApproveBlocked || autoApproveFailed) && (
@@ -492,7 +502,7 @@ export default function TelegramStep() {
                       animate={{ opacity: 1, height: 'auto' }}
                       className="mt-2 flex items-center gap-2"
                     >
-                      <input
+                      <Input
                         type="text"
                         value={manualPairingCode}
                         onChange={(event) =>
@@ -501,20 +511,18 @@ export default function TelegramStep() {
                           )
                         }
                         placeholder="ABCDEFGH"
-                        className="h-10 flex-1 rounded-xl border border-input bg-background px-3 font-mono text-sm tracking-widest text-foreground placeholder:text-muted-foreground/70 focus:border-ring focus:outline-none"
+                        className="flex-1 font-mono tracking-widest"
                       />
-                      <motion.button
-                        whileHover={{ scale: 1.04 }}
-                        whileTap={{ scale: 0.96 }}
+                      <Button
+                        size="sm"
                         onClick={() => onApprovePairing(manualPairingCode)}
                         disabled={
                           approvingPairing ||
                           !PAIRING_CODE_REGEX.test(manualPairingCode)
                         }
-                        className="h-10 rounded-xl bg-primary px-5 text-[13px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
                       >
                         Pair
-                      </motion.button>
+                      </Button>
                     </motion.div>
                   )}
                 </div>
@@ -530,25 +538,22 @@ export default function TelegramStep() {
               exit={{ opacity: 0, y: -8 }}
               className="space-y-4"
             >
-              <div className="space-y-2 rounded-2xl border border-border bg-card p-4 text-left">
-                <div className="flex items-center gap-2 text-sm font-medium text-card-foreground">
-                  <UserCheck className="h-4 w-4" />
-                  Telegram is connected
-                </div>
-                <p className="text-[13px] text-muted-foreground">
-                  Access is approved. You're all set to chat with your
-                  assistant.
-                </p>
-              </div>
+              <Card>
+                <CardContent className="space-y-2 text-left">
+                  <div className="flex items-center gap-2 text-sm font-medium text-card-foreground">
+                    <UserCheck className="h-4 w-4" />
+                    Telegram is connected
+                  </div>
+                  <p className="text-[13px] text-muted-foreground">
+                    Access is approved. You're all set to chat with your
+                    assistant.
+                  </p>
+                </CardContent>
+              </Card>
 
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => onNavigate(null)}
-                className="h-12 w-full rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-              >
+              <Button className="w-full" onClick={() => onNavigate(null)}>
                 Go to dashboard
-              </motion.button>
+              </Button>
             </motion.div>
           )}
         </AnimatePresence>

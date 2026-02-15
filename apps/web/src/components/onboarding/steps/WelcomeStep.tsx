@@ -2,6 +2,9 @@ import { motion } from 'motion/react'
 import { MessageCircle, Shield, Zap } from 'lucide-react'
 import { containerVariants, itemVariants } from '../onboarding-animations'
 import { useOnboardingContext } from '../onboarding-context'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
 
 const features = [
   {
@@ -34,17 +37,12 @@ export default function WelcomeStep() {
       className="flex flex-col items-center text-center"
     >
       <motion.div variants={itemVariants}>
-        {userImage ? (
-          <img
-            src={userImage}
-            alt=""
-            className="h-20 w-20 rounded-full ring-2 ring-ring ring-offset-2 ring-offset-background"
-          />
-        ) : (
-          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary text-3xl font-light text-primary-foreground">
+        <Avatar className="size-20">
+          <AvatarImage src={userImage ?? undefined} alt="" />
+          <AvatarFallback className="text-3xl font-light">
             {firstName.charAt(0).toUpperCase()}
-          </div>
-        )}
+          </AvatarFallback>
+        </Avatar>
       </motion.div>
 
       <motion.h1
@@ -67,35 +65,29 @@ export default function WelcomeStep() {
         className="mt-10 grid w-full max-w-sm gap-3"
       >
         {features.map((feature) => (
-          <motion.div
-            key={feature.title}
-            variants={itemVariants}
-            className="flex items-start gap-4 rounded-2xl border border-border bg-card/50 p-4 text-left backdrop-blur-sm"
-          >
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-foreground/4">
-              <feature.icon className="h-[18px] w-[18px] text-foreground/80" />
-            </div>
-            <div className="flex flex-col gap-1">
-              <p className="text-sm font-medium text-foreground/80">
-                {feature.title}
-              </p>
-              <p className="text-sm text-muted-foreground/80">
-                {feature.description}
-              </p>
-            </div>
+          <motion.div key={feature.title} variants={itemVariants}>
+            <Card className="flex-row items-start gap-4 p-4">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-foreground/4">
+                <feature.icon className="h-[18px] w-[18px] text-foreground/80" />
+              </div>
+              <CardContent className="flex flex-col gap-1 p-0">
+                <p className="text-sm font-medium text-foreground/80">
+                  {feature.title}
+                </p>
+                <p className="text-sm text-muted-foreground/80">
+                  {feature.description}
+                </p>
+              </CardContent>
+            </Card>
           </motion.div>
         ))}
       </motion.div>
 
-      <motion.button
-        variants={itemVariants}
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
-        onClick={handleWelcomeContinue}
-        className="mt-10 h-12 w-full max-w-sm rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-      >
-        Create my assistant
-      </motion.button>
+      <motion.div variants={itemVariants} className="mt-10 w-full max-w-sm">
+        <Button className="w-full" onClick={handleWelcomeContinue}>
+          Create my assistant
+        </Button>
+      </motion.div>
     </motion.div>
   )
 }

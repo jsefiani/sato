@@ -3,6 +3,8 @@ import { AnimatePresence, motion } from 'motion/react'
 import { Check, Loader2, Sparkles } from 'lucide-react'
 import { useOnboardingContext } from '../onboarding-context'
 import type { SetupState } from '../onboarding-utils'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
 
 const PROGRESS_MESSAGES = [
   { key: 'provision', label: 'Creating a home for your assistant…' },
@@ -42,19 +44,6 @@ function StepIcon({ done, active }: { done: boolean; active: boolean }) {
   return <div className="mx-auto h-1.5 w-1.5 rounded-full bg-secondary" />
 }
 
-function IssueCard({ message }: { message: string }) {
-  return (
-    <div className="mt-4 w-full max-w-sm rounded-xl border border-destructive/40 bg-destructive/15 px-3 py-2 text-left">
-      <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-destructive-foreground">
-        Setup issue detected
-      </p>
-      <p className="mt-1 text-sm leading-relaxed text-destructive-foreground/80">
-        {message}
-      </p>
-    </div>
-  )
-}
-
 export default function LaunchStep() {
   const {
     setupState,
@@ -64,7 +53,6 @@ export default function LaunchStep() {
     skipInitialAnimation,
   } = useOnboardingContext()
 
-  // Safe: registry guarantees setupState is loaded for this step
   const state = setupState!
   const launchIssue = state.vpsFailureReason ?? state.bootstrappingError ?? null
 
@@ -128,7 +116,12 @@ export default function LaunchStep() {
           : 'This usually takes 2–3 minutes.'}
       </p>
 
-      {effectiveIssue && <IssueCard message={effectiveIssue} />}
+      {effectiveIssue && (
+        <Alert variant="destructive" className="mt-4 w-full max-w-sm text-left">
+          <AlertTitle>Setup issue detected</AlertTitle>
+          <AlertDescription>{effectiveIssue}</AlertDescription>
+        </Alert>
+      )}
 
       <AnimatePresence mode="wait">
         {showRetry ? (
@@ -136,14 +129,12 @@ export default function LaunchStep() {
             key="retry"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="mt-8 flex flex-col items-center"
+            className="mt-8 flex w-full max-w-sm flex-col items-center"
           >
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+            <Button
+              className="w-full"
               onClick={handleProvision}
               disabled={provisionPending}
-              className="h-12 w-full max-w-sm rounded-2xl bg-primary px-8 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
             >
               {provisionPending ? (
                 <span className="inline-flex items-center gap-2">
@@ -153,7 +144,7 @@ export default function LaunchStep() {
               ) : (
                 'Retry setup'
               )}
-            </motion.button>
+            </Button>
           </motion.div>
         ) : (
           <motion.div

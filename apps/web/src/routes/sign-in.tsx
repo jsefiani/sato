@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { Button } from '@/components/ui/button'
 import { authClient } from '@/lib/auth-client'
 
 export const Route = createFileRoute('/sign-in')({
@@ -33,10 +34,10 @@ function SignIn() {
           </p>
         </div>
 
-        <button
-          type="button"
+        <Button
+          variant="outline"
+          className="w-full"
           onClick={handleGoogleSignIn}
-          className="w-full h-10 px-4 text-sm font-medium text-foreground bg-secondary border border-border hover:bg-accent transition-colors flex items-center justify-center gap-2 rounded-lg cursor-pointer"
         >
           <svg className="h-4 w-4" viewBox="0 0 24 24">
             <path
@@ -57,7 +58,7 @@ function SignIn() {
             />
           </svg>
           Continue with Google
-        </button>
+        </Button>
       </div>
     </div>
   )

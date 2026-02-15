@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { ChevronDown, Loader2, RefreshCw, Terminal } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 
 interface VpsLogsPayload {
   bootstrapLog?: string
@@ -129,9 +130,11 @@ export default function DevVpsLogsWidget() {
 
           <div className="grid gap-2 p-3">
             {statusQuery.data?.vpsFailureReason ? (
-              <div className="rounded-xl border border-warning/30 bg-warning/15 p-3 text-xs text-warning-foreground">
-                {statusQuery.data.vpsFailureReason}
-              </div>
+              <Alert variant="warning">
+                <AlertDescription>
+                  {statusQuery.data.vpsFailureReason}
+                </AlertDescription>
+              </Alert>
             ) : null}
 
             {logsQuery.isLoading ? (
@@ -140,9 +143,11 @@ export default function DevVpsLogsWidget() {
                 Fetching VPS logs...
               </div>
             ) : logsQuery.isError ? (
-              <div className="rounded-xl border border-destructive/40 bg-destructive/15 p-3 text-xs text-destructive-foreground">
-                {summarizeError(logsQuery.error)}
-              </div>
+              <Alert variant="destructive">
+                <AlertDescription>
+                  {summarizeError(logsQuery.error)}
+                </AlertDescription>
+              </Alert>
             ) : (
               <>
                 <section>

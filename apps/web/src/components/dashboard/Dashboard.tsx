@@ -19,6 +19,9 @@ import type {
   SetupState,
   TopupPack,
 } from '@/components/onboarding/onboarding-utils'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Separator } from '@/components/ui/separator'
 import { authClient } from '@/lib/auth-client'
 import { useEventStream } from '@/lib/use-event-stream'
 
@@ -253,181 +256,176 @@ export default function Dashboard() {
           </p>
         </motion.div>
 
-        <motion.div
-          variants={item}
-          className="rounded-2xl border border-border bg-card/50 p-5"
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div
-                className={`flex h-9 w-9 items-center justify-center rounded-xl ${
-                  isAssistantLive ? 'bg-foreground/4' : 'bg-secondary/80'
-                }`}
-              >
-                <Activity
-                  className={`h-4 w-4 ${isAssistantLive ? 'text-foreground/80' : 'text-muted-foreground/50'}`}
-                />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-foreground/80">
-                  {isAssistantLive
-                    ? 'Your assistant is running'
-                    : 'Assistant offline'}
-                </p>
-                <p className="text-[13px] text-muted-foreground/80">
-                  {isAssistantLive ? 'Everything looks good' : statusLabel}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center">
-              {canSetupAssistant ? (
-                <button
-                  type="button"
-                  onClick={() =>
-                    navigate({ to: '/', search: { step: 'launch' } })
-                  }
-                  className="rounded-xl border border-input px-3 py-1.5 text-[13px] font-medium text-foreground/80 transition-colors hover:border-foreground/16 hover:text-foreground"
-                >
-                  Set up again
-                </button>
-              ) : (
+        <motion.div variants={item}>
+          <Card className="p-5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
                 <div
-                  className={`h-2.5 w-2.5 rounded-full ${
-                    isAssistantLive
-                      ? 'bg-foreground shadow-[0_0_8px_rgba(255,255,255,0.3)]'
-                      : 'bg-secondary'
+                  className={`flex h-9 w-9 items-center justify-center rounded-xl ${
+                    isAssistantLive ? 'bg-foreground/4' : 'bg-secondary/80'
                   }`}
-                />
-              )}
+                >
+                  <Activity
+                    className={`h-4 w-4 ${isAssistantLive ? 'text-foreground/80' : 'text-muted-foreground/50'}`}
+                  />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-foreground/80">
+                    {isAssistantLive
+                      ? 'Your assistant is running'
+                      : 'Assistant offline'}
+                  </p>
+                  <p className="text-[13px] text-muted-foreground/80">
+                    {isAssistantLive ? 'Everything looks good' : statusLabel}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center">
+                {canSetupAssistant ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      navigate({ to: '/', search: { step: 'launch' } })
+                    }
+                  >
+                    Set up again
+                  </Button>
+                ) : (
+                  <div
+                    className={`h-2.5 w-2.5 rounded-full ${
+                      isAssistantLive
+                        ? 'bg-foreground shadow-[0_0_8px_rgba(255,255,255,0.3)]'
+                        : 'bg-secondary'
+                    }`}
+                  />
+                )}
+              </div>
             </div>
-          </div>
+          </Card>
         </motion.div>
 
-        <motion.div
-          variants={item}
-          className="rounded-2xl border border-border bg-card/50 p-5"
-        >
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-foreground/80">
-              Messages remaining
+        <motion.div variants={item}>
+          <Card className="p-5">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium text-foreground/80">
+                Messages remaining
+              </p>
+              <p className="text-lg font-semibold tabular-nums text-foreground">
+                {formatMessages(totalMessages)}
+              </p>
+            </div>
+            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-secondary">
+              <motion.div
+                className="h-full rounded-full bg-foreground"
+                initial={{ width: 0 }}
+                animate={{ width: `${messagesPercent}%` }}
+                transition={{ duration: 0.8, ease: 'easeOut' }}
+              />
+            </div>
+            <p className="mt-2.5 text-[12px] text-muted-foreground/80">
+              {formatMessages(state.credits.trialCreditsRemaining)} trial ·{' '}
+              {formatMessages(state.credits.monthlyCreditsRemaining)} monthly ·{' '}
+              {formatMessages(state.credits.purchasedCreditsRemaining)} extra
             </p>
-            <p className="text-lg font-semibold tabular-nums text-foreground">
-              {formatMessages(totalMessages)}
-            </p>
-          </div>
-          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-secondary">
-            <motion.div
-              className="h-full rounded-full bg-foreground"
-              initial={{ width: 0 }}
-              animate={{ width: `${messagesPercent}%` }}
-              transition={{ duration: 0.8, ease: 'easeOut' }}
-            />
-          </div>
-          <p className="mt-2.5 text-[12px] text-muted-foreground/80">
-            {formatMessages(state.credits.trialCreditsRemaining)} trial ·{' '}
-            {formatMessages(state.credits.monthlyCreditsRemaining)} monthly ·{' '}
-            {formatMessages(state.credits.purchasedCreditsRemaining)} extra
-          </p>
+          </Card>
         </motion.div>
 
-        <motion.div
-          variants={item}
-          className="rounded-2xl border border-border bg-card/50 p-5"
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-foreground/4">
-                <MessageCircle className="h-4 w-4 text-foreground/80" />
+        <motion.div variants={item}>
+          <Card className="p-5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-foreground/4">
+                  <MessageCircle className="h-4 w-4 text-foreground/80" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-foreground/80">
+                    Telegram
+                  </p>
+                  <p className="text-[13px] text-muted-foreground/80">
+                    {telegramConnected
+                      ? (telegramBotHandle ?? 'Connected')
+                      : telegramConfigured
+                        ? 'Configured, not connected'
+                        : 'Not connected'}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-medium text-foreground/80">
-                  Telegram
-                </p>
-                <p className="text-[13px] text-muted-foreground/80">
-                  {telegramConnected
-                    ? (telegramBotHandle ?? 'Connected')
-                    : telegramConfigured
-                      ? 'Configured, not connected'
-                      : 'Not connected'}
-                </p>
-              </div>
+              {isAssistantLive && !telegramConnected ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    navigate({ to: '/', search: { step: 'telegram' } })
+                  }
+                >
+                  Fix Telegram
+                </Button>
+              ) : persistedTelegramBotUsername ? (
+                <Button variant="outline" size="sm" asChild>
+                  <a
+                    href={`https://t.me/${persistedTelegramBotUsername}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Open chat <ExternalLink className="h-3 w-3" />
+                  </a>
+                </Button>
+              ) : null}
             </div>
-            {isAssistantLive && !telegramConnected ? (
-              <button
-                type="button"
-                onClick={() =>
-                  navigate({ to: '/', search: { step: 'telegram' } })
-                }
-                className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-1.5 text-[13px] font-medium text-muted-foreground transition-colors hover:border-foreground/12 hover:text-foreground/80"
-              >
-                Fix Telegram
-              </button>
-            ) : persistedTelegramBotUsername ? (
-              <a
-                href={`https://t.me/${persistedTelegramBotUsername}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-1.5 text-[13px] font-medium text-muted-foreground transition-colors hover:border-foreground/12 hover:text-foreground/80"
-              >
-                Open chat <ExternalLink className="h-3 w-3" />
-              </a>
-            ) : null}
-          </div>
+          </Card>
         </motion.div>
 
-        <motion.div
-          variants={item}
-          className="rounded-2xl border border-border bg-card/50 p-5"
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-foreground/4">
-                <CreditCard className="h-4 w-4 text-foreground/80" />
+        <motion.div variants={item}>
+          <Card className="p-5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-foreground/4">
+                  <CreditCard className="h-4 w-4 text-foreground/80" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-foreground/80">
+                    Plan & billing
+                  </p>
+                  <p className="text-[13px] text-muted-foreground/80">
+                    {planLabel}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-medium text-foreground/80">
-                  Plan & billing
-                </p>
-                <p className="text-[13px] text-muted-foreground/80">
-                  {planLabel}
-                </p>
-              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={openPortal}
+                disabled={stripeLoading}
+              >
+                Manage
+              </Button>
             </div>
-            <button
-              type="button"
-              onClick={openPortal}
-              disabled={stripeLoading}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-1.5 text-[13px] font-medium text-muted-foreground transition-colors hover:border-foreground/12 hover:text-foreground/80 disabled:opacity-60"
-            >
-              Manage
-            </button>
-          </div>
+          </Card>
         </motion.div>
 
         {state.topupPacks.length > 0 && (
-          <motion.div
-            variants={item}
-            className="rounded-2xl border border-border bg-card/50 p-5"
-          >
-            <p className="text-sm font-medium text-foreground/80">
-              Need more messages?
-            </p>
-            <p className="mt-1 text-[13px] text-muted-foreground/80">
-              Top up your balance anytime.
-            </p>
-            <div className="mt-4 flex flex-wrap gap-2">
-              {state.topupPacks.map((pack: TopupPack) => (
-                <button
-                  key={pack.id}
-                  type="button"
-                  onClick={() => openTopupCheckout(pack.id)}
-                  disabled={stripeLoading}
-                  className="rounded-xl border border-border bg-foreground/3 px-4 py-2 text-sm font-medium text-foreground/80 transition-colors hover:bg-foreground/6 disabled:opacity-60"
-                >
-                  {pack.label}
-                </button>
-              ))}
-            </div>
+          <motion.div variants={item}>
+            <Card className="p-5">
+              <p className="text-sm font-medium text-foreground/80">
+                Need more messages?
+              </p>
+              <p className="mt-1 text-[13px] text-muted-foreground/80">
+                Top up your balance anytime.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {state.topupPacks.map((pack: TopupPack) => (
+                  <Button
+                    key={pack.id}
+                    variant="outline"
+                    onClick={() => openTopupCheckout(pack.id)}
+                    disabled={stripeLoading}
+                  >
+                    {pack.label}
+                  </Button>
+                ))}
+              </div>
+            </Card>
           </motion.div>
         )}
 
@@ -452,17 +450,17 @@ export default function Dashboard() {
             >
               {isAssistantLive && (
                 <div className="space-y-3">
-                  <button
-                    type="button"
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={() => verifyMutation.mutate()}
                     disabled={verifyMutation.isPending}
-                    className="inline-flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-[13px] text-muted-foreground transition-colors hover:border-input hover:text-foreground/80 disabled:opacity-60"
                   >
                     <ShieldCheck className="h-3.5 w-3.5" />
                     {verifyMutation.isPending
                       ? 'Checking…'
                       : 'Run health check'}
-                  </button>
+                  </Button>
 
                   {verifyMutation.data && (
                     <div className="grid gap-1.5 text-[13px] text-muted-foreground sm:grid-cols-2">
@@ -520,14 +518,14 @@ export default function Dashboard() {
 
               {isAssistantLive && (
                 <div className="space-y-3">
-                  <button
-                    type="button"
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={() => setShowLogs((v) => !v)}
-                    className="inline-flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-[13px] text-muted-foreground transition-colors hover:border-input hover:text-foreground/80"
                   >
                     <Terminal className="h-3.5 w-3.5" />
                     {showLogs ? 'Hide logs' : 'Setup logs'}
-                  </button>
+                  </Button>
 
                   {showLogs && (
                     <div className="space-y-3 rounded-xl border border-border/70 bg-background/50 p-4">
@@ -566,9 +564,11 @@ export default function Dashboard() {
               )}
 
               {state.vps && state.vps.status !== 'terminated' && (
-                <div className="border-t border-border/70 pt-3">
-                  <button
-                    type="button"
+                <div className="pt-3">
+                  <Separator className="mb-3" />
+                  <Button
+                    variant="destructive"
+                    size="sm"
                     onClick={() => {
                       if (
                         window.confirm('Are you sure? This cannot be undone.')
@@ -577,13 +577,12 @@ export default function Dashboard() {
                       }
                     }}
                     disabled={destroyMutation.isPending}
-                    className="inline-flex items-center gap-2 rounded-xl border border-destructive/20 px-3 py-2 text-[13px] text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-60"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                     {destroyMutation.isPending
                       ? 'Removing…'
                       : 'Remove assistant'}
-                  </button>
+                  </Button>
                   {destroyMutation.isSuccess && (
                     <p className="mt-2 flex items-center gap-1.5 text-[13px] text-foreground/80">
                       <Check className="h-3 w-3" />
