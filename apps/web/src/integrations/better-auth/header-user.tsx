@@ -13,7 +13,10 @@ export default function UserMenu() {
 
   if (isPending) {
     return (
-      <div className="h-8 w-8 rounded-full bg-foreground/6 animate-pulse" />
+      <div className="flex items-center gap-2.5 py-1.5 pl-1.5 pr-3">
+        <div className="size-7 rounded-full bg-foreground/6 animate-pulse" />
+        <div className="h-3.5 w-20 rounded-full bg-foreground/6 animate-pulse" />
+      </div>
     )
   }
 
