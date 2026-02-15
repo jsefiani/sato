@@ -152,7 +152,7 @@ export async function createCheckoutSession(
       cancel_url: `${env.APP_URL}/setup?step=trial&checkout=cancelled`,
       'line_items[0][price]': env.STRIPE_PRICE_ID,
       'line_items[0][quantity]': '1',
-      'line_items[1][price_data][currency]': 'usd',
+      'line_items[1][price_data][currency]': 'eur',
       'line_items[1][price_data][product_data][name]': 'Trial activation',
       'line_items[1][price_data][unit_amount]': '100',
       'line_items[1][quantity]': '1',
