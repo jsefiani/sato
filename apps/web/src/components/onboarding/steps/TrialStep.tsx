@@ -1,14 +1,13 @@
 import { motion } from 'motion/react'
-import { Check, CreditCard, Gift } from 'lucide-react'
+import { Check, CreditCard } from 'lucide-react'
 import { containerVariants, itemVariants } from '../onboarding-animations'
 import { useOnboardingContext } from '../onboarding-context'
 import { Button } from '@/components/ui/button'
 
-const included = [
+const features = [
   'Your own private AI assistant',
   'Unlimited conversations',
   'Telegram integration',
-  'No credit card required',
 ]
 
 export default function TrialStep() {
@@ -33,38 +32,27 @@ export default function TrialStep() {
       animate="show"
       className="flex flex-col items-center text-center"
     >
-      <motion.div
-        variants={itemVariants}
-        className="flex h-14 w-14 items-center justify-center rounded-2xl bg-foreground/4"
-      >
-        <Gift className="h-7 w-7 text-foreground/80" />
-      </motion.div>
-
-      <motion.h1
-        variants={itemVariants}
-        className="mt-6 text-3xl font-light tracking-tight text-foreground"
-      >
-        {hasAccess ? 'Your free trial' : 'Subscribe to continue'}
-      </motion.h1>
-
-      {hasAccess && isTrialing ? (
+      {!hasAccess ? (
         <>
+          <motion.h1
+            variants={itemVariants}
+            className="text-3xl font-light tracking-tight text-foreground"
+          >
+            Start your trial
+          </motion.h1>
+
           <motion.p
             variants={itemVariants}
             className="mt-3 max-w-sm text-[15px] leading-relaxed text-muted-foreground/80"
           >
-            Great news — you have a{' '}
-            <span className="font-medium text-foreground">
-              {daysLeft}-day free trial
-            </span>
-            . Explore everything, no strings attached.
+            Get full access to your personal AI assistant for 3 days.
           </motion.p>
 
           <motion.div
             variants={itemVariants}
             className="mt-8 w-full max-w-sm space-y-2.5"
           >
-            {included.map((text) => (
+            {features.map((text) => (
               <div key={text} className="flex items-center gap-3 text-left">
                 <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-foreground/3">
                   <Check className="h-3 w-3 text-foreground/80" />
@@ -75,13 +63,62 @@ export default function TrialStep() {
           </motion.div>
 
           <motion.div variants={itemVariants} className="mt-10 w-full max-w-sm">
+            <Button
+              className="w-full"
+              onClick={openCheckout}
+              disabled={stripeLoading}
+            >
+              <CreditCard />
+              {stripeLoading
+                ? 'Opening checkout…'
+                : 'Start 3-day trial for $1 →'}
+            </Button>
+
+            <p className="mt-4 text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">
+                Cancel anytime.
+              </span>{' '}
+              No questions asked!
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground/60">
+              $1 trial fee helps us ensure quality service.
+            </p>
+          </motion.div>
+        </>
+      ) : isTrialing ? (
+        <>
+          <motion.h1
+            variants={itemVariants}
+            className="text-3xl font-light tracking-tight text-foreground"
+          >
+            Your trial is active
+          </motion.h1>
+
+          <motion.p
+            variants={itemVariants}
+            className="mt-3 max-w-sm text-[15px] leading-relaxed text-muted-foreground/80"
+          >
+            <span className="font-medium text-foreground">
+              {daysLeft} {daysLeft === 1 ? 'day' : 'days'} remaining.
+            </span>{' '}
+            After your trial, your plan converts to $29/mo.
+          </motion.p>
+
+          <motion.div variants={itemVariants} className="mt-10 w-full max-w-sm">
             <Button className="w-full" onClick={() => onNavigate('launch')}>
               Continue
             </Button>
           </motion.div>
         </>
-      ) : hasAccess ? (
+      ) : (
         <>
+          <motion.h1
+            variants={itemVariants}
+            className="text-3xl font-light tracking-tight text-foreground"
+          >
+            You're all set
+          </motion.h1>
+
           <motion.p
             variants={itemVariants}
             className="mt-3 max-w-sm text-[15px] leading-relaxed text-muted-foreground/80"
@@ -93,26 +130,6 @@ export default function TrialStep() {
           <motion.div variants={itemVariants} className="mt-10 w-full max-w-sm">
             <Button className="w-full" onClick={() => onNavigate('launch')}>
               Continue
-            </Button>
-          </motion.div>
-        </>
-      ) : (
-        <>
-          <motion.p
-            variants={itemVariants}
-            className="mt-3 max-w-sm text-[15px] leading-relaxed text-muted-foreground/80"
-          >
-            Your free trial has ended. Subscribe to keep your assistant running.
-          </motion.p>
-
-          <motion.div variants={itemVariants} className="mt-10 w-full max-w-sm">
-            <Button
-              className="w-full"
-              onClick={openCheckout}
-              disabled={stripeLoading}
-            >
-              <CreditCard />
-              {stripeLoading ? 'Opening checkout…' : 'Subscribe to continue'}
             </Button>
           </motion.div>
         </>

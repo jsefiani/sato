@@ -1,0 +1,212 @@
+---
+const appUrl = import.meta.env.PUBLIC_APP_URL || 'https://www.app.asksato.ai'
+
+const links = [
+  { label: 'How it Works', href: '#how-it-works' },
+  { label: 'Features', href: '#features' },
+  { label: 'Pricing', href: '#pricing' },
+  { label: 'FAQ', href: '#faq' },
+]
+---
+
+<nav
+  id="main-nav"
+  class="fixed left-1/2 z-50 w-[calc(100%-2rem)] max-w-4xl -translate-x-1/2"
+>
+  <div
+    class="nav-bar flex items-center justify-between"
+  >
+    <a href="/" class="text-lg font-bold tracking-tight text-foreground flex items-center gap-1">
+      <span class="rounded-full size-4 bg-[#000000c7]"></span> Sato
+    </a>
+
+    <div class="hidden items-center gap-1 md:flex">
+      {links.map((link) => (
+        <a
+          href={link.href}
+          class="rounded-full px-3.5 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+        >
+          {link.label}
+        </a>
+      ))}
+    </div>
+
+    <div class="hidden items-center gap-3 md:flex">
+      <div class="h-5 border-l border-border/30"></div>
+      <a
+        href={appUrl}
+        class="px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+      >
+        Log in
+      </a>
+      <a
+        href={appUrl}
+        class="inline-flex rounded-full bg-primary px-5 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+      >
+        Try Sato
+      </a>
+    </div>
+
+    <input type="checkbox" id="nav-toggle" class="hidden" />
+    <label
+      for="nav-toggle"
+      class="nav-toggle-label relative z-50 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full transition-colors hover:bg-secondary md:hidden"
+    >
+      <svg
+        class="nav-hamburger h-5 w-5 text-foreground"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        stroke-width="1.5"
+      >
+        <path d="M4 6h16M4 12h16M4 18h16" />
+      </svg>
+      <svg
+        class="nav-close hidden h-5 w-5 text-foreground"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        stroke-width="1.5"
+      >
+        <path d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    </label>
+
+    <div
+      class="nav-mobile fixed inset-x-0 top-[5.5rem] z-40 mx-4 hidden rounded-2xl border border-border/50 bg-background/95 shadow-lg shadow-black/[0.03] backdrop-blur-xl md:hidden"
+    >
+      <div class="flex flex-col gap-1 px-4 py-3">
+        {links.map((link) => (
+          <a
+            href={link.href}
+            class="nav-mobile-link rounded-lg px-3 py-2.5 text-base text-muted-foreground transition-colors hover:text-foreground"
+          >
+            {link.label}
+          </a>
+        ))}
+        <div class="mt-2 flex flex-col gap-2 border-t border-border/50 pt-3">
+          <a
+            href={appUrl}
+            class="rounded-lg px-3 py-2.5 text-center text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Log in
+          </a>
+          <a
+            href={appUrl}
+            class="rounded-full bg-primary px-4 py-2.5 text-center text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            Try Sato
+          </a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</nav>
+
+<style>
+  #main-nav {
+    top: 2rem;
+    transition: top 0.2s ease;
+  }
+
+  @media (min-width: 768px) {
+    #main-nav {
+      top: 2.125rem;
+    }
+  }
+
+  #main-nav[data-scrolled] {
+    top: 0.75rem;
+  }
+
+  .nav-bar {
+    position: relative;
+    border: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+    border-radius: 9999px;
+    padding: 0.875rem 1.25rem;
+    background: hsl(0 0% 100% / 0.8);
+    box-shadow: 0 4px 12px -4px rgba(0, 0, 0, 0.06);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    transition: all 0.2s ease;
+  }
+
+  @media (min-width: 768px) {
+    .nav-bar {
+      border-top-color: transparent;
+      border-radius: 0 0 1.5rem 1.5rem;
+      padding: 0.875rem 1.25rem 1.25rem;
+      background: var(--background);
+      backdrop-filter: blur(0px);
+      -webkit-backdrop-filter: blur(0px);
+    }
+  }
+
+  .nav-bar::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 100%;
+    height: 3rem;
+    background: var(--background);
+    pointer-events: none;
+    display: none;
+  }
+
+  @media (min-width: 768px) {
+    .nav-bar::before {
+      display: block;
+    }
+  }
+
+  #main-nav[data-scrolled] .nav-bar {
+    border-radius: 9999px;
+    border-top-color: color-mix(in srgb, var(--border) 50%, transparent);
+    padding: 0.875rem 1.25rem;
+    background: hsl(0 0% 100% / 0.8);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    box-shadow:
+      0 4px 24px -4px rgba(0, 0, 0, 0.06),
+      0 12px 40px -8px rgba(0, 0, 0, 0.04);
+  }
+
+
+  #main-nav[data-scrolled] .nav-bar::before {
+    opacity: 0;
+  }
+
+  #nav-toggle:checked ~ .nav-toggle-label .nav-hamburger {
+    display: none;
+  }
+  #nav-toggle:checked ~ .nav-toggle-label .nav-close {
+    display: block;
+  }
+  #nav-toggle:checked ~ .nav-mobile {
+    display: block;
+  }
+</style>
+
+<script>
+  const mainNav = document.getElementById('main-nav')
+  if (mainNav) {
+    const onScroll = () => {
+      if (window.scrollY > 10) {
+        mainNav.setAttribute('data-scrolled', '')
+      } else {
+        mainNav.removeAttribute('data-scrolled')
+      }
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    onScroll()
+  }
+
+  document.querySelectorAll('.nav-mobile-link').forEach((link) => {
+    link.addEventListener('click', () => {
+      const toggle = document.getElementById('nav-toggle') as HTMLInputElement
+      if (toggle) toggle.checked = false
+    })
+  })
+</script>

@@ -1,0 +1,117 @@
+---
+import ShinyText from './ShinyTextStatic.astro'
+
+const appUrl = import.meta.env.PUBLIC_APP_URL || 'https://www.app.asksato.ai'
+
+const plans = [
+  {
+    name: '3-Day Trial',
+    price: '$1',
+    period: 'one-time',
+    description: 'Everything you need to try Sato',
+    features: [
+      'Your own AI assistant',
+      'Unlimited conversations',
+      'Telegram access',
+      '5,000 messages',
+    ],
+    cta: 'Try Sato',
+    note: 'Then $29/mo after 3 days',
+    featured: false,
+  },
+  {
+    name: 'Pro',
+    price: '$29',
+    period: '/month',
+    description: 'For your everyday AI companion',
+    features: [
+      'Everything in the trial',
+      '20,000 messages/mo',
+      'Priority support',
+      'Message top-ups when you need more',
+    ],
+    cta: 'Try Sato',
+    note: null,
+    featured: true,
+  },
+]
+---
+
+<section id="pricing" class="py-16 md:py-24">
+  <div class="mx-auto max-w-6xl px-6">
+    <div class="mb-16 flex flex-col items-center gap-2 text-center">
+      <ShinyText text="Pricing" />
+      <h2 class="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+        Simple, transparent pricing
+      </h2>
+    </div>
+
+    <div class="mx-auto grid max-w-3xl gap-6 md:grid-cols-2">
+      {
+        plans.map((plan) => (
+          <div
+            class:list={[
+              'flex flex-col rounded-2xl border p-8 transition-transform duration-200 hover:scale-[1.02]',
+              plan.featured
+                ? 'border-brand/30 bg-brand/5'
+                : 'border-border bg-card',
+            ]}
+          >
+            <div class="mb-6">
+              <h3 class="mb-1 text-lg font-semibold text-foreground">
+                {plan.name}
+              </h3>
+              <p class="text-sm text-muted-foreground">{plan.description}</p>
+            </div>
+
+            <div class="mb-6">
+              <span class="text-4xl font-bold tracking-tight text-foreground">
+                {plan.price}
+              </span>
+              <span class="text-muted-foreground">{plan.period}</span>
+            </div>
+
+            <ul class="mb-8 flex flex-col gap-3">
+              {plan.features.map((feature) => (
+                <li class="flex items-center gap-2 text-sm text-muted-foreground">
+                  <svg
+                    class="h-4 w-4 shrink-0 text-brand"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  {feature}
+                </li>
+              ))}
+            </ul>
+
+            <div class="mt-auto">
+              <a
+                href={appUrl}
+                class:list={[
+                  'block w-full rounded-full py-2.5 text-center text-sm font-medium transition-colors',
+                  plan.featured
+                    ? 'bg-brand text-white hover:bg-brand/90'
+                    : 'border border-border bg-secondary/50 text-foreground hover:bg-secondary',
+                ]}
+              >
+                {plan.cta}
+              </a>
+              {plan.note && (
+                <p class="mt-3 text-center text-xs text-muted-foreground">
+                  {plan.note}
+                </p>
+              )}
+            </div>
+          </div>
+        ))
+      }
+    </div>
+
+  </div>
+</section>

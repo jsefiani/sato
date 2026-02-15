@@ -95,7 +95,7 @@ export default function DevVpsLogsWidget() {
   return (
     <div className="pointer-events-none fixed bottom-4 right-4 z-[60]">
       {open ? (
-        <div className="pointer-events-auto w-[min(92vw,36rem)] overflow-hidden rounded-2xl border border-success/30 bg-background/95 shadow-[0_16px_40px_rgba(0,0,0,0.45)] backdrop-blur">
+        <div className="pointer-events-auto w-[min(92vw,36rem)] overflow-hidden rounded-2xl border border-success/30 bg-background/95 shadow-[0_16px_40px_rgba(0,0,0,0.12)] backdrop-blur">
           <div className="flex items-center gap-2 border-b border-input px-3 py-2">
             <div className="inline-flex items-center gap-2 rounded-lg bg-success/15 px-2 py-1 text-[11px] font-medium text-success-foreground">
               <Terminal className="h-3.5 w-3.5" />
@@ -182,7 +182,7 @@ export default function DevVpsLogsWidget() {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-success/40 bg-background/90 px-3 py-2 text-xs font-medium text-success-foreground shadow-[0_8px_24px_rgba(0,0,0,0.35)] transition-colors hover:border-success/50 hover:text-foreground"
+          className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-success/40 bg-background/90 px-3 py-2 text-xs font-medium text-success-foreground shadow-[0_8px_24px_rgba(0,0,0,0.10)] transition-colors hover:border-success/50 hover:text-foreground"
           title="Open development VPS logs"
         >
           <Terminal className="h-3.5 w-3.5" />

@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  skipToken,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 import {
   deriveStep,
   getAutoAdvanceStep,
@@ -7,6 +12,7 @@ import {
 } from './onboarding-utils'
 import type {
   OnboardingStep,
+  PersonalizationData,
   SetupState,
   TelegramState,
 } from './onboarding-utils'
@@ -33,21 +39,32 @@ interface OnboardingBaseValue {
   approvingPairing: boolean
   approveError: string | null
   handleWelcomeContinue: () => void
+  handlePersonalizeContinue: (data: PersonalizationData) => void
+  personalizeSaving: boolean
 }
 
 export type OnboardingContextValue = OnboardingBaseValue & {
   skipInitialAnimation: boolean
 }
 
+const CHECKOUT_POLL_INTERVAL = 2000
+const CHECKOUT_POLL_TIMEOUT = 30_000
+
 export function useOnboarding({
   urlStep,
   onNavigate,
+  checkoutStatus,
 }: {
   urlStep: OnboardingStep
   onNavigate: (step: OnboardingStep | null) => void
+  checkoutStatus?: string
 }): OnboardingBaseValue {
   const { data: session } = authClient.useSession()
   const queryClient = useQueryClient()
+
+  const [checkoutPollStart] = useState(() =>
+    checkoutStatus === 'success' ? Date.now() : null,
+  )
 
   const setupQuery = useQuery({
     queryKey: ['setup-status'],
@@ -55,6 +72,13 @@ export function useOnboarding({
       const res = await fetch('/api/vps/status')
       if (!res.ok) throw new Error('Failed to load status')
       return res.json() as Promise<SetupState>
+    },
+    refetchInterval: (query) => {
+      if (!checkoutPollStart) return false
+      const data = query.state.data
+      if (data?.access.hasAccess) return false
+      if (Date.now() - checkoutPollStart > CHECKOUT_POLL_TIMEOUT) return false
+      return CHECKOUT_POLL_INTERVAL
     },
   })
 
@@ -97,15 +121,18 @@ export function useOnboarding({
   })
 
   const telegramState =
-    useQuery<TelegramState>({ queryKey: telegramStatusKey, enabled: false })
+    useQuery<TelegramState>({ queryKey: telegramStatusKey, queryFn: skipToken })
       .data ?? null
 
-  const derivedStep = setupState
-    ? deriveStep(setupState, telegramState)
-    : urlStep
-  const autoAdvanceStep = getAutoAdvanceStep(urlStep, derivedStep)
+  const hasPersonalized = setupState?.hasPersonalized ?? false
+  const derivedStep = setupState ? deriveStep(setupState) : 'welcome'
+  const autoAdvanceStep = getAutoAdvanceStep(
+    urlStep,
+    derivedStep,
+    hasPersonalized,
+  )
   const currentStep =
-    autoAdvanceStep ?? resolveCurrentStep(urlStep, derivedStep)
+    autoAdvanceStep ?? resolveCurrentStep(urlStep, derivedStep, hasPersonalized)
 
   useEffect(() => {
     if (!autoAdvanceStep) return
@@ -127,7 +154,7 @@ export function useOnboarding({
     },
     onSuccess: () => {
       queryClient.removeQueries({ queryKey: ['telegram-status'] })
-      queryClient.removeQueries({ queryKey: ['setup-status'] })
+      queryClient.invalidateQueries({ queryKey: ['setup-status'] })
     },
   })
 
@@ -206,23 +233,46 @@ export function useOnboarding({
     [approvePairingMutation.mutate],
   )
 
+  const personalizeMutation = useMutation({
+    mutationFn: async (data: PersonalizationData) => {
+      const res = await fetch('/api/personalization', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      const payload = (await res.json()) as { error?: string }
+      if (!res.ok) throw new Error(payload.error ?? 'Failed to save')
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['setup-status'] })
+      if (!setupState?.access.hasAccess) {
+        onNavigate('trial')
+        return
+      }
+      const vps = setupState.vps
+      const needsProvision =
+        !vps ||
+        vps.status === 'pending' ||
+        vps.status === 'failed' ||
+        vps.status === 'terminated' ||
+        vps.status === 'cleanup_pending'
+      if (needsProvision) {
+        handleProvision()
+      }
+      onNavigate('launch')
+    },
+  })
+
+  const handlePersonalizeContinue = useCallback(
+    (data: PersonalizationData) => {
+      personalizeMutation.mutate(data)
+    },
+    [personalizeMutation.mutate],
+  )
+
   const handleWelcomeContinue = useCallback(() => {
-    if (!setupState?.access.hasAccess) {
-      onNavigate('trial')
-      return
-    }
-    const vps = setupState.vps
-    const needsProvision =
-      !vps ||
-      vps.status === 'pending' ||
-      vps.status === 'failed' ||
-      vps.status === 'terminated' ||
-      vps.status === 'cleanup_pending'
-    if (needsProvision) {
-      handleProvision()
-    }
-    onNavigate('launch')
-  }, [setupState, handleProvision, onNavigate])
+    onNavigate('personalize')
+  }, [onNavigate])
 
   const userName = session?.user.name || 'there'
   const userImage =
@@ -248,5 +298,7 @@ export function useOnboarding({
     approvingPairing: approvePairingMutation.isPending,
     approveError: approvePairingMutation.error?.message ?? null,
     handleWelcomeContinue,
+    handlePersonalizeContinue,
+    personalizeSaving: personalizeMutation.isPending,
   }
 }

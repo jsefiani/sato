@@ -5,6 +5,8 @@ type RateLimitCategory =
   | 'telegram'
   | 'stripe-webhook'
   | 'auth'
+  | 'chat'
+  | 'personalization'
 
 interface RateLimitConfig {
   maxRequests: number
@@ -18,6 +20,8 @@ const RATE_LIMITS: Record<RateLimitCategory, RateLimitConfig> = {
   telegram: { maxRequests: 30, windowMs: 60 * 1000 },
   'stripe-webhook': { maxRequests: 100, windowMs: 60 * 1000 },
   auth: { maxRequests: 10, windowMs: 60 * 1000 },
+  chat: { maxRequests: 30, windowMs: 60 * 1000 },
+  personalization: { maxRequests: 10, windowMs: 60 * 1000 },
 }
 
 const store = new Map<string, Array<number>>()

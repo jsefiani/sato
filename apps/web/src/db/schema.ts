@@ -18,6 +18,11 @@ export const user = pgTable('user', {
   banned: boolean('banned').notNull().default(false),
   banReason: text('ban_reason'),
   banExpires: integer('ban_expires'),
+  assistantName: text('assistant_name'),
+  communicationStyle: text('communication_style'),
+  primaryUseCase: text('primary_use_case'),
+  additionalContext: text('additional_context'),
+  personalizationInjectedAt: timestamp('personalization_injected_at'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at')
     .notNull()

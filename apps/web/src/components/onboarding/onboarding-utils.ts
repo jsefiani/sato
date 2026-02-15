@@ -1,17 +1,26 @@
 export type OnboardingStep =
   | 'welcome'
+  | 'personalize'
   | 'trial'
   | 'launch'
-  | 'telegram'
+  | 'chat'
   | 'complete'
 
 export const ONBOARDING_STEPS: Array<OnboardingStep> = [
   'welcome',
+  'personalize',
   'trial',
   'launch',
-  'telegram',
+  'chat',
   'complete',
 ]
+
+export interface PersonalizationData {
+  assistantName: string
+  communicationStyle: string
+  primaryUseCase: string
+  additionalContext: string
+}
 
 export interface AccessState {
   status: 'trialing' | 'active' | 'past_due' | 'canceled' | 'requires_payment'
@@ -71,6 +80,7 @@ export interface ChannelSetupSummary {
 }
 
 export interface SetupState {
+  hasPersonalized: boolean
   access: AccessState
   credits: CreditState
   topupPacks: Array<TopupPack>
@@ -107,10 +117,7 @@ export interface TelegramState {
  * Derives the onboarding step from backend state.
  * Returns the step the user should be at based on what's been accomplished.
  */
-export function deriveStep(
-  state: SetupState | null,
-  _telegramState: TelegramState | null,
-): OnboardingStep {
+export function deriveStep(state: SetupState | null): OnboardingStep {
   if (!state) return 'trial'
 
   if (!state.access.hasAccess) return 'trial'
@@ -133,9 +140,6 @@ export function deriveStep(
     return 'launch'
   }
 
-  const hasConnectedChannel = state.channelSetup.hasConnectedChannel
-  if (!hasConnectedChannel) return 'telegram'
-
   return 'complete'
 }
 
@@ -146,15 +150,23 @@ export function stepIndex(step: OnboardingStep): number {
 /**
  * Resolve the step shown in the wizard.
  *
- * We keep `welcome` sticky so users can read the intro screen,
+ * We keep `welcome` and `personalize` sticky so users can complete them,
  * but every other step is clamped to backend-derived progress.
  */
 export function resolveCurrentStep(
   urlStep: OnboardingStep,
   derivedStep: OnboardingStep,
+  hasPersonalized: boolean,
 ): OnboardingStep {
-  if (urlStep === 'welcome' && derivedStep !== 'complete') {
+  if (!hasPersonalized && urlStep !== 'welcome' && urlStep !== 'personalize') {
     return 'welcome'
+  }
+
+  if (
+    (urlStep === 'welcome' || urlStep === 'personalize') &&
+    derivedStep !== 'complete'
+  ) {
+    return urlStep
   }
 
   if (stepIndex(urlStep) > stepIndex(derivedStep)) {
@@ -170,10 +182,16 @@ export function resolveCurrentStep(
 export function getAutoAdvanceStep(
   urlStep: OnboardingStep,
   derivedStep: OnboardingStep,
+  hasPersonalized: boolean,
 ): OnboardingStep | null {
-  const targetStep = derivedStep === 'complete' ? 'telegram' : derivedStep
+  if (!hasPersonalized && derivedStep === 'complete') {
+    if (urlStep === 'welcome' || urlStep === 'personalize') return null
+    return 'welcome'
+  }
 
-  if (urlStep === 'welcome') {
+  const targetStep = derivedStep === 'complete' ? 'chat' : derivedStep
+
+  if (urlStep === 'welcome' || urlStep === 'personalize') {
     return null
   }
 

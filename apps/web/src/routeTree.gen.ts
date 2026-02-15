@@ -12,13 +12,16 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as AuthedIndexRouteImport } from './routes/_authed/index'
+import { Route as ApiPersonalizationRouteImport } from './routes/api/personalization'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
+import { Route as AuthedSetupRouteImport } from './routes/_authed/setup'
 import { Route as ApiVpsVerifyRouteImport } from './routes/api/vps/verify'
 import { Route as ApiVpsStatusStreamRouteImport } from './routes/api/vps/status-stream'
 import { Route as ApiVpsStatusRouteImport } from './routes/api/vps/status'
 import { Route as ApiVpsProvisionRouteImport } from './routes/api/vps/provision'
 import { Route as ApiVpsLogsRouteImport } from './routes/api/vps/logs'
 import { Route as ApiVpsDestroyRouteImport } from './routes/api/vps/destroy'
+import { Route as ApiVpsChatRouteImport } from './routes/api/vps/chat'
 import { Route as ApiStripeWebhookRouteImport } from './routes/api/stripe/webhook'
 import { Route as ApiStripeTopupRouteImport } from './routes/api/stripe/topup'
 import { Route as ApiStripePortalRouteImport } from './routes/api/stripe/portal'
@@ -44,10 +47,20 @@ const AuthedIndexRoute = AuthedIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthedRoute,
 } as any)
+const ApiPersonalizationRoute = ApiPersonalizationRouteImport.update({
+  id: '/api/personalization',
+  path: '/api/personalization',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiHealthRoute = ApiHealthRouteImport.update({
   id: '/api/health',
   path: '/api/health',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthedSetupRoute = AuthedSetupRouteImport.update({
+  id: '/setup',
+  path: '/setup',
+  getParentRoute: () => AuthedRoute,
 } as any)
 const ApiVpsVerifyRoute = ApiVpsVerifyRouteImport.update({
   id: '/api/vps/verify',
@@ -77,6 +90,11 @@ const ApiVpsLogsRoute = ApiVpsLogsRouteImport.update({
 const ApiVpsDestroyRoute = ApiVpsDestroyRouteImport.update({
   id: '/api/vps/destroy',
   path: '/api/vps/destroy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiVpsChatRoute = ApiVpsChatRouteImport.update({
+  id: '/api/vps/chat',
+  path: '/api/vps/chat',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiStripeWebhookRoute = ApiStripeWebhookRouteImport.update({
@@ -133,12 +151,15 @@ const ApiAdminVpsMaintainRoute = ApiAdminVpsMaintainRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof AuthedIndexRoute
   '/sign-in': typeof SignInRoute
+  '/setup': typeof AuthedSetupRoute
   '/api/health': typeof ApiHealthRoute
+  '/api/personalization': typeof ApiPersonalizationRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/stripe/checkout': typeof ApiStripeCheckoutRoute
   '/api/stripe/portal': typeof ApiStripePortalRoute
   '/api/stripe/topup': typeof ApiStripeTopupRoute
   '/api/stripe/webhook': typeof ApiStripeWebhookRoute
+  '/api/vps/chat': typeof ApiVpsChatRoute
   '/api/vps/destroy': typeof ApiVpsDestroyRoute
   '/api/vps/logs': typeof ApiVpsLogsRoute
   '/api/vps/provision': typeof ApiVpsProvisionRoute
@@ -153,13 +174,16 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/sign-in': typeof SignInRoute
+  '/setup': typeof AuthedSetupRoute
   '/api/health': typeof ApiHealthRoute
+  '/api/personalization': typeof ApiPersonalizationRoute
   '/': typeof AuthedIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/stripe/checkout': typeof ApiStripeCheckoutRoute
   '/api/stripe/portal': typeof ApiStripePortalRoute
   '/api/stripe/topup': typeof ApiStripeTopupRoute
   '/api/stripe/webhook': typeof ApiStripeWebhookRoute
+  '/api/vps/chat': typeof ApiVpsChatRoute
   '/api/vps/destroy': typeof ApiVpsDestroyRoute
   '/api/vps/logs': typeof ApiVpsLogsRoute
   '/api/vps/provision': typeof ApiVpsProvisionRoute
@@ -176,13 +200,16 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authed': typeof AuthedRouteWithChildren
   '/sign-in': typeof SignInRoute
+  '/_authed/setup': typeof AuthedSetupRoute
   '/api/health': typeof ApiHealthRoute
+  '/api/personalization': typeof ApiPersonalizationRoute
   '/_authed/': typeof AuthedIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/stripe/checkout': typeof ApiStripeCheckoutRoute
   '/api/stripe/portal': typeof ApiStripePortalRoute
   '/api/stripe/topup': typeof ApiStripeTopupRoute
   '/api/stripe/webhook': typeof ApiStripeWebhookRoute
+  '/api/vps/chat': typeof ApiVpsChatRoute
   '/api/vps/destroy': typeof ApiVpsDestroyRoute
   '/api/vps/logs': typeof ApiVpsLogsRoute
   '/api/vps/provision': typeof ApiVpsProvisionRoute
@@ -200,12 +227,15 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/sign-in'
+    | '/setup'
     | '/api/health'
+    | '/api/personalization'
     | '/api/auth/$'
     | '/api/stripe/checkout'
     | '/api/stripe/portal'
     | '/api/stripe/topup'
     | '/api/stripe/webhook'
+    | '/api/vps/chat'
     | '/api/vps/destroy'
     | '/api/vps/logs'
     | '/api/vps/provision'
@@ -220,13 +250,16 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/sign-in'
+    | '/setup'
     | '/api/health'
+    | '/api/personalization'
     | '/'
     | '/api/auth/$'
     | '/api/stripe/checkout'
     | '/api/stripe/portal'
     | '/api/stripe/topup'
     | '/api/stripe/webhook'
+    | '/api/vps/chat'
     | '/api/vps/destroy'
     | '/api/vps/logs'
     | '/api/vps/provision'
@@ -242,13 +275,16 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_authed'
     | '/sign-in'
+    | '/_authed/setup'
     | '/api/health'
+    | '/api/personalization'
     | '/_authed/'
     | '/api/auth/$'
     | '/api/stripe/checkout'
     | '/api/stripe/portal'
     | '/api/stripe/topup'
     | '/api/stripe/webhook'
+    | '/api/vps/chat'
     | '/api/vps/destroy'
     | '/api/vps/logs'
     | '/api/vps/provision'
@@ -266,11 +302,13 @@ export interface RootRouteChildren {
   AuthedRoute: typeof AuthedRouteWithChildren
   SignInRoute: typeof SignInRoute
   ApiHealthRoute: typeof ApiHealthRoute
+  ApiPersonalizationRoute: typeof ApiPersonalizationRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiStripeCheckoutRoute: typeof ApiStripeCheckoutRoute
   ApiStripePortalRoute: typeof ApiStripePortalRoute
   ApiStripeTopupRoute: typeof ApiStripeTopupRoute
   ApiStripeWebhookRoute: typeof ApiStripeWebhookRoute
+  ApiVpsChatRoute: typeof ApiVpsChatRoute
   ApiVpsDestroyRoute: typeof ApiVpsDestroyRoute
   ApiVpsLogsRoute: typeof ApiVpsLogsRoute
   ApiVpsProvisionRoute: typeof ApiVpsProvisionRoute
@@ -307,12 +345,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedIndexRouteImport
       parentRoute: typeof AuthedRoute
     }
+    '/api/personalization': {
+      id: '/api/personalization'
+      path: '/api/personalization'
+      fullPath: '/api/personalization'
+      preLoaderRoute: typeof ApiPersonalizationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/health': {
       id: '/api/health'
       path: '/api/health'
       fullPath: '/api/health'
       preLoaderRoute: typeof ApiHealthRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authed/setup': {
+      id: '/_authed/setup'
+      path: '/setup'
+      fullPath: '/setup'
+      preLoaderRoute: typeof AuthedSetupRouteImport
+      parentRoute: typeof AuthedRoute
     }
     '/api/vps/verify': {
       id: '/api/vps/verify'
@@ -354,6 +406,13 @@ declare module '@tanstack/react-router' {
       path: '/api/vps/destroy'
       fullPath: '/api/vps/destroy'
       preLoaderRoute: typeof ApiVpsDestroyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/vps/chat': {
+      id: '/api/vps/chat'
+      path: '/api/vps/chat'
+      fullPath: '/api/vps/chat'
+      preLoaderRoute: typeof ApiVpsChatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/stripe/webhook': {
@@ -430,10 +489,12 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthedRouteChildren {
+  AuthedSetupRoute: typeof AuthedSetupRoute
   AuthedIndexRoute: typeof AuthedIndexRoute
 }
 
 const AuthedRouteChildren: AuthedRouteChildren = {
+  AuthedSetupRoute: AuthedSetupRoute,
   AuthedIndexRoute: AuthedIndexRoute,
 }
 
@@ -444,11 +505,13 @@ const rootRouteChildren: RootRouteChildren = {
   AuthedRoute: AuthedRouteWithChildren,
   SignInRoute: SignInRoute,
   ApiHealthRoute: ApiHealthRoute,
+  ApiPersonalizationRoute: ApiPersonalizationRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiStripeCheckoutRoute: ApiStripeCheckoutRoute,
   ApiStripePortalRoute: ApiStripePortalRoute,
   ApiStripeTopupRoute: ApiStripeTopupRoute,
   ApiStripeWebhookRoute: ApiStripeWebhookRoute,
+  ApiVpsChatRoute: ApiVpsChatRoute,
   ApiVpsDestroyRoute: ApiVpsDestroyRoute,
   ApiVpsLogsRoute: ApiVpsLogsRoute,
   ApiVpsProvisionRoute: ApiVpsProvisionRoute,

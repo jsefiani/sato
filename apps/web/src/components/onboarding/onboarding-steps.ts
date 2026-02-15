@@ -1,7 +1,8 @@
 import WelcomeStep from './steps/WelcomeStep'
+import PersonalizeStep from './steps/PersonalizeStep'
 import TrialStep from './steps/TrialStep'
 import LaunchStep from './steps/LaunchStep'
-import TelegramStep from './steps/TelegramStep'
+import ChatStep from './steps/ChatStep'
 import type { OnboardingStep } from './onboarding-utils'
 import type { ComponentType } from 'react'
 
@@ -20,6 +21,12 @@ export const STEP_REGISTRY: Array<StepConfig> = [
     showProgress: false,
   },
   {
+    id: 'personalize',
+    component: PersonalizeStep,
+    requiresSetupState: false,
+    showProgress: true,
+  },
+  {
     id: 'trial',
     component: TrialStep,
     requiresSetupState: true,
@@ -32,10 +39,10 @@ export const STEP_REGISTRY: Array<StepConfig> = [
     showProgress: true,
   },
   {
-    id: 'telegram',
-    component: TelegramStep,
-    requiresSetupState: false,
-    showProgress: true,
+    id: 'chat',
+    component: ChatStep,
+    requiresSetupState: true,
+    showProgress: false,
   },
 ]
 

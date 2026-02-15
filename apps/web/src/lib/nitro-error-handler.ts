@@ -33,8 +33,8 @@ function renderPage({
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-      background: #09090b; /* zinc-950 */
-      color: #a1a1aa; /* zinc-400 */
+      background: #ffffff;
+      color: #64748b;
       min-height: 100vh;
       display: flex;
       align-items: center;
@@ -45,8 +45,8 @@ function renderPage({
     .card {
       width: 100%;
       max-width: 28rem;
-      background: #18181b; /* zinc-900 */
-      border: 1px solid #27272a; /* zinc-800 */
+      background: #f4f4f5;
+      border: 1px solid #e2e8f0;
       border-radius: 0.75rem;
       padding: 2rem;
       text-align: center;
@@ -60,19 +60,19 @@ function renderPage({
       align-items: center;
       justify-content: center;
       border-radius: 9999px;
-      background: #27272a; /* zinc-800 */
-      color: #a1a1aa; /* zinc-400 */
+      background: #e2e8f0;
+      color: #94a3b8;
     }
     .status {
       font-size: 0.875rem;
       font-weight: 500;
-      color: #71717a; /* zinc-500 */
+      color: #94a3b8;
       margin-bottom: 0.25rem;
     }
     h1 {
       font-size: 1.25rem;
       font-weight: 600;
-      color: #f4f4f5; /* zinc-100 */
+      color: #1e293b;
       margin-bottom: 0.5rem;
     }
     .desc {
@@ -101,10 +101,10 @@ function renderPage({
       transition: background 0.15s;
     }
     .btn-home {
-      background: #fff;
-      color: #18181b;
+      background: #1e293b;
+      color: #ffffff;
     }
-    .btn-home:hover { background: #e4e4e7; }
+    .btn-home:hover { background: #334155; }
   </style>
 </head>
 <body>
@@ -172,7 +172,7 @@ const errorHandler: NitroErrorHandler = async (
     )
   } catch {
     return new Response(
-      '<!DOCTYPE html><html><head><title>Error - Sato</title></head><body style="background:#09090b;color:#a1a1aa;display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:system-ui"><div style="text-align:center"><h1 style="color:#f4f4f5;margin-bottom:.5rem">Something went wrong</h1><p>An unexpected error occurred.</p><br><a href="/" style="color:#f4f4f5">Go home</a></div></body></html>',
+      '<!DOCTYPE html><html><head><title>Error - Sato</title></head><body style="background:#ffffff;color:#64748b;display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:system-ui"><div style="text-align:center"><h1 style="color:#1e293b;margin-bottom:.5rem">Something went wrong</h1><p>An unexpected error occurred.</p><br><a href="/" style="color:#1e293b">Go home</a></div></body></html>',
       { status: 500, headers: { 'content-type': 'text/html; charset=utf-8' } },
     )
   }

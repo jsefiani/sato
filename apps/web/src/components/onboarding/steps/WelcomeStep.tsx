@@ -19,8 +19,8 @@ const features = [
   },
   {
     icon: MessageCircle,
-    title: 'Chat via Telegram',
-    description: 'Message your assistant just like texting a friend.',
+    title: 'Chat directly',
+    description: 'Start chatting with your assistant right away.',
   },
 ]
 

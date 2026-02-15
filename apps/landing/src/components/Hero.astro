@@ -1,0 +1,22 @@
+---
+import MeshGradient from './MeshGradient'
+import HeroContent from './HeroContent'
+import ChatMockup from './ChatMockup'
+---
+
+<section class="relative overflow-hidden bg-background pt-4 sm:pt-6">
+  <div class="mx-auto w-full px-2 sm:px-3 lg:px-4">
+    <div class="rounded-t-[2.4rem] bg-background pt-2 sm:pt-2.5">
+      <div class="relative isolate overflow-hidden rounded-t-[2rem] border-t border-border/60 bg-secondary/40 shadow-[0_40px_90px_-70px_rgba(15,23,42,0.55)]">
+        <MeshGradient client:load />
+
+        <div class="relative flex min-h-[calc(100vh-8rem)] flex-col items-center gap-12 px-6 pb-20 pt-56 sm:pt-44 lg:gap-16 lg:px-12 lg:pb-24">
+          <HeroContent client:load />
+          <div class="w-full max-w-2xl">
+            <ChatMockup client:load />
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

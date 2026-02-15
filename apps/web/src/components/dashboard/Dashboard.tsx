@@ -239,6 +239,11 @@ export default function Dashboard() {
     )
   }
 
+  if (!state.hasPersonalized) {
+    navigate({ to: '/setup', search: { step: 'welcome' } })
+    return null
+  }
+
   return (
     <div className="min-h-0 flex-1 overflow-y-auto px-4 py-8 text-foreground">
       <motion.div
@@ -286,7 +291,7 @@ export default function Dashboard() {
                     variant="outline"
                     size="sm"
                     onClick={() =>
-                      navigate({ to: '/', search: { step: 'launch' } })
+                      navigate({ to: '/setup', search: { step: 'launch' } })
                     }
                   >
                     Set up again
@@ -295,7 +300,7 @@ export default function Dashboard() {
                   <div
                     className={`h-2.5 w-2.5 rounded-full ${
                       isAssistantLive
-                        ? 'bg-foreground shadow-[0_0_8px_rgba(255,255,255,0.3)]'
+                        ? 'bg-foreground shadow-[0_0_8px_rgba(30,41,59,0.3)]'
                         : 'bg-secondary'
                     }`}
                   />
@@ -356,10 +361,10 @@ export default function Dashboard() {
                   variant="outline"
                   size="sm"
                   onClick={() =>
-                    navigate({ to: '/', search: { step: 'telegram' } })
+                    navigate({ to: '/setup', search: { step: 'telegram' } })
                   }
                 >
-                  Fix Telegram
+                  Connect Telegram
                 </Button>
               ) : persistedTelegramBotUsername ? (
                 <Button

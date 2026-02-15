@@ -7,9 +7,9 @@ export default function Header() {
     <header className="flex items-center justify-between px-6 py-4">
       <Link
         to="/"
-        className="text-lg font-semibold text-foreground tracking-tight"
+        className="text-lg font-semibold text-foreground tracking-tight flex items-center gap-1"
       >
-        Sato
+        <span className="rounded-full size-4 bg-[#000000c7]"></span> Sato
       </Link>
       <UserMenu />
     </header>

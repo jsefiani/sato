@@ -228,6 +228,9 @@ journalctl --rotate && journalctl --vacuum-time=1s 2>/dev/null || true
 history -c 2>/dev/null || true
 > /root/.bash_history 2>/dev/null || true
 
+# Reset cloud-init state so it re-runs with new user_data on the next boot
+cloud-init clean --logs
+
 echo "Snapshot preparation complete."
 REMOTE_SCRIPT
 

@@ -1,0 +1,69 @@
+---
+import ShinyText from './ShinyTextStatic.astro'
+import FeatureCard from './FeatureCard'
+
+const features = [
+  {
+    title: 'It remembers everything',
+    description:
+      'Sato learns your preferences, habits, and what matters to you. The more you use it, the more helpful it becomes — like a real assistant who knows you.',
+    variant: 'remembers',
+    wide: true,
+  },
+  {
+    title: 'Genuinely smart',
+    description:
+      'Powered by the latest AI, Sato can help with anything — from planning your week to drafting emails to finding the perfect gift.',
+    variant: 'smart',
+    wide: true,
+  },
+  {
+    title: 'Completely private',
+    description:
+      'Your data is encrypted and protected with multiple layers of security. Your conversations stay between you and your assistant.',
+    variant: 'private',
+    wide: false,
+  },
+  {
+    title: 'Just talk naturally',
+    description:
+      "No special commands or tech jargon. Just type like you're messaging a friend.",
+    variant: 'natural',
+    wide: false,
+  },
+  {
+    title: 'Take it with you',
+    description:
+      'Connect Sato to Telegram and chat from your phone, wherever you are.',
+    variant: 'telegram',
+    wide: false,
+  },
+]
+---
+
+<section id="features" class="relative py-16 md:py-24">
+  <div class="pointer-events-none absolute inset-0 [mask-image:linear-gradient(to_bottom,transparent,black_20%,black_80%,transparent)]" style="background-image: radial-gradient(circle, hsl(220 70% 45% / 0.07) 1px, transparent 1px); background-size: 40px 40px;"></div>
+
+  <div class="relative mx-auto max-w-6xl px-6">
+    <div class="mb-16 flex flex-col items-center gap-2 text-center">
+      <ShinyText text="What makes Sato different" />
+      <h2 class="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+        An assistant that actually gets you
+      </h2>
+    </div>
+
+    <div class="grid grid-cols-1 gap-6 md:grid-cols-12">
+      {
+        features.map((feature) => (
+          <FeatureCard
+            client:visible
+            className={feature.wide ? 'md:col-span-6' : 'md:col-span-4'}
+            title={feature.title}
+            description={feature.description}
+            variant={feature.variant}
+          />
+        ))
+      }
+    </div>
+  </div>
+</section>

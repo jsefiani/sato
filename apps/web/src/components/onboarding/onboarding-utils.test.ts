@@ -4,9 +4,10 @@ import {
   getAutoAdvanceStep,
   resolveCurrentStep,
 } from './onboarding-utils'
-import type { SetupState, TelegramState } from './onboarding-utils'
+import type { SetupState } from './onboarding-utils'
 
 const baseState: SetupState = {
+  hasPersonalized: true,
   access: {
     status: 'active',
     hasAccess: true,
@@ -41,80 +42,105 @@ const baseState: SetupState = {
   },
 }
 
-const connectedTelegramState: TelegramState = {
-  checkedAt: new Date().toISOString(),
-  configured: true,
-  enabled: true,
-  running: true,
-  connected: true,
-  probeOk: true,
-  accountId: 'default',
-  botUsername: '@bot',
-  dmPolicy: null,
-  lastError: null,
-  pairingRequests: [],
-}
-
 describe('deriveStep', () => {
-  it('stays on telegram while a pairing request is pending', () => {
-    expect(
-      deriveStep(baseState, {
-        ...connectedTelegramState,
-        pairingRequests: [
-          {
-            code: 'ABCDEFGH',
-            id: 'req_1',
-            createdAt: new Date().toISOString(),
-          },
-        ],
-      }),
-    ).toBe('telegram')
+  it('returns complete when VPS is active and OpenClaw is ready', () => {
+    expect(deriveStep(baseState)).toBe('complete')
   })
 
-  it('moves to complete only when connected with no pending pairing', () => {
-    const stateWithConnectedChannel: SetupState = {
-      ...baseState,
-      channelSetup: {
-        channels: [],
-        connectedChannels: ['telegram'],
-        connectedCount: 1,
-        hasConnectedChannel: true,
-      },
-    }
-    expect(deriveStep(stateWithConnectedChannel, connectedTelegramState)).toBe(
-      'complete',
-    )
+  it('returns launch when VPS is provisioning', () => {
+    expect(
+      deriveStep({
+        ...baseState,
+        vps: { ...baseState.vps!, status: 'provisioning' },
+      }),
+    ).toBe('launch')
+  })
+
+  it('returns launch when VPS is active but OpenClaw is not ready', () => {
+    expect(
+      deriveStep({
+        ...baseState,
+        openClawReady: false,
+      }),
+    ).toBe('launch')
+  })
+
+  it('returns trial when user has no access', () => {
+    expect(
+      deriveStep({
+        ...baseState,
+        access: { ...baseState.access, hasAccess: false },
+      }),
+    ).toBe('trial')
+  })
+
+  it('returns trial when state is null', () => {
+    expect(deriveStep(null)).toBe('trial')
   })
 })
 
 describe('resolveCurrentStep', () => {
   it('keeps welcome sticky before completion', () => {
-    expect(resolveCurrentStep('welcome', 'launch')).toBe('welcome')
+    expect(resolveCurrentStep('welcome', 'launch', true)).toBe('welcome')
+  })
+
+  it('keeps personalize sticky before completion', () => {
+    expect(resolveCurrentStep('personalize', 'launch', true)).toBe(
+      'personalize',
+    )
   })
 
   it('clamps invalid forward deep links', () => {
-    expect(resolveCurrentStep('complete', 'launch')).toBe('launch')
+    expect(resolveCurrentStep('complete', 'launch', true)).toBe('launch')
   })
 
   it('keeps current url step when it is valid', () => {
-    expect(resolveCurrentStep('launch', 'telegram')).toBe('launch')
+    expect(resolveCurrentStep('launch', 'complete', true)).toBe('launch')
+  })
+
+  it('forces welcome when not personalized and urlStep is past personalize', () => {
+    expect(resolveCurrentStep('launch', 'launch', false)).toBe('welcome')
+    expect(resolveCurrentStep('chat', 'complete', false)).toBe('welcome')
+    expect(resolveCurrentStep('trial', 'trial', false)).toBe('welcome')
+  })
+
+  it('allows welcome/personalize when not personalized', () => {
+    expect(resolveCurrentStep('welcome', 'launch', false)).toBe('welcome')
+    expect(resolveCurrentStep('personalize', 'launch', false)).toBe(
+      'personalize',
+    )
   })
 })
 
 describe('getAutoAdvanceStep', () => {
   it('does not auto-advance welcome', () => {
-    expect(getAutoAdvanceStep('welcome', 'telegram')).toBeNull()
+    expect(getAutoAdvanceStep('welcome', 'complete', true)).toBeNull()
+  })
+
+  it('does not auto-advance personalize', () => {
+    expect(getAutoAdvanceStep('personalize', 'complete', true)).toBeNull()
   })
 
   it('auto-advances when backend progress is ahead', () => {
-    expect(getAutoAdvanceStep('launch', 'telegram')).toBe('telegram')
+    expect(getAutoAdvanceStep('launch', 'complete', true)).toBe('chat')
   })
 
-  it('does not auto-skip from launch to complete', () => {
-    expect(getAutoAdvanceStep('launch', 'complete')).toBe('telegram')
+  it('targets chat when derived step is complete', () => {
+    expect(getAutoAdvanceStep('trial', 'complete', true)).toBe('chat')
   })
 
   it('does not auto-advance when already up to date', () => {
-    expect(getAutoAdvanceStep('telegram', 'telegram')).toBeNull()
+    expect(getAutoAdvanceStep('chat', 'complete', true)).toBeNull()
+  })
+
+  it('returns welcome when not personalized and derived is complete', () => {
+    expect(getAutoAdvanceStep('launch', 'complete', false)).toBe('welcome')
+    expect(getAutoAdvanceStep('trial', 'complete', false)).toBe('welcome')
+    expect(getAutoAdvanceStep('chat', 'complete', false)).toBe('welcome')
+  })
+
+  it('returns null when not personalized, derived complete, and on welcome/personalize', () => {
+    expect(getAutoAdvanceStep('welcome', 'complete', false)).toBeNull()
+    expect(getAutoAdvanceStep('personalize', 'complete', false)).toBeNull()
   })
 })

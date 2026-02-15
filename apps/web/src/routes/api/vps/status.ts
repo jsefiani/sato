@@ -23,6 +23,7 @@ import {
   probeOpenClawGateway,
 } from '@/lib/vps-probes'
 
+const TAILSCALE_JOIN_TIMEOUT_MS = 3 * 60 * 1000
 const BOOTSTRAP_TIMEOUT_MS = 10 * 60 * 1000
 
 export const Route = createFileRoute('/api/vps/status')({
@@ -50,10 +51,11 @@ export const Route = createFileRoute('/api/vps/status')({
             getUserChannelSetupSummary(userId),
           ])
 
-          const { provisionedAt, ...vpsPayload } = vpsState
+          const { provisionedAt, hasPersonalized, ...vpsPayload } = vpsState
 
           return Response.json({
             ...vpsPayload,
+            hasPersonalized,
             access,
             credits,
             topupPacks: getTopupPacks().map((pack) => ({
@@ -78,7 +80,7 @@ export const Route = createFileRoute('/api/vps/status')({
 export async function computeVpsProbeState({ userId }: { userId: string }) {
   const userWithVps = await db.query.user.findFirst({
     where: eq(user.id, userId),
-    columns: {},
+    columns: { assistantName: true },
     with: {
       vpsInstance: {
         columns: {
@@ -163,6 +165,22 @@ export async function computeVpsProbeState({ userId }: { userId: string }) {
       !openClawReady &&
       !bootstrapError &&
       instance.status === 'bootstrapping' &&
+      !instance.tailscaleIp &&
+      Date.now() - new Date(instance.updatedAt).getTime() >
+        TAILSCALE_JOIN_TIMEOUT_MS
+    ) {
+      const tailscaleTimeoutMessage =
+        'Server failed to join the private network. This usually means cloud-init did not run. Please retry setup.'
+
+      await markFailed({ userId, reason: tailscaleTimeoutMessage })
+      instance = { ...instance, status: 'failed' }
+      vpsFailureReason = tailscaleTimeoutMessage
+    }
+
+    if (
+      !openClawReady &&
+      !bootstrapError &&
+      instance.status === 'bootstrapping' &&
       Date.now() - new Date(instance.updatedAt).getTime() > BOOTSTRAP_TIMEOUT_MS
     ) {
       const timeoutMessage =
@@ -210,6 +228,7 @@ export async function computeVpsProbeState({ userId }: { userId: string }) {
   }
 
   return {
+    hasPersonalized: !!userWithVps?.assistantName,
     openClawReady,
     bootstrappingError: bootstrapError,
     vpsFailureReason,

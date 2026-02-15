@@ -36,7 +36,7 @@ export const Route = createFileRoute('/api/vps/provision')({
             return Response.json(
               {
                 error:
-                  'Your free trial has expired or your subscription is inactive. Please subscribe to continue.',
+                  'Your trial has expired or your subscription is inactive. Please subscribe to continue.',
               },
               { status: 402 },
             )

@@ -10,13 +10,15 @@ import type { OnboardingStep } from './onboarding-utils'
 interface OnboardingWizardProps {
   urlStep: OnboardingStep
   onNavigate: (step: OnboardingStep | null) => void
+  checkoutStatus?: string
 }
 
 export default function OnboardingWizard({
   urlStep,
   onNavigate,
+  checkoutStatus,
 }: OnboardingWizardProps) {
-  const ctx = useOnboarding({ urlStep, onNavigate })
+  const ctx = useOnboarding({ urlStep, onNavigate, checkoutStatus })
   const stepConfig = getStepConfig(ctx.currentStep)
 
   const hasMounted = useRef(false)
@@ -49,7 +51,9 @@ export default function OnboardingWizard({
     >
       <div className="flex flex-1 flex-col px-4 py-12">
         <div className="flex flex-1 items-center justify-center">
-          <div className="w-full max-w-md">
+          <div
+            className={`w-full ${ctx.currentStep === 'chat' ? 'max-w-2xl' : 'max-w-md'}`}
+          >
             <AnimatePresence initial={false} mode="wait">
               <motion.div
                 key={ctx.currentStep}

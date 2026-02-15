@@ -1,6 +1,10 @@
 import { motion } from 'motion/react'
-import { ONBOARDING_STEPS, stepIndex } from './onboarding-utils'
+import { ONBOARDING_STEPS } from './onboarding-utils'
 import type { OnboardingStep } from './onboarding-utils'
+
+const VISIBLE_STEPS = ONBOARDING_STEPS.filter(
+  (s) => s !== 'welcome' && s !== 'chat' && s !== 'complete',
+)
 
 interface OnboardingProgressProps {
   currentStep: OnboardingStep
@@ -9,11 +13,13 @@ interface OnboardingProgressProps {
 export default function OnboardingProgress({
   currentStep,
 }: OnboardingProgressProps) {
-  const current = stepIndex(currentStep)
+  const current = (VISIBLE_STEPS as ReadonlyArray<OnboardingStep>).indexOf(
+    currentStep,
+  )
 
   return (
     <div className="flex items-center justify-center gap-2.5">
-      {ONBOARDING_STEPS.map((step, i) => (
+      {VISIBLE_STEPS.map((step, i) => (
         <motion.div
           key={step}
           layout

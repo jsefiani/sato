@@ -1,0 +1,135 @@
+---
+import ShinyText from './ShinyTextStatic.astro'
+
+const appUrl = import.meta.env.PUBLIC_APP_URL || 'https://www.app.asksato.ai'
+
+const steps = [
+  {
+    title: 'Create your account',
+    description: 'Sign up with Google — it takes a few seconds.',
+  },
+  {
+    title: 'Make it yours',
+    description:
+      'Give your assistant a name, tell it how you like to communicate, and what you need help with.',
+  },
+  {
+    title: 'Start talking',
+    description:
+      "That's it. Ask anything, delegate tasks, or just chat. Sato's ready when you are.",
+  },
+]
+---
+
+<section id="how-it-works" class="relative py-16 md:py-24">
+  <div class="pointer-events-none absolute inset-0" style="background: radial-gradient(ellipse at center, hsl(220 70% 45% / 0.03) 0%, transparent 70%);"></div>
+
+  <div class="relative mx-auto max-w-6xl px-6">
+    <!-- Mobile: centered header -->
+    <div class="mb-12 flex flex-col items-center text-center md:hidden">
+      <ShinyText text="How it works" />
+      <h2 class="mt-2 text-3xl font-bold tracking-tight text-foreground">
+        Ready in under a minute
+      </h2>
+      <p class="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">
+        Get your assistant set up in three simple steps.
+      </p>
+    </div>
+
+    <div class="md:grid md:grid-cols-2 md:gap-16">
+      <!-- Left column: sticky heading (desktop only) -->
+      <div class="sticky top-32 hidden self-start md:block">
+        <ShinyText text="How it works" />
+        <h2 class="mt-2 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+          Ready in under a minute
+        </h2>
+        <p class="mt-4 max-w-sm text-base leading-relaxed text-muted-foreground">
+          Get your assistant set up in three simple steps.
+        </p>
+        <a
+          href={appUrl}
+          class="mt-8 inline-flex rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+        >
+          Get started
+        </a>
+      </div>
+
+      <!-- Right column: vertical timeline -->
+      <div class="relative">
+        {
+          steps.map((step, i) => (
+            <div class="fade-in-section relative flex gap-5 pb-12 last:pb-0">
+              {/* Vertical line */}
+              {i < steps.length - 1 && (
+                <div class="absolute left-5 top-10 bottom-0 w-px bg-border" />
+              )}
+
+              {/* Circle node */}
+              <div class="relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-background">
+                <span class="text-sm font-semibold text-brand">{i + 1}</span>
+              </div>
+
+              {/* Content */}
+              <div class="pt-1.5">
+                <h3 class="text-lg font-semibold text-foreground">
+                  {step.title}
+                </h3>
+                <p class="mt-1 text-sm leading-relaxed text-muted-foreground">
+                  {step.description}
+                </p>
+              </div>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+
+    <!-- Mobile CTA -->
+    <div class="mt-10 flex justify-center md:hidden">
+      <a
+        href={appUrl}
+        class="inline-flex rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+      >
+        Get started
+      </a>
+    </div>
+  </div>
+</section>
+
+<script>
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-visible')
+          observer.unobserve(entry.target)
+        }
+      })
+    },
+    { threshold: 0.1 },
+  )
+
+  document.querySelectorAll('.fade-in-section').forEach((el) => {
+    observer.observe(el)
+  })
+</script>
+
+<style>
+  .fade-in-section {
+    opacity: 0;
+    transform: translateY(20px);
+    transition:
+      opacity 0.6s ease,
+      transform 0.6s ease;
+  }
+  .fade-in-section.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .fade-in-section:nth-child(2) {
+    transition-delay: 0.15s;
+  }
+  .fade-in-section:nth-child(3) {
+    transition-delay: 0.3s;
+  }
+</style>

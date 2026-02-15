@@ -1,0 +1,208 @@
+---
+import ShinyText from './ShinyTextStatic.astro'
+import {
+  siNotion,
+  siGmail,
+  siGooglecalendar,
+  siTrello,
+  siAsana,
+  siJira,
+  siLinear,
+  siTodoist,
+  siAirtable,
+  siZapier,
+  siZoom,
+  siGooglecloud,
+  siTelegram,
+  siWhatsapp,
+  siDiscord,
+  siX,
+  siInstagram,
+  siReddit,
+  siYoutube,
+  siSpotify,
+  siTwitch,
+  siMedium,
+  siWordpress,
+  siFigma,
+  siGithub,
+  siStripe,
+  siShopify,
+  siDropbox,
+  siGoogledrive,
+  siGooglesheets,
+  siUber,
+  siNetflix,
+  siVercel,
+  siSupabase,
+  siFirebase,
+  siDocker,
+} from 'simple-icons'
+
+const rows = [
+  {
+    icons: [siNotion, siGmail, siGooglecalendar, siTrello, siAsana, siJira, siLinear, siTodoist, siAirtable, siZapier, siZoom, siGooglecloud],
+    direction: 'left' as const,
+    duration: '55s',
+  },
+  {
+    icons: [siTelegram, siWhatsapp, siDiscord, siX, siInstagram, siReddit, siYoutube, siSpotify, siTwitch, siMedium, siWordpress, siFigma],
+    direction: 'right' as const,
+    duration: '60s',
+  },
+  {
+    icons: [siGithub, siStripe, siShopify, siDropbox, siGoogledrive, siGooglesheets, siUber, siNetflix, siVercel, siSupabase, siFirebase, siDocker],
+    direction: 'left' as const,
+    duration: '58s',
+    hiddenOnMobile: true,
+  },
+]
+---
+
+<section class="relative py-16 md:py-24">
+  <div
+    class="pointer-events-none absolute inset-0"
+    style="background: radial-gradient(ellipse at 50% 0%, hsl(220 70% 45% / 0.04) 0%, transparent 60%);"
+  ></div>
+
+  <div class="relative mx-auto max-w-6xl px-6">
+    <div class="mb-12 flex flex-col items-center gap-2 text-center md:mb-16">
+      <ShinyText text="Integrations" />
+      <h2 class="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+        Connect your favorite apps
+      </h2>
+      <p class="mt-2 max-w-lg text-base text-muted-foreground">
+        Sato works with 100+ apps you already use — so your assistant fits right into your workflow.
+      </p>
+    </div>
+  </div>
+
+  <div class="marquee-wrapper relative overflow-hidden">
+    <div class="flex flex-col gap-4">
+      {rows.map((row) => (
+        <div
+          class:list={[
+            'marquee-track',
+            row.direction === 'left' ? 'scroll-left' : 'scroll-right',
+            row.hiddenOnMobile && 'hidden sm:flex',
+          ]}
+          style={`--duration: ${row.duration}`}
+        >
+          {/* Two identical groups — each takes exactly 50% of the track */}
+          {[false, true].map((isDupe) => (
+            <div class="marquee-group" aria-hidden={isDupe || undefined}>
+              {row.icons.map((icon) => (
+                <div class="marquee-chip">
+                  <svg
+                    class="size-4 shrink-0"
+                    viewBox="0 0 24 24"
+                    fill={`#${icon.hex}`}
+                    role={!isDupe ? 'img' : undefined}
+                    aria-label={!isDupe ? icon.title : undefined}
+                  >
+                    <path d={icon.path} />
+                  </svg>
+                  <span class="whitespace-nowrap text-sm">{icon.title}</span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .marquee-wrapper::before,
+  .marquee-wrapper::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 4rem;
+    z-index: 10;
+    pointer-events: none;
+  }
+
+  .marquee-wrapper::before {
+    left: 0;
+    background: linear-gradient(to right, var(--background), transparent);
+  }
+
+  .marquee-wrapper::after {
+    right: 0;
+    background: linear-gradient(to left, var(--background), transparent);
+  }
+
+  @media (min-width: 640px) {
+    .marquee-wrapper::before,
+    .marquee-wrapper::after {
+      width: 8rem;
+    }
+  }
+
+  .marquee-track {
+    display: flex;
+    width: max-content;
+  }
+
+  .marquee-track.scroll-left {
+    animation: scroll-left var(--duration) linear infinite;
+  }
+
+  .marquee-track.scroll-right {
+    animation: scroll-right var(--duration) linear infinite;
+  }
+
+  .marquee-wrapper:hover .marquee-track {
+    animation-play-state: paused;
+  }
+
+  .marquee-group {
+    display: flex;
+    gap: 1rem;
+    padding-inline-end: 1rem;
+    flex-shrink: 0;
+  }
+
+  .marquee-chip {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 9999px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--muted-foreground);
+    transition: color 0.2s;
+  }
+
+  .marquee-chip:hover {
+    color: var(--foreground);
+  }
+
+  @keyframes scroll-left {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
+  }
+
+  @keyframes scroll-right {
+    from {
+      transform: translateX(-50%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .marquee-track {
+      animation-play-state: paused;
+    }
+  }
+</style>
