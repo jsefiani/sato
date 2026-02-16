@@ -16,7 +16,7 @@ interface TailscaleAuthKeyResponse {
 
 async function tailscaleRequest<T>(
   path: string,
-  method: 'GET' | 'POST',
+  method: 'GET' | 'POST' | 'DELETE',
   body?: unknown,
 ): Promise<T> {
   const apiKey = env.TAILSCALE_API_KEY
@@ -34,11 +34,16 @@ async function tailscaleRequest<T>(
     throw new Error(`Tailscale API error (${response.status}): ${errorText}`)
   }
 
+  if (response.status === 204 || response.headers.get('content-length') === '0')
+    return undefined as T
+
   return (await response.json()) as T
 }
 
 interface TailscaleDevice {
+  id: string
   name: string
+  hostname: string
   addresses: Array<string>
 }
 
@@ -56,7 +61,7 @@ export async function findDeviceTailscaleIp({
     'GET',
   )
 
-  const device = response.devices.find((d) => d.name.startsWith(hostname))
+  const device = response.devices.find((d) => d.hostname === hostname)
   if (!device) return null
 
   const ipv4 = device.addresses.find(
@@ -89,4 +94,20 @@ export async function createEphemeralAuthKey(): Promise<TailscaleAuthKey> {
     key: response.key,
     expirySeconds: 600,
   }
+}
+
+export async function deleteDeviceByHostname({
+  hostname,
+}: {
+  hostname: string
+}): Promise<void> {
+  const response = await tailscaleRequest<TailscaleDevicesResponse>(
+    '/tailnet/-/devices',
+    'GET',
+  )
+
+  const device = response.devices.find((d) => d.hostname === hostname)
+  if (!device) return
+
+  await tailscaleRequest<undefined>(`/device/${device.id}`, 'DELETE')
 }

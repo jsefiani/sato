@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import { motion } from 'motion/react'
 import { MessageCircle, Shield, Zap } from 'lucide-react'
 import { containerVariants, itemVariants } from '../onboarding-animations'
@@ -24,15 +25,52 @@ const features = [
   },
 ]
 
+function WelcomeSkeleton() {
+  return (
+    <div className="flex flex-col items-center text-center">
+      <div className="size-20 animate-pulse rounded-full bg-foreground/6" />
+      <div className="mt-7 h-10 w-56 animate-pulse rounded-lg bg-foreground/6" />
+      <div className="mt-3 h-12 w-72 animate-pulse rounded-lg bg-foreground/6" />
+
+      <div className="mt-10 grid w-full max-w-sm gap-3">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div
+            key={i}
+            className="flex items-start gap-4 rounded-xl border border-border p-4"
+          >
+            <div className="h-9 w-9 shrink-0 animate-pulse rounded-xl bg-foreground/6" />
+            <div className="flex flex-1 flex-col gap-2">
+              <div className="h-4 w-28 animate-pulse rounded bg-foreground/6" />
+              <div className="h-4 w-full animate-pulse rounded bg-foreground/6" />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-10 h-10 w-full max-w-sm animate-pulse rounded-lg bg-foreground/6" />
+    </div>
+  )
+}
+
 export default function WelcomeStep() {
-  const { userName, userImage, handleWelcomeContinue, skipInitialAnimation } =
-    useOnboardingContext()
+  const {
+    sessionPending,
+    userName,
+    userImage,
+    handleWelcomeContinue,
+    skipInitialAnimation,
+  } = useOnboardingContext()
+  const showedSkeleton = useRef(sessionPending)
   const firstName = userName.split(' ')[0]
+
+  if (sessionPending) return <WelcomeSkeleton />
+
+  const skipAnimation = skipInitialAnimation || showedSkeleton.current
 
   return (
     <motion.div
       variants={containerVariants}
-      initial={skipInitialAnimation ? false : 'hidden'}
+      initial={skipAnimation ? false : 'hidden'}
       animate="show"
       className="flex flex-col items-center text-center"
     >
@@ -66,7 +104,7 @@ export default function WelcomeStep() {
       >
         {features.map((feature) => (
           <motion.div key={feature.title} variants={itemVariants}>
-            <Card className="flex-row items-start gap-4 p-4">
+            <Card className="flex-row items-start gap-4 bg-transparent p-4 text-left">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-foreground/4">
                 <feature.icon className="h-[18px] w-[18px] text-foreground/80" />
               </div>

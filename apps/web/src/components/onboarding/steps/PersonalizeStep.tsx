@@ -5,7 +5,7 @@ import { containerVariants, itemVariants } from '../onboarding-animations'
 import { useOnboardingContext } from '../onboarding-context'
 import type { PersonalizationData } from '../onboarding-utils'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
+
 import { Input } from '@/components/ui/input'
 
 const COMMUNICATION_STYLES = [
@@ -132,21 +132,20 @@ export default function PersonalizeStep() {
           </label>
           <div className="grid grid-cols-2 gap-2">
             {USE_CASES.map((uc) => (
-              <Card
+              <button
                 key={uc.value}
-                className={`cursor-pointer p-3 transition-colors ${
+                type="button"
+                onClick={() => setPrimaryUseCase(uc.value)}
+                className={`rounded-xl border p-3 text-left transition-colors ${
                   primaryUseCase === uc.value
                     ? 'border-foreground/30 bg-foreground/4'
-                    : 'hover:border-foreground/15'
+                    : 'border-border hover:border-foreground/15'
                 }`}
-                onClick={() => setPrimaryUseCase(uc.value)}
               >
-                <CardContent className="p-0">
-                  <p className="text-sm font-medium text-foreground/80">
-                    {uc.label}
-                  </p>
-                </CardContent>
-              </Card>
+                <p className="text-sm font-medium text-foreground/80">
+                  {uc.label}
+                </p>
+              </button>
             ))}
           </div>
         </div>

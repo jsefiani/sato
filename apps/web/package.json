@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev --port 3000",
-    "stripe:listen": "stripe listen --events checkout.session.completed,customer.subscription.updated,customer.subscription.deleted,invoice.payment_succeeded,invoice.payment_failed --forward-to http://localhost:3000/api/stripe/webhook",
+    "stripe:listen": "stripe listen --events checkout.session.completed,customer.subscription.updated,customer.subscription.deleted,invoice.payment_succeeded,invoice.payment_failed --forward-to http://localhost:3001/api/stripe/webhook",
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",

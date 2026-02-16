@@ -23,6 +23,7 @@ interface OnboardingBaseValue {
   setupState: SetupState | null
   currentStep: OnboardingStep
   onNavigate: (step: OnboardingStep | null) => void
+  sessionPending: boolean
   userName: string
   userImage: string | null
   handleProvision: () => void
@@ -41,6 +42,8 @@ interface OnboardingBaseValue {
   handleWelcomeContinue: () => void
   handlePersonalizeContinue: (data: PersonalizationData) => void
   personalizeSaving: boolean
+  isConfirmingPayment: boolean
+  isCheckoutTimedOut: boolean
 }
 
 export type OnboardingContextValue = OnboardingBaseValue & {
@@ -48,7 +51,7 @@ export type OnboardingContextValue = OnboardingBaseValue & {
 }
 
 const CHECKOUT_POLL_INTERVAL = 2000
-const CHECKOUT_POLL_TIMEOUT = 30_000
+const CHECKOUT_POLL_TIMEOUT = 60_000
 
 export function useOnboarding({
   urlStep,
@@ -59,12 +62,25 @@ export function useOnboarding({
   onNavigate: (step: OnboardingStep | null) => void
   checkoutStatus?: string
 }): OnboardingBaseValue {
-  const { data: session } = authClient.useSession()
+  const { data: session, isPending: sessionPending } = authClient.useSession()
   const queryClient = useQueryClient()
 
   const [checkoutPollStart] = useState(() =>
     checkoutStatus === 'success' ? Date.now() : null,
   )
+
+  const [isCheckoutTimedOut, setCheckoutTimedOut] = useState(false)
+
+  useEffect(() => {
+    if (!checkoutPollStart) return
+    const remaining = CHECKOUT_POLL_TIMEOUT - (Date.now() - checkoutPollStart)
+    if (remaining <= 0) {
+      setCheckoutTimedOut(true)
+      return
+    }
+    const timer = setTimeout(() => setCheckoutTimedOut(true), remaining)
+    return () => clearTimeout(timer)
+  }, [checkoutPollStart])
 
   const setupQuery = useQuery({
     queryKey: ['setup-status'],
@@ -83,6 +99,11 @@ export function useOnboarding({
   })
 
   const setupState = setupQuery.data ?? null
+
+  const isConfirmingPayment =
+    checkoutPollStart !== null &&
+    !setupState?.access.hasAccess &&
+    !isCheckoutTimedOut
 
   const needsStatusStream =
     !!setupState?.vps &&
@@ -243,13 +264,14 @@ export function useOnboarding({
       const payload = (await res.json()) as { error?: string }
       if (!res.ok) throw new Error(payload.error ?? 'Failed to save')
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['setup-status'] })
-      if (!setupState?.access.hasAccess) {
+    onSuccess: async () => {
+      await queryClient.refetchQueries({ queryKey: ['setup-status'] })
+      const freshState = queryClient.getQueryData<SetupState>(['setup-status'])
+      if (!freshState?.access.hasAccess) {
         onNavigate('trial')
         return
       }
-      const vps = setupState.vps
+      const vps = freshState.vps
       const needsProvision =
         !vps ||
         vps.status === 'pending' ||
@@ -282,6 +304,7 @@ export function useOnboarding({
     setupState,
     currentStep,
     onNavigate,
+    sessionPending,
     userName,
     userImage,
     handleProvision,
@@ -300,5 +323,7 @@ export function useOnboarding({
     handleWelcomeContinue,
     handlePersonalizeContinue,
     personalizeSaving: personalizeMutation.isPending,
+    isConfirmingPayment,
+    isCheckoutTimedOut,
   }
 }

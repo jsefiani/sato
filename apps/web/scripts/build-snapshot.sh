@@ -231,8 +231,16 @@ history -c 2>/dev/null || true
 # Clear stale hostname so cloud-init sets it fresh from Hetzner metadata on next boot
 truncate -s 0 /etc/hostname
 
-# Reset cloud-init state so it re-runs with new user_data on the next boot
-cloud-init clean --logs
+# Clear Tailscale daemon state so it doesn't conflict with fresh tailscale up
+systemctl stop tailscaled 2>/dev/null || true
+rm -rf /var/lib/tailscale/*
+
+# Reset machine-id so each instance gets a unique identity
+truncate -s 0 /etc/machine-id
+rm -f /var/lib/dbus/machine-id
+
+# Reset cloud-init fully (including seed dir) so it re-runs with new user_data
+cloud-init clean --logs --seed
 
 echo "Snapshot preparation complete."
 REMOTE_SCRIPT

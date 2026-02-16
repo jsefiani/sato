@@ -20,13 +20,17 @@ export default function OnboardingWizard({
 }: OnboardingWizardProps) {
   const ctx = useOnboarding({ urlStep, onNavigate, checkoutStatus })
   const stepConfig = getStepConfig(ctx.currentStep)
+  const urlStepConfig = getStepConfig(urlStep)
 
   const hasMounted = useRef(false)
   useEffect(() => {
     hasMounted.current = true
   }, [])
 
-  if (stepConfig?.requiresSetupState && !ctx.setupState) {
+  if (
+    !ctx.setupState &&
+    (stepConfig?.requiresSetupState || urlStepConfig?.requiresSetupState)
+  ) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center px-4 py-12">
         <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-foreground/4">

@@ -1,5 +1,5 @@
 import { motion } from 'motion/react'
-import { Check, CreditCard } from 'lucide-react'
+import { Check, CreditCard, Loader2 } from 'lucide-react'
 import { containerVariants, itemVariants } from '../onboarding-animations'
 import { useOnboardingContext } from '../onboarding-context'
 import { Button } from '@/components/ui/button'
@@ -17,6 +17,8 @@ export default function TrialStep() {
     openCheckout,
     stripeLoading,
     skipInitialAnimation,
+    isConfirmingPayment,
+    isCheckoutTimedOut,
   } = useOnboardingContext()
 
   if (!setupState) return null
@@ -32,7 +34,50 @@ export default function TrialStep() {
       animate="show"
       className="flex flex-col items-center text-center"
     >
-      {!hasAccess ? (
+      {isCheckoutTimedOut ? (
+        <>
+          <motion.h1
+            variants={itemVariants}
+            className="text-3xl font-light tracking-tight text-foreground"
+          >
+            Payment is taking longer than expected
+          </motion.h1>
+
+          <motion.p
+            variants={itemVariants}
+            className="mt-3 max-w-sm text-[15px] leading-relaxed text-muted-foreground/80"
+          >
+            Your payment was received but confirmation is delayed. Please
+            refresh the page to check again.
+          </motion.p>
+
+          <motion.div variants={itemVariants} className="mt-10 w-full max-w-sm">
+            <Button className="w-full" onClick={() => window.location.reload()}>
+              Refresh page
+            </Button>
+          </motion.div>
+        </>
+      ) : isConfirmingPayment ? (
+        <>
+          <motion.div variants={itemVariants} className="flex justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </motion.div>
+
+          <motion.h1
+            variants={itemVariants}
+            className="mt-6 text-3xl font-light tracking-tight text-foreground"
+          >
+            Confirming your payment…
+          </motion.h1>
+
+          <motion.p
+            variants={itemVariants}
+            className="mt-3 max-w-sm text-[15px] leading-relaxed text-muted-foreground/80"
+          >
+            This usually takes a few seconds.
+          </motion.p>
+        </>
+      ) : !hasAccess ? (
         <>
           <motion.h1
             variants={itemVariants}

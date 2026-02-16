@@ -18,7 +18,7 @@ import {
   removeFirewallFromServer,
 } from '@/lib/hetzner'
 import { createId } from '@/lib/ids'
-import { createEphemeralAuthKey } from '@/lib/tailscale'
+import { createEphemeralAuthKey, deleteDeviceByHostname } from '@/lib/tailscale'
 
 const CLEANUP_ATTEMPTS = 3
 const CLEANUP_BACKOFF_MS = 500
@@ -552,6 +552,7 @@ export async function destroyUserServer(userId: string): Promise<void> {
     .select({
       serverId: vpsInstance.hetznerServerId,
       firewallId: vpsInstance.hetznerFirewallId,
+      tailscaleHostname: vpsInstance.tailscaleHostname,
     })
     .from(vpsInstance)
     .where(eq(vpsInstance.userId, userId))
@@ -560,6 +561,14 @@ export async function destroyUserServer(userId: string): Promise<void> {
   const instance = instanceRows.at(0)
 
   if (!instance) return
+
+  if (instance.tailscaleHostname) {
+    try {
+      await deleteDeviceByHostname({ hostname: instance.tailscaleHostname })
+    } catch {
+      // Best-effort — ephemeral devices auto-remove when offline
+    }
+  }
 
   const cleanup = await cleanupProvisioningResources(
     instance.serverId,
