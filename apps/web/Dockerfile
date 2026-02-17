@@ -23,6 +23,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 COPY --from=build /app/apps/web/.output /app/.output
+COPY apps/web/scripts/templates /app/scripts/templates
 
 # Drizzle push dependencies
 COPY apps/web/drizzle.config.ts /app/drizzle.config.ts

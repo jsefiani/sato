@@ -51,6 +51,36 @@ interface TailscaleDevicesResponse {
   devices: Array<TailscaleDevice>
 }
 
+function normalizeHostname(value: string): string {
+  return value.trim().toLowerCase()
+}
+
+function normalizeDeviceName(value: string): string {
+  return normalizeHostname(value).replace(/\.$/, '')
+}
+
+function matchesHostname({
+  device,
+  hostname,
+}: {
+  device: TailscaleDevice
+  hostname: string
+}): boolean {
+  const normalizedHostname = normalizeHostname(hostname)
+  if (!normalizedHostname) {
+    return false
+  }
+
+  const normalizedDeviceHostname = normalizeHostname(device.hostname)
+  const normalizedDeviceName = normalizeDeviceName(device.name)
+
+  return (
+    normalizedDeviceHostname === normalizedHostname ||
+    normalizedDeviceName === normalizedHostname ||
+    normalizedDeviceName.startsWith(`${normalizedHostname}.`)
+  )
+}
+
 export async function findDeviceTailscaleIp({
   hostname,
 }: {
@@ -98,16 +128,43 @@ export async function createEphemeralAuthKey(): Promise<TailscaleAuthKey> {
 
 export async function deleteDeviceByHostname({
   hostname,
+  tailscaleIp,
 }: {
-  hostname: string
+  hostname?: string | null
+  tailscaleIp?: string | null
 }): Promise<void> {
+  const normalizedHostname = hostname ? normalizeHostname(hostname) : ''
+  const normalizedTailscaleIp = tailscaleIp?.trim() ?? ''
+
+  if (!normalizedHostname && !normalizedTailscaleIp) {
+    return
+  }
+
   const response = await tailscaleRequest<TailscaleDevicesResponse>(
     '/tailnet/-/devices',
     'GET',
   )
 
-  const device = response.devices.find((d) => d.hostname === hostname)
-  if (!device) return
+  const matchingDevices = response.devices.filter((device) => {
+    const hostnameMatches =
+      normalizedHostname.length > 0 &&
+      matchesHostname({
+        device,
+        hostname: normalizedHostname,
+      })
 
-  await tailscaleRequest<undefined>(`/device/${device.id}`, 'DELETE')
+    const ipMatches =
+      normalizedTailscaleIp.length > 0 &&
+      device.addresses.some((address) => address === normalizedTailscaleIp)
+
+    return hostnameMatches || ipMatches
+  })
+
+  if (matchingDevices.length === 0) {
+    return
+  }
+
+  for (const device of matchingDevices) {
+    await tailscaleRequest<undefined>(`/device/${device.id}`, 'DELETE')
+  }
 }

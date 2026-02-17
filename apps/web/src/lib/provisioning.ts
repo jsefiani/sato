@@ -1,7 +1,5 @@
-import { existsSync, readFileSync } from 'node:fs'
-import { resolve as resolvePath } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { eq } from 'drizzle-orm'
+import bootstrapTemplateRaw from '../../scripts/templates/vps-bootstrap.sh.tmpl?raw'
 import type { HetznerLabels } from '@/lib/hetzner'
 import { db } from '@/db'
 import { auditLog, provisioningJob, user, vpsInstance } from '@/db/schema'
@@ -28,20 +26,7 @@ import { createVpsBootstrapToken } from '@/lib/vps-bootstrap-token'
 
 const CLEANUP_ATTEMPTS = 3
 const CLEANUP_BACKOFF_MS = 500
-const BOOTSTRAP_TEMPLATE_PATH_CANDIDATES = [
-  resolvePath(process.cwd(), 'scripts/templates/vps-bootstrap.sh.tmpl'),
-  resolvePath(
-    process.cwd(),
-    'apps/web/scripts/templates/vps-bootstrap.sh.tmpl',
-  ),
-  resolvePath(
-    fileURLToPath(
-      new URL('../../scripts/templates/vps-bootstrap.sh.tmpl', import.meta.url),
-    ),
-  ),
-]
-
-let bootstrapTemplateCache: string | null = null
+const BOOTSTRAP_TEMPLATE = bootstrapTemplateRaw.replace(/\r\n/g, '\n').trimEnd()
 
 interface ProvisionInput {
   userId: string
@@ -81,24 +66,7 @@ function escapeForSingleQuotedBash(value: string): string {
 }
 
 function getBootstrapTemplate(): string {
-  if (bootstrapTemplateCache) {
-    return bootstrapTemplateCache
-  }
-
-  for (const candidate of BOOTSTRAP_TEMPLATE_PATH_CANDIDATES) {
-    if (!existsSync(candidate)) {
-      continue
-    }
-
-    bootstrapTemplateCache = readFileSync(candidate, 'utf8')
-      .replace(/\r\n/g, '\n')
-      .trimEnd()
-    return bootstrapTemplateCache
-  }
-
-  throw new Error(
-    `Bootstrap template not found. Checked: ${BOOTSTRAP_TEMPLATE_PATH_CANDIDATES.join(', ')}`,
-  )
+  return BOOTSTRAP_TEMPLATE
 }
 
 function renderBootstrapTemplate({
@@ -304,6 +272,7 @@ async function cleanupStaleResourcesForUser(userId: string): Promise<void> {
       serverId: vpsInstance.hetznerServerId,
       firewallId: vpsInstance.hetznerFirewallId,
       tailscaleHostname: vpsInstance.tailscaleHostname,
+      tailscaleIp: vpsInstance.tailscaleIp,
     })
     .from(vpsInstance)
     .where(eq(vpsInstance.userId, userId))
@@ -318,16 +287,24 @@ async function cleanupStaleResourcesForUser(userId: string): Promise<void> {
   if (
     !instance.serverId &&
     !instance.firewallId &&
-    !instance.tailscaleHostname
+    !instance.tailscaleHostname &&
+    !instance.tailscaleIp
   ) {
     return
   }
 
-  if (instance.tailscaleHostname) {
-    try {
-      await deleteDeviceByHostname({ hostname: instance.tailscaleHostname })
-    } catch {
-      // Best-effort — stale devices eventually disappear on key expiry.
+  const cleanupErrors: Array<string> = []
+
+  if (instance.tailscaleHostname || instance.tailscaleIp) {
+    const tailscaleCleanupError = await runCleanupWithRetries(async () => {
+      await deleteDeviceByHostname({
+        hostname: instance.tailscaleHostname,
+        tailscaleIp: instance.tailscaleIp,
+      })
+    })
+
+    if (tailscaleCleanupError) {
+      cleanupErrors.push(`tailscale: ${tailscaleCleanupError}`)
     }
   }
 
@@ -335,8 +312,9 @@ async function cleanupStaleResourcesForUser(userId: string): Promise<void> {
     instance.serverId,
     instance.firewallId,
   )
+  cleanupErrors.push(...cleanup.errors)
 
-  const hasCleanupErrors = cleanup.errors.length > 0
+  const hasCleanupErrors = cleanupErrors.length > 0
 
   await db
     .update(vpsInstance)
@@ -345,7 +323,7 @@ async function cleanupStaleResourcesForUser(userId: string): Promise<void> {
       hetznerServerId: cleanup.remainingServerId,
       hetznerFirewallId: cleanup.remainingFirewallId,
       ipv4Address: null,
-      tailscaleIp: null,
+      tailscaleIp: hasCleanupErrors ? instance.tailscaleIp : null,
       tailscaleHostname: hasCleanupErrors ? instance.tailscaleHostname : null,
       openclawVersion: null,
       lastUpdatedAt: null,
@@ -354,7 +332,7 @@ async function cleanupStaleResourcesForUser(userId: string): Promise<void> {
 
   if (hasCleanupErrors) {
     throw new Error(
-      `Unable to clean up previous failed resources: ${cleanup.errors.join(' | ')}`,
+      `Unable to clean up previous failed resources: ${cleanupErrors.join(' | ')}`,
     )
   }
 }
@@ -608,6 +586,7 @@ export async function destroyUserServer(userId: string): Promise<void> {
       serverId: vpsInstance.hetznerServerId,
       firewallId: vpsInstance.hetznerFirewallId,
       tailscaleHostname: vpsInstance.tailscaleHostname,
+      tailscaleIp: vpsInstance.tailscaleIp,
     })
     .from(vpsInstance)
     .where(eq(vpsInstance.userId, userId))
@@ -617,9 +596,12 @@ export async function destroyUserServer(userId: string): Promise<void> {
 
   if (!instance) return
 
-  if (instance.tailscaleHostname) {
+  if (instance.tailscaleHostname || instance.tailscaleIp) {
     try {
-      await deleteDeviceByHostname({ hostname: instance.tailscaleHostname })
+      await deleteDeviceByHostname({
+        hostname: instance.tailscaleHostname,
+        tailscaleIp: instance.tailscaleIp,
+      })
     } catch {
       // Best-effort — ephemeral devices auto-remove when offline
     }
