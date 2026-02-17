@@ -47,7 +47,7 @@ Key points:
 
 ### Network & Infrastructure
 
-- **Tailscale mesh for SSH control plane**: VPSes join a Tailscale tailnet with ephemeral, pre-authorized auth keys tagged `tag:sato-vps`. The Coolify server uses `tag:sato-server` and is the only node permitted to SSH into VPSes over Tailscale (enforced by ACLs — see [Required Manual Setup](#required-manual-setup)).
+- **Tailscale mesh for control plane traffic**: VPSes join a Tailscale tailnet with ephemeral, pre-authorized auth keys tagged `tag:sato-vps`. The Coolify server uses `tag:sato-server` and is the only node permitted to reach VPS SSH (`22`) and OpenClaw gateway (`18789`) over Tailscale (enforced by ACLs — see [Required Manual Setup](#required-manual-setup)).
 
 - **VPS-to-VPS isolation**: Tailscale ACLs follow an implicit-deny model — no rule grants `tag:sato-vps` → `tag:sato-vps` access. Reference policy: [`infra/tailscale-acl.jsonc`](infra/tailscale-acl.jsonc).
 

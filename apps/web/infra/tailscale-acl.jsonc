@@ -13,11 +13,16 @@
   },
 
   "acls": [
-    // Coolify server can SSH into any VPS
+    // Coolify server can reach any VPS for SSH and OpenClaw gateway traffic
     {
       "action": "accept",
       "src": ["tag:sato-server"],
       "dst": ["tag:sato-vps:22"],
+    },
+    {
+      "action": "accept",
+      "src": ["tag:sato-server"],
+      "dst": ["tag:sato-vps:18789"],
     },
 
     // VPSes cannot reach each other (implicit deny — no rule grants it)
@@ -38,6 +43,17 @@
       "src": ["autogroup:admin"],
       "dst": ["tag:sato-vps"],
       "users": ["autogroup:nonroot", "root"],
+    },
+  ],
+
+  "tests": [
+    {
+      "src": "tag:sato-server",
+      "accept": ["tag:sato-vps:22", "tag:sato-vps:18789"],
+    },
+    {
+      "src": "tag:sato-vps",
+      "deny": ["tag:sato-vps:22", "tag:sato-vps:18789"],
     },
   ],
 }

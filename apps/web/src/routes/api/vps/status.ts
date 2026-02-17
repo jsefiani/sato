@@ -394,8 +394,9 @@ export async function computeVpsProbeState({ userId }: { userId: string }) {
       }
     }
 
-    openClawReady = instance.ipv4Address
-      ? await probeOpenClawGateway(instance.ipv4Address)
+    const gatewayProbeHost = instance.tailscaleIp ?? instance.ipv4Address
+    openClawReady = gatewayProbeHost
+      ? await probeOpenClawGateway(gatewayProbeHost)
       : false
 
     if (
@@ -432,6 +433,7 @@ export async function computeVpsProbeState({ userId }: { userId: string }) {
     }
 
     if (
+      instance.tailscaleIp &&
       openClawReady &&
       (isBootstrapPhase(instance.status) || instance.status === 'failed')
     ) {
