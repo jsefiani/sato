@@ -53,7 +53,7 @@ Key points:
 
 - **Per-VPS Hetzner firewalls**: Each VPS gets a dedicated Hetzner Cloud firewall allowing only ports 80 (HTTP), 443 (HTTPS), and 18789 (OpenClaw gateway) from the public internet.
 
-- **UFW on VPS (defense in depth)**: SSH is allowed only on the Tailscale interface (`tailscale0`). Even if Tailscale ACLs are misconfigured, the OS firewall blocks public SSH and non-SSH mesh traffic by default.
+- **UFW on VPS (defense in depth)**: SSH is allowed only on the Tailscale interface (`tailscale0`). Even if Tailscale ACLs are misconfigured, the OS firewall blocks public SSH and non-SSH mesh traffic by default. Bootstrap applies these rules on a best-effort basis so provisioning does not fail if a legacy snapshot is missing `ufw`; the canonical snapshot must still include `ufw`.
 
 - **Temporary debug override (opt-in only)**: For incident debugging, you can temporarily expose public SSH by setting `SNAPSHOT_DEBUG_PUBLIC_SSH=true` during snapshot build and `HETZNER_DEBUG_ALLOW_PUBLIC_SSH=true` at runtime (optionally restricting source CIDRs with `HETZNER_DEBUG_SSH_SOURCE_IPS`). This mode must be disabled after debugging.
 

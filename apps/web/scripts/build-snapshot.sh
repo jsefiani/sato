@@ -290,6 +290,29 @@ UNIT
 systemctl daemon-reload
 systemctl enable openclaw-gateway
 
+# Snapshot quality gate: fail fast if required runtime dependencies are missing.
+for REQUIRED_BIN in ufw tailscale openclaw; do
+  if ! command -v "$REQUIRED_BIN" >/dev/null 2>&1; then
+    echo "ERROR: Required binary missing before snapshot: $REQUIRED_BIN"
+    exit 1
+  fi
+done
+
+if ! systemctl is-enabled --quiet tailscaled; then
+  echo "ERROR: tailscaled is not enabled before snapshot"
+  exit 1
+fi
+
+if ! systemctl is-enabled --quiet openclaw-gateway; then
+  echo "ERROR: openclaw-gateway is not enabled before snapshot"
+  exit 1
+fi
+
+if ! ufw status | grep -q '^Status: active'; then
+  echo "ERROR: ufw is not active before snapshot"
+  exit 1
+fi
+
 # Clean up for snapshot
 apt-get clean
 rm -rf /var/lib/apt/lists/*

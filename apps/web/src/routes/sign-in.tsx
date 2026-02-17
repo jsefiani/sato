@@ -25,12 +25,17 @@ function SignIn() {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4">
       <div className="w-full max-w-sm p-8 space-y-6">
+        <img
+          src="/sato-icon.jpg"
+          alt=""
+          className="mx-auto mb-6 h-7 w-auto rounded-md"
+        />
         <div className="space-y-2 text-center">
           <h1 className="text-2xl font-bold text-foreground">
             Sign in to Sato
           </h1>
           <p className="text-sm text-muted-foreground">
-            Continue with your Google account
+            Your private AI assistant
           </p>
         </div>
 

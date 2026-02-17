@@ -5,7 +5,7 @@ import {
   normalizeChannelSetupForCurrentInstance,
 } from '@/lib/channel-connections'
 import { db } from '@/db'
-import { provisioningJob, user, vpsInstance } from '@/db/schema'
+import { auditLog, provisioningJob, user, vpsInstance } from '@/db/schema'
 import { getOpenClawVersion } from '@/lib/vps-maintenance'
 import { getUserAccessState } from '@/lib/access-control'
 import { safeApiResponse } from '@/lib/api-error'
@@ -19,6 +19,7 @@ import { requireSession } from '@/lib/session'
 import { findDeviceTailscaleIp } from '@/lib/tailscale'
 import { OPENCLAW_GATEWAY_PORT, probeOpenClawGateway } from '@/lib/vps-probes'
 import { verifyVpsBootstrapToken } from '@/lib/vps-bootstrap-token'
+import { createId } from '@/lib/ids'
 
 const TAILSCALE_JOIN_TIMEOUT_MS = 3 * 60 * 1000
 const BOOTSTRAP_TIMEOUT_MS = 10 * 60 * 1000
@@ -29,6 +30,7 @@ const BOOTSTRAP_CHECKPOINT_EVENTS = new Set([
   'bootstrap_started',
   'tailscale_joined',
   'gateway_ready',
+  'bootstrap_warning',
   'bootstrap_completed',
   'bootstrap_failed',
 ])
@@ -263,6 +265,20 @@ async function handleBootstrapCheckpoint({
     return Response.json({ ok: true })
   }
 
+  if (parsed.event === 'bootstrap_warning') {
+    await db.insert(auditLog).values({
+      id: createId(),
+      userId: tokenPayload.userId,
+      action: 'vps.bootstrap_warning',
+      metadata: JSON.stringify({
+        requestId: tokenPayload.requestId,
+        detail: parsed.detail || 'unknown',
+        tailscaleIp: parsed.tailscaleIp,
+      }),
+      createdAt: now,
+    })
+  }
+
   const instanceUpdate: Record<string, unknown> = {
     lastUpdatedAt: now,
   }
@@ -415,7 +431,10 @@ export async function computeVpsProbeState({ userId }: { userId: string }) {
       vpsFailureReason = timeoutMessage
     }
 
-    if (openClawReady && isBootstrapPhase(instance.status)) {
+    if (
+      openClawReady &&
+      (isBootstrapPhase(instance.status) || instance.status === 'failed')
+    ) {
       const activationFields: Record<string, unknown> = {
         status: 'active',
         provisionedAt: new Date(),
@@ -445,6 +464,8 @@ export async function computeVpsProbeState({ userId }: { userId: string }) {
         ...instance,
         status: 'active',
       }
+      bootstrapError = null
+      vpsFailureReason = null
     }
   }
 
