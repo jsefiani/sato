@@ -187,12 +187,21 @@ function buildSnapshotCloudInit({
     `        openclaw config set agents.defaults.model.primary '${safePreferredModel}'; then`,
     `        MODEL_VALUE='${safePreferredModel}' python3 -c "import json,os; p='/opt/openclaw/.openclaw/openclaw.json'; c=json.load(open(p)) if os.path.exists(p) else {}; c.setdefault('agents',{}).setdefault('defaults',{}).setdefault('model',{})['primary']=os.environ.get('MODEL_VALUE',''); json.dump(c, open(p,'w'), indent=2)"`,
     '      fi',
-    `      MODEL_VALUE='${safePreferredModel}' python3 -c "import json,os; p='/opt/openclaw/.openclaw/openclaw.json'; c=json.load(open(p)) if os.path.exists(p) else {}; d=c.setdefault('agents',{}).setdefault('defaults',{}); model=d.setdefault('model',{}); m=os.environ.get('MODEL_VALUE',''); models=d.setdefault('models',{});` +
-      ` models.setdefault(m,{}) if m else None;` +
-      ` needs_fallback=m.startswith('openrouter/') and m!='openrouter/openrouter/auto' and not model.get('fallbacks');` +
-      ` needs_fallback and models.setdefault('openrouter/openrouter/auto',{});` +
-      ` needs_fallback and model.__setitem__('fallbacks',['openrouter/openrouter/auto']);` +
-      ` json.dump(c, open(p,'w'), indent=2)"`,
+    `      MODEL_VALUE='${safePreferredModel}' python3 - <<'PY'`,
+    `import json, os`,
+    `p = '/opt/openclaw/.openclaw/openclaw.json'`,
+    `c = json.load(open(p)) if os.path.exists(p) else {}`,
+    `d = c.setdefault('agents', {}).setdefault('defaults', {})`,
+    `model = d.setdefault('model', {})`,
+    `m = os.environ.get('MODEL_VALUE', '')`,
+    `models = d.setdefault('models', {})`,
+    `if m:`,
+    `  models.setdefault(m, {})`,
+    `if m.startswith('openrouter/') and m != 'openrouter/openrouter/auto' and not model.get('fallbacks'):`,
+    `  models.setdefault('openrouter/openrouter/auto', {})`,
+    `  model['fallbacks'] = ['openrouter/openrouter/auto']`,
+    `json.dump(c, open(p, 'w'), indent=2)`,
+    `PY`,
     '',
     '      # Enable Telegram plugin',
     '      if ! sudo -u openclaw env HOME=/opt/openclaw PATH=/usr/local/bin:/usr/bin:/bin \\',
