@@ -1,4 +1,6 @@
 ---
+import Logo from './Logo.astro'
+
 const appUrl = import.meta.env.PUBLIC_APP_URL || 'https://app.asksato.ai'
 
 const links = [
@@ -16,8 +18,8 @@ const links = [
   <div
     class="nav-bar flex items-center justify-between"
   >
-    <a href="/" class="text-lg font-bold tracking-tight text-foreground flex items-center gap-1">
-      <span class="rounded-full size-4 bg-[#000000c7]"></span> Sato
+    <a href="/" class="flex items-center">
+      <Logo />
     </a>
 
     <div class="hidden items-center gap-1 md:flex">
