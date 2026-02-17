@@ -121,7 +121,16 @@ function isValidTailscaleIp(value: string | null): value is string {
 }
 
 function normalizeBootstrapFailure(detail: string): string {
-  return BOOTSTRAP_FAILURE_MESSAGES[detail] ?? BOOTSTRAP_FAILURE_FALLBACK
+  const mapped = BOOTSTRAP_FAILURE_MESSAGES[detail]
+  if (mapped) {
+    return mapped
+  }
+
+  if (detail) {
+    console.error('[vps-bootstrap] Unmapped bootstrap failure detail:', detail)
+  }
+
+  return BOOTSTRAP_FAILURE_FALLBACK
 }
 
 async function parseBootstrapCheckpointInput(request: Request): Promise<{
