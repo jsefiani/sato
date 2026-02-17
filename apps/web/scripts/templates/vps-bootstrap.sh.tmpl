@@ -1,0 +1,178 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+mkdir -p /var/lib/sato
+echo "started $(date -Is)" > /var/lib/sato/bootstrap-state
+CHECKPOINT_URL='{{CHECKPOINT_URL}}'
+CHECKPOINT_TOKEN='{{CHECKPOINT_TOKEN}}'
+
+send_checkpoint() {
+  local event="$1"
+  local detail="${2:-}"
+  local tailscale_ip="${3:-}"
+  curl -fsS -m 6 -X POST "$CHECKPOINT_URL" \
+    --data-urlencode "token=$CHECKPOINT_TOKEN" \
+    --data-urlencode "event=$event" \
+    --data-urlencode "detail=$detail" \
+    --data-urlencode "tailscaleIp=$tailscale_ip" >/dev/null 2>&1 || true
+}
+
+on_bootstrap_error() {
+  local code="$1"
+  local line="$2"
+  echo "bootstrap.sh failed at line $line with exit code $code"
+  send_checkpoint "bootstrap_failed" "unexpected_error_line_${line}_code_${code}"
+  echo "failed $(date -Is) code=$code line=$line" > /var/lib/sato/bootstrap-state
+  exit "$code"
+}
+trap 'on_bootstrap_error "$?" "$LINENO"' ERR
+
+export HOME=/root
+export PATH=/usr/local/bin:/usr/bin:/bin
+export NO_COLOR=1
+export CLICOLOR=0
+export FORCE_COLOR=0
+echo "bootstrap started at $(date -Is)"
+echo "hostname: $(hostname)"
+cloud-init status --long || true
+
+# Load API key
+set -a
+source /opt/openclaw/.env
+set +a
+TS_IPV4=""
+send_checkpoint "bootstrap_started" "bootstrap_started"
+
+# Join Tailscale mesh (retry up to 3 times for transient DNS/network issues)
+TS_JOINED=0
+for TS_ATTEMPT in 1 2 3; do
+  if tailscale up --ssh --authkey '{{TAILSCALE_AUTH_KEY}}' --hostname '{{TAILSCALE_HOSTNAME}}'; then
+    TS_JOINED=1
+    break
+  fi
+  echo "tailscale up attempt $TS_ATTEMPT failed, retrying in 10s..."
+  sleep 10
+done
+if [ "$TS_JOINED" -ne 1 ]; then
+  echo "Failed to join Tailscale after 3 attempts"
+  send_checkpoint "bootstrap_failed" "tailscale_join_failed"
+  exit 1
+fi
+TS_IPV4="$(tailscale ip -4 2>/dev/null | head -n 1 || true)"
+send_checkpoint "tailscale_joined" "tailscale_joined" "$TS_IPV4"
+
+# Configure OpenClaw as unprivileged user (already installed in snapshot)
+if ! sudo -u openclaw env HOME=/opt/openclaw \
+  PATH=/usr/local/bin:/usr/bin:/bin \
+  NO_COLOR=1 CLICOLOR=0 FORCE_COLOR=0 \
+  OPENROUTER_API_KEY="$OPENROUTER_API_KEY" \
+  openclaw onboard --non-interactive --accept-risk --mode local \
+  --auth-choice openrouter-api-key --openrouter-api-key "$OPENROUTER_API_KEY" \
+  --gateway-port 18789 --gateway-bind lan --skip-skills --skip-health; then
+  send_checkpoint "bootstrap_failed" "openclaw_onboard_failed" "$TS_IPV4"
+  exit 1
+fi
+
+# Enable chat completions endpoint + Tailscale auth bypass
+if ! sudo -u openclaw env HOME=/opt/openclaw PATH=/usr/local/bin:/usr/bin:/bin \
+  openclaw config set --json gateway.auth.allowTailscale true; then
+  python3 -c "import json,os; p='/opt/openclaw/.openclaw/openclaw.json'; c=json.load(open(p)) if os.path.exists(p) else {}; c.setdefault('gateway',{}).setdefault('auth',{})['allowTailscale']=True; json.dump(c, open(p,'w'), indent=2)"
+fi
+if ! sudo -u openclaw env HOME=/opt/openclaw PATH=/usr/local/bin:/usr/bin:/bin \
+  openclaw config set gateway.auth.token openclaw; then
+  python3 -c "import json,os; p='/opt/openclaw/.openclaw/openclaw.json'; c=json.load(open(p)) if os.path.exists(p) else {}; c.setdefault('gateway',{}).setdefault('auth',{})['token']='openclaw'; json.dump(c, open(p,'w'), indent=2)"
+fi
+if ! sudo -u openclaw env HOME=/opt/openclaw PATH=/usr/local/bin:/usr/bin:/bin \
+  openclaw config set --json gateway.http.endpoints.chatCompletions.enabled true; then
+  python3 -c "import json,os; p='/opt/openclaw/.openclaw/openclaw.json'; c=json.load(open(p)) if os.path.exists(p) else {}; c.setdefault('gateway',{}).setdefault('http',{}).setdefault('endpoints',{}).setdefault('chatCompletions',{})['enabled']=True; json.dump(c, open(p,'w'), indent=2)"
+fi
+python3 -c "import json,os; p='/opt/openclaw/.openclaw/openclaw.json'; c=json.load(open(p)) if os.path.exists(p) else {}; c.pop('provider', None); json.dump(c, open(p,'w'), indent=2)" || true
+
+# Set preferred AI model
+if ! sudo -u openclaw env HOME=/opt/openclaw PATH=/usr/local/bin:/usr/bin:/bin \
+  openclaw config set agents.defaults.model.primary '{{PREFERRED_MODEL}}'; then
+  MODEL_VALUE='{{PREFERRED_MODEL}}' python3 -c "import json,os; p='/opt/openclaw/.openclaw/openclaw.json'; c=json.load(open(p)) if os.path.exists(p) else {}; c.setdefault('agents',{}).setdefault('defaults',{}).setdefault('model',{})['primary']=os.environ.get('MODEL_VALUE',''); json.dump(c, open(p,'w'), indent=2)"
+fi
+MODEL_VALUE='{{PREFERRED_MODEL}}' python3 - <<'PY'
+import json, os
+p = '/opt/openclaw/.openclaw/openclaw.json'
+c = json.load(open(p)) if os.path.exists(p) else {}
+d = c.setdefault('agents', {}).setdefault('defaults', {})
+model = d.setdefault('model', {})
+m = os.environ.get('MODEL_VALUE', '')
+models = d.setdefault('models', {})
+if m:
+  models.setdefault(m, {})
+if m.startswith('openrouter/') and m != 'openrouter/openrouter/auto' and not model.get('fallbacks'):
+  models.setdefault('openrouter/openrouter/auto', {})
+  model['fallbacks'] = ['openrouter/openrouter/auto']
+json.dump(c, open(p, 'w'), indent=2)
+PY
+
+# Enable Telegram plugin
+if ! sudo -u openclaw env HOME=/opt/openclaw PATH=/usr/local/bin:/usr/bin:/bin \
+  NO_COLOR=1 CLICOLOR=0 FORCE_COLOR=0 \
+  openclaw plugins enable telegram > /dev/null 2>&1; then
+  echo "Failed to enable Telegram plugin"
+  send_checkpoint "bootstrap_failed" "telegram_plugin_enable_failed" "$TS_IPV4"
+  sudo -u openclaw env HOME=/opt/openclaw PATH=/usr/local/bin:/usr/bin:/bin \
+    openclaw plugins list --json || true
+  exit 1
+fi
+
+TELEGRAM_PLUGIN_LIST=$(sudo -u openclaw env HOME=/opt/openclaw PATH=/usr/local/bin:/usr/bin:/bin \
+  NO_COLOR=1 CLICOLOR=0 FORCE_COLOR=0 \
+  openclaw plugins list --enabled --json 2>/dev/null || true)
+if ! printf '%s' "$TELEGRAM_PLUGIN_LIST" | grep -q '"id": "telegram"'; then
+  echo "Telegram plugin is still not enabled after setup"
+  send_checkpoint "bootstrap_failed" "telegram_plugin_missing_after_enable" "$TS_IPV4"
+  printf '%s\n' "$TELEGRAM_PLUGIN_LIST"
+  exit 1
+fi
+
+# Start the pre-baked gateway service
+systemctl daemon-reload
+systemctl start openclaw-gateway
+systemctl is-active --quiet openclaw-gateway
+
+# Wait for gateway to come up (fatal if it never binds)
+echo "Waiting for gateway on port 18789..."
+GATEWAY_READY=0
+for i in $(seq 1 30); do
+  if ss -tlnp | grep -q ':18789'; then
+    echo "Gateway is ready on port 18789"
+    GATEWAY_READY=1
+    break
+  fi
+  sleep 2
+done
+
+if [ "$GATEWAY_READY" -ne 1 ]; then
+  echo "Gateway failed to bind on port 18789"
+  send_checkpoint "bootstrap_failed" "gateway_bind_failed" "$TS_IPV4"
+  systemctl status openclaw-gateway --no-pager || true
+  journalctl -u openclaw-gateway -n 200 --no-pager || true
+  exit 1
+fi
+send_checkpoint "gateway_ready" "gateway_ready" "$TS_IPV4"
+
+# Lock SSH back to Tailscale-only after successful bootstrap
+ufw --force reset
+ufw default deny incoming
+ufw default allow outgoing
+ufw allow 80/tcp
+ufw allow 443/tcp
+ufw allow 18789/tcp
+ufw allow in on tailscale0 to any port 22 proto tcp
+ufw --force enable
+
+# Harden: clear the .env file (OpenClaw already loaded it)
+: > /opt/openclaw/.env
+
+# Harden: block metadata endpoint to prevent API key leakage
+iptables -A OUTPUT -d 169.254.169.254 -j DROP || true
+echo "succeeded $(date -Is)" > /var/lib/sato/bootstrap-state
+send_checkpoint "bootstrap_completed" "bootstrap_completed" "$TS_IPV4"
+
+# Log diagnostic info regardless of outcome
+systemctl status openclaw-gateway --no-pager || true
