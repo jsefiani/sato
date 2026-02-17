@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import {
   getUserChannelSetupSummary,
   normalizeChannelSetupForCurrentInstance,
@@ -17,14 +17,34 @@ import {
 import { assertRateLimit } from '@/lib/rate-limit'
 import { requireSession } from '@/lib/session'
 import { findDeviceTailscaleIp } from '@/lib/tailscale'
-import {
-  OPENCLAW_GATEWAY_PORT,
-  probeBootstrapErrorWithCooldown,
-  probeOpenClawGateway,
-} from '@/lib/vps-probes'
+import { OPENCLAW_GATEWAY_PORT, probeOpenClawGateway } from '@/lib/vps-probes'
+import { verifyVpsBootstrapToken } from '@/lib/vps-bootstrap-token'
 
 const TAILSCALE_JOIN_TIMEOUT_MS = 3 * 60 * 1000
 const BOOTSTRAP_TIMEOUT_MS = 10 * 60 * 1000
+const BOOTSTRAP_FAILURE_FALLBACK =
+  'Assistant setup failed during server bootstrap. Please retry setup.'
+
+const BOOTSTRAP_CHECKPOINT_EVENTS = new Set([
+  'bootstrap_started',
+  'tailscale_joined',
+  'gateway_ready',
+  'bootstrap_completed',
+  'bootstrap_failed',
+])
+
+const BOOTSTRAP_FAILURE_MESSAGES: Record<string, string> = {
+  tailscale_join_failed:
+    'Server failed to join the private network during bootstrap.',
+  openclaw_onboard_failed:
+    'Server joined the private network, but OpenClaw onboarding failed.',
+  telegram_plugin_enable_failed:
+    'Bootstrap failed while enabling the Telegram plugin.',
+  telegram_plugin_missing_after_enable:
+    'Bootstrap failed because the Telegram plugin was not enabled.',
+  gateway_bind_failed:
+    'Bootstrap failed because OpenClaw gateway did not bind on port 18789.',
+}
 
 export const Route = createFileRoute('/api/vps/status')({
   server: {
@@ -73,14 +93,216 @@ export const Route = createFileRoute('/api/vps/status')({
           return safeApiResponse(error)
         }
       },
+      POST: async ({ request }) => {
+        try {
+          return await handleBootstrapCheckpoint({ request })
+        } catch (error) {
+          return safeApiResponse(error, 400)
+        }
+      },
     },
   },
 })
 
+function isBootstrapPhase(status: string): boolean {
+  return status === 'provisioning' || status === 'bootstrapping'
+}
+
+function isValidBootstrapEvent(event: string): boolean {
+  return BOOTSTRAP_CHECKPOINT_EVENTS.has(event)
+}
+
+function isValidTailscaleIp(value: string | null): value is string {
+  if (!value) {
+    return false
+  }
+
+  return /^100\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(value)
+}
+
+function normalizeBootstrapFailure(detail: string): string {
+  return BOOTSTRAP_FAILURE_MESSAGES[detail] ?? BOOTSTRAP_FAILURE_FALLBACK
+}
+
+async function parseBootstrapCheckpointInput(request: Request): Promise<{
+  token: string
+  event: string
+  detail: string
+  tailscaleIp: string | null
+} | null> {
+  const contentType = request.headers.get('content-type') ?? ''
+
+  if (contentType.includes('application/json')) {
+    const body = (await request.json().catch(() => null)) as Record<
+      string,
+      unknown
+    > | null
+    if (!body) {
+      return null
+    }
+
+    const token = typeof body.token === 'string' ? body.token.trim() : ''
+    const event = typeof body.event === 'string' ? body.event.trim() : ''
+    const detail = typeof body.detail === 'string' ? body.detail.trim() : ''
+    const tailscaleIp =
+      typeof body.tailscaleIp === 'string' ? body.tailscaleIp.trim() : ''
+
+    if (!token || !event) {
+      return null
+    }
+
+    return {
+      token,
+      event,
+      detail,
+      tailscaleIp: tailscaleIp || null,
+    }
+  }
+
+  const formData = await request.formData().catch(() => null)
+  if (!formData) {
+    return null
+  }
+
+  const token = formData.get('token')
+  const event = formData.get('event')
+  const detail = formData.get('detail')
+  const tailscaleIp = formData.get('tailscaleIp')
+
+  const tokenValue = typeof token === 'string' ? token.trim() : ''
+  const eventValue = typeof event === 'string' ? event.trim() : ''
+  const detailValue = typeof detail === 'string' ? detail.trim() : ''
+  const tailscaleIpValue =
+    typeof tailscaleIp === 'string' ? tailscaleIp.trim() : ''
+
+  if (!tokenValue || !eventValue) {
+    return null
+  }
+
+  return {
+    token: tokenValue,
+    event: eventValue,
+    detail: detailValue,
+    tailscaleIp: tailscaleIpValue || null,
+  }
+}
+
+async function handleBootstrapCheckpoint({
+  request,
+}: {
+  request: Request
+}): Promise<Response> {
+  const parsed = await parseBootstrapCheckpointInput(request)
+  if (!parsed || !isValidBootstrapEvent(parsed.event)) {
+    return Response.json({ error: 'Invalid input' }, { status: 400 })
+  }
+
+  const tokenPayload = verifyVpsBootstrapToken({ token: parsed.token })
+  if (!tokenPayload) {
+    return Response.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  const [instance, job] = await Promise.all([
+    db.query.vpsInstance.findFirst({
+      where: eq(vpsInstance.userId, tokenPayload.userId),
+      columns: {
+        status: true,
+      },
+    }),
+    db.query.provisioningJob.findFirst({
+      where: and(
+        eq(provisioningJob.userId, tokenPayload.userId),
+        eq(provisioningJob.requestId, tokenPayload.requestId),
+      ),
+      columns: {
+        id: true,
+        status: true,
+      },
+    }),
+  ])
+
+  if (!instance || !job) {
+    return Response.json({ ok: true })
+  }
+
+  const now = new Date()
+
+  if (parsed.event === 'bootstrap_failed') {
+    if (instance.status === 'active') {
+      return Response.json({ ok: true })
+    }
+
+    const reason = normalizeBootstrapFailure(parsed.detail)
+
+    await Promise.all([
+      db
+        .update(vpsInstance)
+        .set({
+          status: 'failed',
+          lastUpdatedAt: now,
+        })
+        .where(eq(vpsInstance.userId, tokenPayload.userId)),
+      db
+        .update(provisioningJob)
+        .set({
+          status: 'failed',
+          errorMessage: reason,
+        })
+        .where(eq(provisioningJob.id, job.id)),
+    ])
+
+    return Response.json({ ok: true })
+  }
+
+  const instanceUpdate: Record<string, unknown> = {
+    lastUpdatedAt: now,
+  }
+
+  if (isBootstrapPhase(instance.status)) {
+    instanceUpdate.status = 'bootstrapping'
+  }
+
+  if (
+    parsed.event === 'tailscale_joined' &&
+    isValidTailscaleIp(parsed.tailscaleIp)
+  ) {
+    instanceUpdate.tailscaleIp = parsed.tailscaleIp
+  }
+
+  const provisioningUpdate: Record<string, unknown> = {}
+
+  if (parsed.event === 'bootstrap_completed') {
+    provisioningUpdate.status = 'completed'
+    provisioningUpdate.errorMessage = null
+  } else if (job.status !== 'failed' && job.status !== 'completed') {
+    provisioningUpdate.status = 'bootstrapping'
+  }
+
+  const updates: Array<Promise<unknown>> = [
+    db
+      .update(vpsInstance)
+      .set(instanceUpdate)
+      .where(eq(vpsInstance.userId, tokenPayload.userId)),
+  ]
+
+  if (Object.keys(provisioningUpdate).length > 0) {
+    updates.push(
+      db
+        .update(provisioningJob)
+        .set(provisioningUpdate)
+        .where(eq(provisioningJob.id, job.id)),
+    )
+  }
+
+  await Promise.all(updates)
+
+  return Response.json({ ok: true })
+}
+
 export async function computeVpsProbeState({ userId }: { userId: string }) {
   const userWithVps = await db.query.user.findFirst({
     where: eq(user.id, userId),
-    columns: { assistantName: true },
+    columns: { assistantName: true, preferredModel: true },
     with: {
       vpsInstance: {
         columns: {
@@ -90,6 +312,7 @@ export async function computeVpsProbeState({ userId }: { userId: string }) {
           tailscaleHostname: true,
           region: true,
           serverType: true,
+          lastUpdatedAt: true,
           provisionedAt: true,
           updatedAt: true,
         },
@@ -116,6 +339,12 @@ export async function computeVpsProbeState({ userId }: { userId: string }) {
 
   if (instance?.status === 'terminated') {
     instance = null
+  }
+
+  if (latestProvisionJob?.status === 'failed') {
+    bootstrapError =
+      latestProvisionJob.errorMessage?.trim() || BOOTSTRAP_FAILURE_FALLBACK
+    vpsFailureReason = bootstrapError
   }
 
   if (instance?.ipv4Address) {
@@ -146,27 +375,11 @@ export async function computeVpsProbeState({ userId }: { userId: string }) {
 
     if (
       !openClawReady &&
-      instance.tailscaleIp &&
-      (instance.status === 'provisioning' ||
-        instance.status === 'bootstrapping')
-    ) {
-      bootstrapError = await probeBootstrapErrorWithCooldown(
-        instance.tailscaleIp,
-      )
-
-      if (bootstrapError) {
-        await markFailed({ userId, reason: bootstrapError })
-        instance = { ...instance, status: 'failed' }
-        vpsFailureReason = bootstrapError
-      }
-    }
-
-    if (
-      !openClawReady &&
       !bootstrapError &&
       instance.status === 'bootstrapping' &&
       !instance.tailscaleIp &&
-      Date.now() - new Date(instance.updatedAt).getTime() >
+      instance.lastUpdatedAt &&
+      Date.now() - new Date(instance.lastUpdatedAt).getTime() >
         TAILSCALE_JOIN_TIMEOUT_MS
     ) {
       const tailscaleTimeoutMessage =
@@ -174,6 +387,7 @@ export async function computeVpsProbeState({ userId }: { userId: string }) {
 
       await markFailed({ userId, reason: tailscaleTimeoutMessage })
       instance = { ...instance, status: 'failed' }
+      bootstrapError = tailscaleTimeoutMessage
       vpsFailureReason = tailscaleTimeoutMessage
     }
 
@@ -188,14 +402,11 @@ export async function computeVpsProbeState({ userId }: { userId: string }) {
 
       await markFailed({ userId, reason: timeoutMessage })
       instance = { ...instance, status: 'failed' }
+      bootstrapError = timeoutMessage
       vpsFailureReason = timeoutMessage
     }
 
-    if (
-      openClawReady &&
-      (instance.status === 'provisioning' ||
-        instance.status === 'bootstrapping')
-    ) {
+    if (openClawReady && isBootstrapPhase(instance.status)) {
       const activationFields: Record<string, unknown> = {
         status: 'active',
         provisionedAt: new Date(),
@@ -210,10 +421,16 @@ export async function computeVpsProbeState({ userId }: { userId: string }) {
         }
       }
 
-      await db
-        .update(vpsInstance)
-        .set(activationFields)
-        .where(eq(vpsInstance.userId, userId))
+      await Promise.all([
+        db
+          .update(vpsInstance)
+          .set(activationFields)
+          .where(eq(vpsInstance.userId, userId)),
+        db
+          .update(provisioningJob)
+          .set({ status: 'completed', errorMessage: null })
+          .where(eq(provisioningJob.userId, userId)),
+      ])
 
       instance = {
         ...instance,
@@ -229,6 +446,7 @@ export async function computeVpsProbeState({ userId }: { userId: string }) {
 
   return {
     hasPersonalized: !!userWithVps?.assistantName,
+    preferredModel: userWithVps?.preferredModel ?? null,
     openClawReady,
     bootstrappingError: bootstrapError,
     vpsFailureReason,

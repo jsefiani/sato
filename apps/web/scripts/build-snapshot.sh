@@ -12,11 +12,27 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_FILE="$SCRIPT_DIR/../.env.local"
+OVERRIDE_HETZNER_API_TOKEN="${HETZNER_API_TOKEN:-}"
+OVERRIDE_HETZNER_SSH_KEY_ID="${HETZNER_SSH_KEY_ID:-}"
+OVERRIDE_SSH_PRIVATE_KEY_PATH="${SSH_PRIVATE_KEY_PATH:-}"
+OVERRIDE_HETZNER_SSH_PRIVATE_KEY_PATH="${HETZNER_SSH_PRIVATE_KEY_PATH:-}"
 
 if [ -f "$ENV_FILE" ]; then
   set -a
   source "$ENV_FILE"
   set +a
+fi
+
+if [ -n "$OVERRIDE_HETZNER_API_TOKEN" ]; then
+  HETZNER_API_TOKEN="$OVERRIDE_HETZNER_API_TOKEN"
+fi
+
+if [ -n "$OVERRIDE_HETZNER_SSH_KEY_ID" ]; then
+  HETZNER_SSH_KEY_ID="$OVERRIDE_HETZNER_SSH_KEY_ID"
+fi
+
+if [ -n "$OVERRIDE_HETZNER_SSH_PRIVATE_KEY_PATH" ]; then
+  HETZNER_SSH_PRIVATE_KEY_PATH="$OVERRIDE_HETZNER_SSH_PRIVATE_KEY_PATH"
 fi
 
 OPENCLAW_VERSION="${1:-2026.2.9}"
@@ -25,7 +41,12 @@ SERVER_TYPE="cpx22"
 LOCATION="nbg1"
 IMAGE="ubuntu-24.04"
 SNAPSHOT_DESCRIPTION="sato-openclaw-${OPENCLAW_VERSION}"
+SNAPSHOT_DEBUG_PUBLIC_SSH="${SNAPSHOT_DEBUG_PUBLIC_SSH:-false}"
 SSH_PRIVATE_KEY_PATH="${SSH_PRIVATE_KEY_PATH:-${HETZNER_SSH_PRIVATE_KEY_PATH:-}}"
+if [ -n "$OVERRIDE_SSH_PRIVATE_KEY_PATH" ]; then
+  SSH_PRIVATE_KEY_PATH="$OVERRIDE_SSH_PRIVATE_KEY_PATH"
+fi
+REMOTE_PROVISION_ATTEMPTS=3
 
 : "${HETZNER_API_TOKEN:?Missing HETZNER_API_TOKEN}"
 : "${HETZNER_SSH_KEY_ID:?Missing HETZNER_SSH_KEY_ID}"
@@ -34,10 +55,47 @@ SSH_PRIVATE_KEY_PATH="${SSH_PRIVATE_KEY_PATH:-${HETZNER_SSH_PRIVATE_KEY_PATH:-}}
 hetzner() {
   local method="$1" path="$2"
   shift 2
-  curl -sf -X "$method" \
-    -H "Authorization: Bearer $HETZNER_API_TOKEN" \
-    -H "Content-Type: application/json" \
-    "${HETZNER_API}${path}" "$@"
+  local status tmp response
+  tmp="$(mktemp -t sato-hetzner-response.XXXXXX)"
+
+  status="$(
+    curl --silent --show-error --location --ipv4 --http1.1 \
+      --retry 8 --retry-delay 2 --retry-all-errors --retry-max-time 120 \
+      --connect-timeout 10 --max-time 120 \
+      -X "$method" \
+      -H "Authorization: Bearer $HETZNER_API_TOKEN" \
+      -H "Content-Type: application/json" \
+      -o "$tmp" \
+      -w '%{http_code}' \
+      "${HETZNER_API}${path}" "$@"
+  )" || {
+    local exit_code=$?
+    echo "ERROR: Hetzner API transport failure on ${method} ${path} (curl exit ${exit_code})" >&2
+    if [ -s "$tmp" ]; then
+      cat "$tmp" >&2
+    fi
+    rm -f "$tmp"
+    return "$exit_code"
+  }
+
+  if [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; then
+    echo "ERROR: Hetzner API returned HTTP ${status} on ${method} ${path}" >&2
+    if [ -s "$tmp" ]; then
+      cat "$tmp" >&2
+    fi
+    rm -f "$tmp"
+    return 1
+  fi
+
+  response="$(cat "$tmp")"
+  rm -f "$tmp"
+  printf '%s' "$response"
+}
+
+preflight_checks() {
+  echo "Running Hetzner API preflight checks..."
+  hetzner GET /locations > /dev/null
+  hetzner GET "/ssh_keys/$HETZNER_SSH_KEY_ID" > /dev/null
 }
 
 cleanup_server() {
@@ -56,6 +114,8 @@ cleanup() {
 }
 
 trap cleanup EXIT
+
+preflight_checks
 
 # ─── Step 1: Create temporary server ────────────────────────────────────────
 echo "Creating temporary server ($SERVER_TYPE in $LOCATION)..."
@@ -98,9 +158,15 @@ done
 # ─── Step 3: Provision the server ──────────────────────────────────────────
 echo "Installing packages and OpenClaw v${OPENCLAW_VERSION}..."
 
-ssh $SSH_OPTS "root@$SERVER_IP" bash -s -- "$OPENCLAW_VERSION" << 'REMOTE_SCRIPT'
+run_remote_provision() {
+  ssh $SSH_OPTS \
+    -o ServerAliveInterval=15 \
+    -o ServerAliveCountMax=6 \
+    "root@$SERVER_IP" \
+    bash -s -- "$OPENCLAW_VERSION" "$SNAPSHOT_DEBUG_PUBLIC_SSH" << 'REMOTE_SCRIPT'
 set -euo pipefail
 OPENCLAW_VERSION="$1"
+DEBUG_PUBLIC_SSH="${2:-false}"
 
 export HOME=/root
 export DEBIAN_FRONTEND=noninteractive
@@ -135,7 +201,11 @@ ufw default allow outgoing
 ufw allow 80/tcp
 ufw allow 443/tcp
 ufw allow 18789/tcp
-ufw allow in on tailscale0 to any port 22 proto tcp
+if [ "$DEBUG_PUBLIC_SSH" = "true" ]; then
+  ufw allow 22/tcp
+else
+  ufw allow in on tailscale0 to any port 22 proto tcp
+fi
 ufw --force enable
 
 # Enable fail2ban
@@ -143,7 +213,9 @@ systemctl enable fail2ban
 systemctl start fail2ban
 
 # Create unprivileged openclaw user
-useradd --system --shell /usr/sbin/nologin --home-dir /opt/openclaw --create-home openclaw
+if ! id -u openclaw >/dev/null 2>&1; then
+  useradd --system --shell /usr/sbin/nologin --home-dir /opt/openclaw --create-home openclaw
+fi
 
 # Install OpenClaw
 export NO_COLOR=1 CLICOLOR=0 FORCE_COLOR=0
@@ -238,12 +310,45 @@ rm -rf /var/lib/tailscale/*
 # Reset machine-id so each instance gets a unique identity
 truncate -s 0 /etc/machine-id
 rm -f /var/lib/dbus/machine-id
+mkdir -p /var/lib/dbus
+ln -sf /etc/machine-id /var/lib/dbus/machine-id
 
-# Reset cloud-init fully (including seed dir) so it re-runs with new user_data
+# Reset cloud-init state aggressively so snapshots always process fresh user_data
+if ! command -v cloud-init >/dev/null 2>&1; then
+  echo "ERROR: cloud-init binary not found on snapshot builder"
+  exit 1
+fi
+
+rm -rf /var/lib/cloud/*
+rm -f /etc/cloud/cloud-init.disabled
 cloud-init clean --logs --seed
+
+for UNIT in cloud-init-local.service cloud-init.service cloud-config.service cloud-final.service; do
+  systemctl unmask "$UNIT" 2>/dev/null || true
+  systemctl enable "$UNIT"
+done
 
 echo "Snapshot preparation complete."
 REMOTE_SCRIPT
+}
+
+REMOTE_PROVISION_DONE=0
+for ATTEMPT in $(seq 1 "$REMOTE_PROVISION_ATTEMPTS"); do
+  if run_remote_provision; then
+    REMOTE_PROVISION_DONE=1
+    break
+  fi
+
+  if [ "$ATTEMPT" -lt "$REMOTE_PROVISION_ATTEMPTS" ]; then
+    echo "Remote provisioning attempt ${ATTEMPT}/${REMOTE_PROVISION_ATTEMPTS} failed. Retrying in 10s..."
+    sleep 10
+  fi
+done
+
+if [ "$REMOTE_PROVISION_DONE" -ne 1 ]; then
+  echo "ERROR: Remote provisioning failed after ${REMOTE_PROVISION_ATTEMPTS} attempts"
+  exit 1
+fi
 
 echo "Server provisioned successfully."
 

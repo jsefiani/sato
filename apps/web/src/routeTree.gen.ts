@@ -13,8 +13,10 @@ import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as AuthedIndexRouteImport } from './routes/_authed/index'
 import { Route as ApiPersonalizationRouteImport } from './routes/api/personalization'
+import { Route as ApiModelRouteImport } from './routes/api/model'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as AuthedSetupRouteImport } from './routes/_authed/setup'
+import { Route as AuthedChatRouteImport } from './routes/_authed/chat'
 import { Route as ApiVpsVerifyRouteImport } from './routes/api/vps/verify'
 import { Route as ApiVpsStatusStreamRouteImport } from './routes/api/vps/status-stream'
 import { Route as ApiVpsStatusRouteImport } from './routes/api/vps/status'
@@ -52,6 +54,11 @@ const ApiPersonalizationRoute = ApiPersonalizationRouteImport.update({
   path: '/api/personalization',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiModelRoute = ApiModelRouteImport.update({
+  id: '/api/model',
+  path: '/api/model',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiHealthRoute = ApiHealthRouteImport.update({
   id: '/api/health',
   path: '/api/health',
@@ -60,6 +67,11 @@ const ApiHealthRoute = ApiHealthRouteImport.update({
 const AuthedSetupRoute = AuthedSetupRouteImport.update({
   id: '/setup',
   path: '/setup',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedChatRoute = AuthedChatRouteImport.update({
+  id: '/chat',
+  path: '/chat',
   getParentRoute: () => AuthedRoute,
 } as any)
 const ApiVpsVerifyRoute = ApiVpsVerifyRouteImport.update({
@@ -151,8 +163,10 @@ const ApiAdminVpsMaintainRoute = ApiAdminVpsMaintainRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof AuthedIndexRoute
   '/sign-in': typeof SignInRoute
+  '/chat': typeof AuthedChatRoute
   '/setup': typeof AuthedSetupRoute
   '/api/health': typeof ApiHealthRoute
+  '/api/model': typeof ApiModelRoute
   '/api/personalization': typeof ApiPersonalizationRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/stripe/checkout': typeof ApiStripeCheckoutRoute
@@ -174,8 +188,10 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/sign-in': typeof SignInRoute
+  '/chat': typeof AuthedChatRoute
   '/setup': typeof AuthedSetupRoute
   '/api/health': typeof ApiHealthRoute
+  '/api/model': typeof ApiModelRoute
   '/api/personalization': typeof ApiPersonalizationRoute
   '/': typeof AuthedIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -200,8 +216,10 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authed': typeof AuthedRouteWithChildren
   '/sign-in': typeof SignInRoute
+  '/_authed/chat': typeof AuthedChatRoute
   '/_authed/setup': typeof AuthedSetupRoute
   '/api/health': typeof ApiHealthRoute
+  '/api/model': typeof ApiModelRoute
   '/api/personalization': typeof ApiPersonalizationRoute
   '/_authed/': typeof AuthedIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -227,8 +245,10 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/sign-in'
+    | '/chat'
     | '/setup'
     | '/api/health'
+    | '/api/model'
     | '/api/personalization'
     | '/api/auth/$'
     | '/api/stripe/checkout'
@@ -250,8 +270,10 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/sign-in'
+    | '/chat'
     | '/setup'
     | '/api/health'
+    | '/api/model'
     | '/api/personalization'
     | '/'
     | '/api/auth/$'
@@ -275,8 +297,10 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_authed'
     | '/sign-in'
+    | '/_authed/chat'
     | '/_authed/setup'
     | '/api/health'
+    | '/api/model'
     | '/api/personalization'
     | '/_authed/'
     | '/api/auth/$'
@@ -302,6 +326,7 @@ export interface RootRouteChildren {
   AuthedRoute: typeof AuthedRouteWithChildren
   SignInRoute: typeof SignInRoute
   ApiHealthRoute: typeof ApiHealthRoute
+  ApiModelRoute: typeof ApiModelRoute
   ApiPersonalizationRoute: typeof ApiPersonalizationRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiStripeCheckoutRoute: typeof ApiStripeCheckoutRoute
@@ -352,6 +377,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPersonalizationRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/model': {
+      id: '/api/model'
+      path: '/api/model'
+      fullPath: '/api/model'
+      preLoaderRoute: typeof ApiModelRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/health': {
       id: '/api/health'
       path: '/api/health'
@@ -364,6 +396,13 @@ declare module '@tanstack/react-router' {
       path: '/setup'
       fullPath: '/setup'
       preLoaderRoute: typeof AuthedSetupRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/chat': {
+      id: '/_authed/chat'
+      path: '/chat'
+      fullPath: '/chat'
+      preLoaderRoute: typeof AuthedChatRouteImport
       parentRoute: typeof AuthedRoute
     }
     '/api/vps/verify': {
@@ -489,11 +528,13 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthedRouteChildren {
+  AuthedChatRoute: typeof AuthedChatRoute
   AuthedSetupRoute: typeof AuthedSetupRoute
   AuthedIndexRoute: typeof AuthedIndexRoute
 }
 
 const AuthedRouteChildren: AuthedRouteChildren = {
+  AuthedChatRoute: AuthedChatRoute,
   AuthedSetupRoute: AuthedSetupRoute,
   AuthedIndexRoute: AuthedIndexRoute,
 }
@@ -505,6 +546,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthedRoute: AuthedRouteWithChildren,
   SignInRoute: SignInRoute,
   ApiHealthRoute: ApiHealthRoute,
+  ApiModelRoute: ApiModelRoute,
   ApiPersonalizationRoute: ApiPersonalizationRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiStripeCheckoutRoute: ApiStripeCheckoutRoute,

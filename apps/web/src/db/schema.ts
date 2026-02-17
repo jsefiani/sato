@@ -22,6 +22,7 @@ export const user = pgTable('user', {
   communicationStyle: text('communication_style'),
   primaryUseCase: text('primary_use_case'),
   additionalContext: text('additional_context'),
+  preferredModel: text('preferred_model'),
   personalizationInjectedAt: timestamp('personalization_injected_at'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at')

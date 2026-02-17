@@ -63,6 +63,9 @@ const SAFE_ERROR_PREFIXES = [
   'Assistant setup failed on this VPS.',
   'Assistant setup is still in progress.',
   'Assistant is not ready for',
+  'Configured VPS snapshot',
+  'Configured snapshot',
+  'Configured image',
   'Failed to fully remove server resources:',
   'Unable to clean up previous failed resources:',
 ]

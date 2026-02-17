@@ -17,8 +17,10 @@ const envSchema = z.object({
     .default(30_000),
 
   HETZNER_API_TOKEN: z.string().min(1),
-  HETZNER_SSH_KEY_ID: z.string().min(1),
+  HETZNER_SSH_KEY_ID: z.string().min(1).optional(),
   HETZNER_SNAPSHOT_ID: z.string().min(1),
+  HETZNER_DEBUG_ALLOW_PUBLIC_SSH: z.enum(['true', 'false']).default('false'),
+  HETZNER_DEBUG_SSH_SOURCE_IPS: z.string().min(1).default('0.0.0.0/0,::/0'),
 
   STRIPE_SECRET_KEY: z.string().min(1),
   STRIPE_PRICE_ID: z.string().min(1),

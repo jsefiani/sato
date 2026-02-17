@@ -81,6 +81,7 @@ export interface ChannelSetupSummary {
 
 export interface SetupState {
   hasPersonalized: boolean
+  preferredModel?: string | null
   access: AccessState
   credits: CreditState
   topupPacks: Array<TopupPack>

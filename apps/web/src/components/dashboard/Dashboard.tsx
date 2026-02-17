@@ -4,12 +4,14 @@ import { useNavigate } from '@tanstack/react-router'
 import { motion } from 'motion/react'
 import {
   Activity,
+  Brain,
   Check,
   ChevronDown,
   CreditCard,
   ExternalLink,
   Loader2,
   MessageCircle,
+  MessageSquare,
   Settings,
   ShieldCheck,
   Terminal,
@@ -21,8 +23,16 @@ import type {
 } from '@/components/onboarding/onboarding-utils'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Separator } from '@/components/ui/separator'
 import { authClient } from '@/lib/auth-client'
+import { DEFAULT_MODEL, SUPPORTED_MODELS } from '@/lib/models'
 import { useEventStream } from '@/lib/use-event-stream'
 
 interface VerifyState {
@@ -173,6 +183,39 @@ export default function Dashboard() {
     },
   })
 
+  const modelMutation = useMutation({
+    mutationFn: async (model: string) => {
+      const res = await fetch('/api/model', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model }),
+      })
+      const payload = (await res.json()) as { error?: string }
+      if (!res.ok) throw new Error(payload.error ?? 'Failed to update model')
+    },
+    onMutate: async (model) => {
+      await queryClient.cancelQueries({ queryKey: ['setup-status'] })
+      const previous = queryClient.getQueryData<SetupState>(['setup-status'])
+      queryClient.setQueryData<SetupState>(['setup-status'], (old) =>
+        old ? { ...old, preferredModel: model } : old,
+      )
+      return { previous }
+    },
+    onError: (_err, _model, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(['setup-status'], context.previous)
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['setup-status'] })
+    },
+  })
+
+  const currentModel = state?.preferredModel ?? DEFAULT_MODEL.value
+  const currentModelLabel =
+    SUPPORTED_MODELS.find((m) => m.value === currentModel)?.label ??
+    DEFAULT_MODEL.label
+
   const verifyMutation = useMutation({
     mutationFn: async () => {
       const res = await fetch('/api/vps/verify')
@@ -313,6 +356,57 @@ export default function Dashboard() {
         <motion.div variants={item}>
           <Card className="p-5">
             <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-foreground/4">
+                  <Brain className="h-4 w-4 text-foreground/80" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-foreground/80">
+                    AI Model
+                  </p>
+                  <p className="text-[13px] text-muted-foreground/80">
+                    {currentModelLabel}
+                  </p>
+                </div>
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  disabled={!isAssistantLive}
+                  render={
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={!isAssistantLive}
+                    />
+                  }
+                >
+                  Change
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-64">
+                  <DropdownMenuRadioGroup
+                    value={currentModel}
+                    onValueChange={(value) => modelMutation.mutate(value)}
+                  >
+                    {SUPPORTED_MODELS.map((m) => (
+                      <DropdownMenuRadioItem key={m.value} value={m.value}>
+                        <div>
+                          <p className="text-sm">{m.label}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {m.description}
+                          </p>
+                        </div>
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </Card>
+        </motion.div>
+
+        <motion.div variants={item}>
+          <Card className="p-5">
+            <div className="flex items-center justify-between">
               <p className="text-sm font-medium text-foreground/80">
                 Messages remaining
               </p>
@@ -335,6 +429,35 @@ export default function Dashboard() {
             </p>
           </Card>
         </motion.div>
+
+        {isAssistantLive && (
+          <motion.div variants={item}>
+            <Card className="p-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-foreground/4">
+                    <MessageSquare className="h-4 w-4 text-foreground/80" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground/80">
+                      Chat with assistant
+                    </p>
+                    <p className="text-[13px] text-muted-foreground/80">
+                      Open the web chat interface
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate({ to: '/chat' })}
+                >
+                  Open chat
+                </Button>
+              </div>
+            </Card>
+          </motion.div>
+        )}
 
         <motion.div variants={item}>
           <Card className="p-5">
@@ -416,13 +539,15 @@ export default function Dashboard() {
         {state.topupPacks.length > 0 && (
           <motion.div variants={item}>
             <Card className="p-5">
-              <p className="text-sm font-medium text-foreground/80">
-                Need more messages?
-              </p>
-              <p className="mt-1 text-[13px] text-muted-foreground/80">
-                Top up your balance anytime.
-              </p>
-              <div className="mt-4 flex flex-wrap gap-2">
+              <div className="flex flex-col gap-1">
+                <p className="text-sm font-medium text-foreground/80">
+                  Need more messages?
+                </p>
+                <p className="mt-1 text-[13px] text-muted-foreground/80">
+                  Top up your balance anytime.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
                 {state.topupPacks.map((pack: TopupPack) => (
                   <Button
                     key={pack.id}

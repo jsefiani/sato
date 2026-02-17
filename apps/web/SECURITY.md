@@ -37,7 +37,7 @@
 Key points:
 
 - The Coolify server is the sole control plane for all VPSes.
-- VPSes communicate with the server only via Tailscale (no public SSH).
+- VPSes communicate with the server only via Tailscale.
 - VPSes are isolated from each other at both the Tailscale ACL and UFW layers.
 - External services are accessed over HTTPS with appropriate verification.
 
@@ -47,13 +47,17 @@ Key points:
 
 ### Network & Infrastructure
 
-- **Tailscale mesh for SSH control plane**: VPSes join a Tailscale tailnet with ephemeral, pre-authorized auth keys tagged `tag:sato-vps`. No public SSH ports are exposed. The Coolify server uses `tag:sato-server` and is the only node permitted to SSH into VPSes (enforced by ACLs — see [Required Manual Setup](#required-manual-setup)).
+- **Tailscale mesh for SSH control plane**: VPSes join a Tailscale tailnet with ephemeral, pre-authorized auth keys tagged `tag:sato-vps`. The Coolify server uses `tag:sato-server` and is the only node permitted to SSH into VPSes over Tailscale (enforced by ACLs — see [Required Manual Setup](#required-manual-setup)).
 
 - **VPS-to-VPS isolation**: Tailscale ACLs follow an implicit-deny model — no rule grants `tag:sato-vps` → `tag:sato-vps` access. Reference policy: [`infra/tailscale-acl.jsonc`](infra/tailscale-acl.jsonc).
 
 - **Per-VPS Hetzner firewalls**: Each VPS gets a dedicated Hetzner Cloud firewall allowing only ports 80 (HTTP), 443 (HTTPS), and 18789 (OpenClaw gateway) from the public internet.
 
-- **UFW on VPS (defense in depth)**: The Tailscale interface (`tailscale0`) only allows TCP port 22 (SSH). Even if Tailscale ACLs are misconfigured, the OS firewall blocks non-SSH traffic between mesh nodes.
+- **UFW on VPS (defense in depth)**: SSH is allowed only on the Tailscale interface (`tailscale0`). Even if Tailscale ACLs are misconfigured, the OS firewall blocks public SSH and non-SSH mesh traffic by default.
+
+- **Temporary debug override (opt-in only)**: For incident debugging, you can temporarily expose public SSH by setting `SNAPSHOT_DEBUG_PUBLIC_SSH=true` during snapshot build and `HETZNER_DEBUG_ALLOW_PUBLIC_SSH=true` at runtime (optionally restricting source CIDRs with `HETZNER_DEBUG_SSH_SOURCE_IPS`). This mode must be disabled after debugging.
+
+- **Bootstrap checkpoints (phone-home)**: The cloud-init bootstrap script reports signed progress checkpoints (`started`, `tailscale_joined`, `gateway_ready`, `completed`, `failed`) back to the control plane, allowing setup diagnostics without opening public SSH.
 
 - **Cloud-init hardening**: After bootstrap, the `.env` file containing the OpenRouter API key is cleared (`> /opt/openclaw/.env`), and the Hetzner metadata endpoint is blocked via iptables (`-d 169.254.169.254 -j DROP`) to prevent credential leakage from the instance metadata service.
 

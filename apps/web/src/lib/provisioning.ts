@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm'
 import type { HetznerLabels } from '@/lib/hetzner'
 import { db } from '@/db'
-import { auditLog, provisioningJob, vpsInstance } from '@/db/schema'
+import { auditLog, provisioningJob, user, vpsInstance } from '@/db/schema'
 import {
   deleteUserOpenRouterKey,
   ensureUserOpenRouterApiKey,
@@ -10,6 +10,7 @@ import { clearUserChannelConnections } from '@/lib/channel-connections'
 import { env } from '@/lib/env'
 import {
   assertServerTypeAvailable,
+  assertSnapshotAvailable,
   createFirewall,
   createServer,
   deleteFirewall,
@@ -18,7 +19,9 @@ import {
   removeFirewallFromServer,
 } from '@/lib/hetzner'
 import { createId } from '@/lib/ids'
+import { normalizeModel } from '@/lib/models'
 import { createEphemeralAuthKey, deleteDeviceByHostname } from '@/lib/tailscale'
+import { createVpsBootstrapToken } from '@/lib/vps-bootstrap-token'
 
 const CLEANUP_ATTEMPTS = 3
 const CLEANUP_BACKOFF_MS = 500
@@ -48,13 +51,34 @@ function buildResourceName(prefix: 'srv' | 'fw', userId: string): string {
   return `sato-${prefix}-${cleanUser}-${entropy}`.slice(0, 63)
 }
 
-function buildSnapshotCloudInit(
-  openRouterApiKey: string,
-  tailscaleAuthKey: string,
-  tailscaleHostname: string,
-): string {
+function buildTailscaleHostname({
+  serverName,
+}: {
+  serverName: string
+}): string {
+  return `sato-vps-${serverName}`.slice(0, 63)
+}
+
+function buildSnapshotCloudInit({
+  openRouterApiKey,
+  tailscaleAuthKey,
+  tailscaleHostname,
+  bootstrapCheckpointUrl,
+  bootstrapCheckpointToken,
+  preferredModel,
+}: {
+  openRouterApiKey: string
+  tailscaleAuthKey: string
+  tailscaleHostname: string
+  bootstrapCheckpointUrl: string
+  bootstrapCheckpointToken: string
+  preferredModel: string
+}): string {
   const safeApiKey = openRouterApiKey.replace(/'/g, `'"'"'`)
   const safeTsKey = tailscaleAuthKey.replace(/'/g, `'"'"'`)
+  const safeCheckpointUrl = bootstrapCheckpointUrl.replace(/'/g, `'"'"'`)
+  const safeCheckpointToken = bootstrapCheckpointToken.replace(/'/g, `'"'"'`)
+  const safePreferredModel = preferredModel.replace(/'/g, `'"'"'`)
 
   return [
     '#cloud-config',
@@ -71,18 +95,47 @@ function buildSnapshotCloudInit(
     '    content: |',
     '      #!/usr/bin/env bash',
     '      set -euo pipefail',
-    '      trap \'code=$?; echo "bootstrap.sh failed at line $LINENO with exit code $code"; exit $code\' ERR',
+    '      mkdir -p /var/lib/sato',
+    '      echo "started $(date -Is)" > /var/lib/sato/bootstrap-state',
+    `      CHECKPOINT_URL='${safeCheckpointUrl}'`,
+    `      CHECKPOINT_TOKEN='${safeCheckpointToken}'`,
+    '',
+    '      send_checkpoint() {',
+    '        local event="$1"',
+    '        local detail="${2:-}"',
+    '        local tailscale_ip="${3:-}"',
+    '        curl -fsS -m 6 -X POST "$CHECKPOINT_URL" \\',
+    '          --data-urlencode "token=$CHECKPOINT_TOKEN" \\',
+    '          --data-urlencode "event=$event" \\',
+    '          --data-urlencode "detail=$detail" \\',
+    '          --data-urlencode "tailscaleIp=$tailscale_ip" >/dev/null 2>&1 || true',
+    '      }',
+    '',
+    '      on_bootstrap_error() {',
+    '        local code="$1"',
+    '        local line="$2"',
+    '        echo "bootstrap.sh failed at line $line with exit code $code"',
+    '        send_checkpoint "bootstrap_failed" "unexpected_error_line_${line}_code_${code}"',
+    '        echo "failed $(date -Is) code=$code line=$line" > /var/lib/sato/bootstrap-state',
+    '        exit "$code"',
+    '      }',
+    '      trap \'on_bootstrap_error "$?" "$LINENO"\' ERR',
     '',
     '      export HOME=/root',
     '      export PATH=/usr/local/bin:/usr/bin:/bin',
     '      export NO_COLOR=1',
     '      export CLICOLOR=0',
     '      export FORCE_COLOR=0',
+    '      echo "bootstrap started at $(date -Is)"',
+    '      echo "hostname: $(hostname)"',
+    '      cloud-init status --long || true',
     '',
     '      # Load API key',
     '      set -a',
     '      source /opt/openclaw/.env',
     '      set +a',
+    '      TS_IPV4=""',
+    '      send_checkpoint "bootstrap_started" "bootstrap_started"',
     '',
     '      # Join Tailscale mesh (retry up to 3 times for transient DNS/network issues)',
     '      TS_JOINED=0',
@@ -96,35 +149,56 @@ function buildSnapshotCloudInit(
     '      done',
     '      if [ "$TS_JOINED" -ne 1 ]; then',
     '        echo "Failed to join Tailscale after 3 attempts"',
+    '        send_checkpoint "bootstrap_failed" "tailscale_join_failed"',
     '        exit 1',
     '      fi',
+    '      TS_IPV4="$(tailscale ip -4 2>/dev/null | head -n 1 || true)"',
+    '      send_checkpoint "tailscale_joined" "tailscale_joined" "$TS_IPV4"',
     '',
     '      # Configure OpenClaw as unprivileged user (already installed in snapshot)',
-    '      sudo -u openclaw env HOME=/opt/openclaw \\',
+    '      if ! sudo -u openclaw env HOME=/opt/openclaw \\',
     '        PATH=/usr/local/bin:/usr/bin:/bin \\',
     '        NO_COLOR=1 CLICOLOR=0 FORCE_COLOR=0 \\',
     '        OPENROUTER_API_KEY="$OPENROUTER_API_KEY" \\',
     '        openclaw onboard --non-interactive --accept-risk --mode local \\',
     '        --auth-choice openrouter-api-key --openrouter-api-key "$OPENROUTER_API_KEY" \\',
-    '        --gateway-port 18789 --gateway-bind lan --skip-skills --skip-health',
+    '        --gateway-port 18789 --gateway-bind lan --skip-skills --skip-health; then',
+    '        send_checkpoint "bootstrap_failed" "openclaw_onboard_failed" "$TS_IPV4"',
+    '        exit 1',
+    '      fi',
     '',
     '      # Enable chat completions endpoint + Tailscale auth bypass',
-    '      sudo -u openclaw env HOME=/opt/openclaw PATH=/usr/local/bin:/usr/bin:/bin \\',
-    `        openclaw config set --merge <(printf '{"gateway":{"auth":{"allowTailscale":true},"http":{"endpoints":{"chatCompletions":{"enabled":true}}}}}') \\`,
-    `        || python3 -c "`,
-    'import json, os',
-    `p = '/opt/openclaw/.openclaw/openclaw.json'`,
-    'c = json.load(open(p)) if os.path.exists(p) else {}',
-    `c.setdefault('gateway',{}).setdefault('auth',{})['allowTailscale'] = True`,
-    `c.setdefault('gateway',{}).setdefault('http',{}).setdefault('endpoints',{}).setdefault('chatCompletions',{})['enabled'] = True`,
-    `json.dump(c, open(p,'w'), indent=2)`,
-    '"',
+    '      if ! sudo -u openclaw env HOME=/opt/openclaw PATH=/usr/local/bin:/usr/bin:/bin \\',
+    '        openclaw config set --json gateway.auth.allowTailscale true; then',
+    `        python3 -c "import json,os; p='/opt/openclaw/.openclaw/openclaw.json'; c=json.load(open(p)) if os.path.exists(p) else {}; c.setdefault('gateway',{}).setdefault('auth',{})['allowTailscale']=True; json.dump(c, open(p,'w'), indent=2)"`,
+    '      fi',
+    '      if ! sudo -u openclaw env HOME=/opt/openclaw PATH=/usr/local/bin:/usr/bin:/bin \\',
+    '        openclaw config set gateway.auth.token openclaw; then',
+    `        python3 -c "import json,os; p='/opt/openclaw/.openclaw/openclaw.json'; c=json.load(open(p)) if os.path.exists(p) else {}; c.setdefault('gateway',{}).setdefault('auth',{})['token']='openclaw'; json.dump(c, open(p,'w'), indent=2)"`,
+    '      fi',
+    '      if ! sudo -u openclaw env HOME=/opt/openclaw PATH=/usr/local/bin:/usr/bin:/bin \\',
+    '        openclaw config set --json gateway.http.endpoints.chatCompletions.enabled true; then',
+    `        python3 -c "import json,os; p='/opt/openclaw/.openclaw/openclaw.json'; c=json.load(open(p)) if os.path.exists(p) else {}; c.setdefault('gateway',{}).setdefault('http',{}).setdefault('endpoints',{}).setdefault('chatCompletions',{})['enabled']=True; json.dump(c, open(p,'w'), indent=2)"`,
+    '      fi',
+    `      python3 -c "import json,os; p='/opt/openclaw/.openclaw/openclaw.json'; c=json.load(open(p)) if os.path.exists(p) else {}; c.pop('provider', None); json.dump(c, open(p,'w'), indent=2)" || true`,
+    '',
+    `      # Set preferred AI model`,
+    '      if ! sudo -u openclaw env HOME=/opt/openclaw PATH=/usr/local/bin:/usr/bin:/bin \\',
+    `        openclaw config set agents.defaults.model.primary '${safePreferredModel}'; then`,
+    `        MODEL_VALUE='${safePreferredModel}' python3 -c "import json,os; p='/opt/openclaw/.openclaw/openclaw.json'; c=json.load(open(p)) if os.path.exists(p) else {}; c.setdefault('agents',{}).setdefault('defaults',{}).setdefault('model',{})['primary']=os.environ.get('MODEL_VALUE',''); json.dump(c, open(p,'w'), indent=2)"`,
+    '      fi',
+    `      MODEL_VALUE='${safePreferredModel}' python3 -c "import json,os; p='/opt/openclaw/.openclaw/openclaw.json'; c=json.load(open(p)) if os.path.exists(p) else {}; d=c.setdefault('agents',{}).setdefault('defaults',{}); model=d.setdefault('model',{}); m=os.environ.get('MODEL_VALUE',''); models=d.setdefault('models',{});` +
+      ` models.setdefault(m,{}) if m else None;` +
+      ` fallbacks=model.get('fallbacks');` +
+      ` if m.startswith('openrouter/') and m!='openrouter/openrouter/auto' and not fallbacks: models.setdefault('openrouter/openrouter/auto',{}); model['fallbacks']=['openrouter/openrouter/auto'];` +
+      ` json.dump(c, open(p,'w'), indent=2)"`,
     '',
     '      # Enable Telegram plugin',
     '      if ! sudo -u openclaw env HOME=/opt/openclaw PATH=/usr/local/bin:/usr/bin:/bin \\',
     '        NO_COLOR=1 CLICOLOR=0 FORCE_COLOR=0 \\',
     '        openclaw plugins enable telegram > /dev/null 2>&1; then',
     '        echo "Failed to enable Telegram plugin"',
+    '        send_checkpoint "bootstrap_failed" "telegram_plugin_enable_failed" "$TS_IPV4"',
     '        sudo -u openclaw env HOME=/opt/openclaw PATH=/usr/local/bin:/usr/bin:/bin \\',
     '          openclaw plugins list --json || true',
     '        exit 1',
@@ -135,6 +209,7 @@ function buildSnapshotCloudInit(
     '        openclaw plugins list --enabled --json 2>/dev/null || true)',
     '      if ! printf \'%s\' "$TELEGRAM_PLUGIN_LIST" | grep -q \'"id": "telegram"\'; then',
     '        echo "Telegram plugin is still not enabled after setup"',
+    '        send_checkpoint "bootstrap_failed" "telegram_plugin_missing_after_enable" "$TS_IPV4"',
     '        printf \'%s\\n\' "$TELEGRAM_PLUGIN_LIST"',
     '        exit 1',
     '      fi',
@@ -158,16 +233,30 @@ function buildSnapshotCloudInit(
     '',
     '      if [ "$GATEWAY_READY" -ne 1 ]; then',
     '        echo "Gateway failed to bind on port 18789"',
+    '        send_checkpoint "bootstrap_failed" "gateway_bind_failed" "$TS_IPV4"',
     '        systemctl status openclaw-gateway --no-pager || true',
     '        journalctl -u openclaw-gateway -n 200 --no-pager || true',
     '        exit 1',
     '      fi',
+    '      send_checkpoint "gateway_ready" "gateway_ready" "$TS_IPV4"',
+    '',
+    '      # Lock SSH back to Tailscale-only after successful bootstrap',
+    '      ufw --force reset',
+    '      ufw default deny incoming',
+    '      ufw default allow outgoing',
+    '      ufw allow 80/tcp',
+    '      ufw allow 443/tcp',
+    '      ufw allow 18789/tcp',
+    '      ufw allow in on tailscale0 to any port 22 proto tcp',
+    '      ufw --force enable',
     '',
     '      # Harden: clear the .env file (OpenClaw already loaded it)',
     '      : > /opt/openclaw/.env',
     '',
     '      # Harden: block metadata endpoint to prevent API key leakage',
     '      iptables -A OUTPUT -d 169.254.169.254 -j DROP || true',
+    '      echo "succeeded $(date -Is)" > /var/lib/sato/bootstrap-state',
+    '      send_checkpoint "bootstrap_completed" "bootstrap_completed" "$TS_IPV4"',
     '',
     '      # Log diagnostic info regardless of outcome',
     '      systemctl status openclaw-gateway --no-pager || true',
@@ -178,6 +267,16 @@ function buildSnapshotCloudInit(
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Unknown error'
+}
+
+function mapProvisioningErrorMessage(message: string): string {
+  const lower = message.toLowerCase()
+
+  if (lower.includes('image not found')) {
+    return `Configured VPS snapshot image '${env.HETZNER_SNAPSHOT_ID}' was not found in Hetzner. Check that your running app env and Hetzner project token match, then retry setup.`
+  }
+
+  return message
 }
 
 function sanitizeLabelValue(value: string): string {
@@ -354,6 +453,7 @@ export async function provisionUserServer(input: ProvisionInput) {
   await Promise.all([
     cleanupStaleResourcesForUser(input.userId),
     assertServerTypeAvailable(serverType, region),
+    assertSnapshotAvailable({ snapshotId }),
   ])
 
   const now = new Date()
@@ -410,13 +510,25 @@ export async function provisionUserServer(input: ProvisionInput) {
   let createdServerId: string | null = null
 
   try {
-    const [openRouterApiKey, tailscaleAuth] = await Promise.all([
+    const [openRouterApiKey, tailscaleAuth, userRow] = await Promise.all([
       ensureUserOpenRouterApiKey(input.userId),
       createEphemeralAuthKey(),
+      db.query.user.findFirst({
+        where: eq(user.id, input.userId),
+        columns: { preferredModel: true },
+      }),
     ])
     const firewallName = buildResourceName('fw', input.userId)
     const serverName = buildResourceName('srv', input.userId)
-    const tailscaleHostname = `sato-vps-${serverName}`
+    const tailscaleHostname = buildTailscaleHostname({ serverName })
+    const bootstrapCheckpointToken = createVpsBootstrapToken({
+      requestId,
+      userId: input.userId,
+    })
+    const bootstrapCheckpointUrl = new URL(
+      '/api/vps/status',
+      env.APP_URL,
+    ).toString()
 
     const labels: HetznerLabels = {
       app: 'sato',
@@ -437,11 +549,14 @@ export async function provisionUserServer(input: ProvisionInput) {
       })
       .where(eq(vpsInstance.userId, input.userId))
 
-    const userData = buildSnapshotCloudInit(
+    const userData = buildSnapshotCloudInit({
       openRouterApiKey,
-      tailscaleAuth.key,
+      tailscaleAuthKey: tailscaleAuth.key,
       tailscaleHostname,
-    )
+      bootstrapCheckpointUrl,
+      bootstrapCheckpointToken,
+      preferredModel: normalizeModel(userRow?.preferredModel),
+    })
 
     const server = await createServer(
       {
@@ -471,7 +586,7 @@ export async function provisionUserServer(input: ProvisionInput) {
     await db
       .update(provisioningJob)
       .set({
-        status: 'completed',
+        status: 'bootstrapping',
       })
       .where(eq(provisioningJob.id, jobId))
 
@@ -496,7 +611,7 @@ export async function provisionUserServer(input: ProvisionInput) {
       ipv4Address: server.ipv4Address,
     }
   } catch (error) {
-    const message = getErrorMessage(error)
+    const message = mapProvisioningErrorMessage(getErrorMessage(error))
     const cleanup = await cleanupProvisioningResources(
       createdServerId,
       createdFirewallId,
