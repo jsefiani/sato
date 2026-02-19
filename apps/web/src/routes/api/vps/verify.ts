@@ -24,9 +24,7 @@ export const Route = createFileRoute('/api/vps/verify')({
 
           const rows = await db
             .select({
-              ipv4Address: vpsInstance.ipv4Address,
               tailscaleIp: vpsInstance.tailscaleIp,
-              status: vpsInstance.status,
             })
             .from(vpsInstance)
             .where(eq(vpsInstance.userId, session.user.id))
@@ -50,9 +48,13 @@ export const Route = createFileRoute('/api/vps/verify')({
           const result = await verifyOpenClawHost(instance.tailscaleIp)
 
           return Response.json({
-            ...result,
-            vpsStatus: instance.status,
-            ipv4Address: instance.ipv4Address,
+            ok: result.ok,
+            checkedAt: result.checkedAt,
+            gateway: {
+              loaded: result.gateway.loaded,
+              rpcOk: result.gateway.rpcOk,
+            },
+            health: result.health,
           })
         } catch (error) {
           return safeApiResponse(error)

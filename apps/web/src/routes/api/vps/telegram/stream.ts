@@ -55,7 +55,6 @@ export const Route = createFileRoute('/api/vps/telegram/stream')({
 
           const rows = await db
             .select({
-              ipv4Address: vpsInstance.ipv4Address,
               tailscaleIp: vpsInstance.tailscaleIp,
               status: vpsInstance.status,
               provisionedAt: vpsInstance.provisionedAt,

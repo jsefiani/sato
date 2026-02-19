@@ -8,7 +8,7 @@ import { db } from '@/db'
 import { auditLog, provisioningJob, user, vpsInstance } from '@/db/schema'
 import { getOpenClawVersion } from '@/lib/vps-maintenance'
 import { getUserAccessState } from '@/lib/access-control'
-import { safeApiResponse } from '@/lib/api-error'
+import { safeApiResponse, safeErrorMessage } from '@/lib/api-error'
 import {
   getTopupPacks,
   getUserCreditStateSnapshot,
@@ -17,9 +17,10 @@ import {
 import { assertRateLimit } from '@/lib/rate-limit'
 import { requireSession } from '@/lib/session'
 import { findDeviceTailscaleIp } from '@/lib/tailscale'
-import { OPENCLAW_GATEWAY_PORT, probeOpenClawGateway } from '@/lib/vps-probes'
+import { probeOpenClawGateway } from '@/lib/vps-probes'
 import { verifyVpsBootstrapToken } from '@/lib/vps-bootstrap-token'
 import { createId } from '@/lib/ids'
+import { getModelLabel } from '@/lib/models'
 
 const TAILSCALE_JOIN_TIMEOUT_MS = 3 * 60 * 1000
 const BOOTSTRAP_TIMEOUT_MS = 10 * 60 * 1000
@@ -85,10 +86,11 @@ export const Route = createFileRoute('/api/vps/status')({
               label: pack.label,
               credits: pack.credits,
             })),
-            openClawGatewayPort: OPENCLAW_GATEWAY_PORT,
-            channelSetup: normalizeChannelSetupForCurrentInstance(
-              channelSetup,
-              provisionedAt,
+            channelSetup: toClientChannelSetupSummary(
+              normalizeChannelSetupForCurrentInstance(
+                channelSetup,
+                provisionedAt,
+              ),
             ),
           })
         } catch (error) {
@@ -105,6 +107,35 @@ export const Route = createFileRoute('/api/vps/status')({
     },
   },
 })
+
+function toClientChannelSetupSummary({
+  channels,
+  connectedCount,
+  connectedChannels,
+  hasConnectedChannel,
+}: {
+  channels: Array<{
+    channel: string
+    setupState: string
+    connected: boolean
+    displayName: string | null
+  }>
+  connectedChannels: Array<string>
+  connectedCount: number
+  hasConnectedChannel: boolean
+}) {
+  return {
+    channels: channels.map((channel) => ({
+      channel: channel.channel,
+      setupState: channel.setupState,
+      connected: channel.connected,
+      displayName: channel.displayName,
+    })),
+    connectedChannels,
+    connectedCount,
+    hasConnectedChannel,
+  }
+}
 
 function isBootstrapPhase(status: string): boolean {
   return status === 'provisioning' || status === 'bootstrapping'
@@ -335,8 +366,6 @@ export async function computeVpsProbeState({ userId }: { userId: string }) {
           ipv4Address: true,
           tailscaleIp: true,
           tailscaleHostname: true,
-          region: true,
-          serverType: true,
           lastUpdatedAt: true,
           provisionedAt: true,
           updatedAt: true,
@@ -360,15 +389,19 @@ export async function computeVpsProbeState({ userId }: { userId: string }) {
   let instance: typeof instanceRow | null = instanceRow
   let openClawReady = false
   let bootstrapError: string | null = null
-  let vpsFailureReason = latestProvisionJob?.errorMessage?.trim() || null
+  const rawProvisioningFailure =
+    latestProvisionJob?.errorMessage?.trim() || null
+  const safeProvisioningFailure = rawProvisioningFailure
+    ? safeErrorMessage(new Error(rawProvisioningFailure))
+    : null
+  let vpsFailureReason = safeProvisioningFailure
 
   if (instance?.status === 'terminated') {
     instance = null
   }
 
   if (latestProvisionJob?.status === 'failed') {
-    bootstrapError =
-      latestProvisionJob.errorMessage?.trim() || BOOTSTRAP_FAILURE_FALLBACK
+    bootstrapError = safeProvisioningFailure || BOOTSTRAP_FAILURE_FALLBACK
     vpsFailureReason = bootstrapError
   }
 
@@ -478,16 +511,13 @@ export async function computeVpsProbeState({ userId }: { userId: string }) {
 
   return {
     hasPersonalized: !!userWithVps?.assistantName,
-    preferredModel: userWithVps?.preferredModel ?? null,
+    preferredModel: getModelLabel(userWithVps?.preferredModel),
     openClawReady,
     bootstrappingError: bootstrapError,
     vpsFailureReason,
     vps: instance
       ? {
           status: instance.status,
-          ipv4Address: instance.ipv4Address,
-          region: instance.region,
-          serverType: instance.serverType,
         }
       : null,
     provisionedAt: instance?.provisionedAt ?? null,

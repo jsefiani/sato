@@ -21,9 +21,12 @@ export const Route = createFileRoute('/api/vps/logs')({
           )
           if (rateLimited) return rateLimited
 
+          if (process.env.NODE_ENV !== 'development') {
+            return Response.json({ error: 'Forbidden' }, { status: 403 })
+          }
+
           const rows = await db
             .select({
-              ipv4Address: vpsInstance.ipv4Address,
               tailscaleIp: vpsInstance.tailscaleIp,
               status: vpsInstance.status,
             })

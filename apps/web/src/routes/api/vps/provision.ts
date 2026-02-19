@@ -1,5 +1,4 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { z } from 'zod'
 import { getUserAccessState } from '@/lib/access-control'
 import { safeApiResponse } from '@/lib/api-error'
 import { getUserCreditState } from '@/lib/credits'
@@ -7,11 +6,6 @@ import { assertSameOrigin } from '@/lib/csrf'
 import { provisionUserServer } from '@/lib/provisioning'
 import { assertRateLimit } from '@/lib/rate-limit'
 import { requireSession } from '@/lib/session'
-
-const provisionBodySchema = z.object({
-  region: z.string().max(100).optional(),
-  serverType: z.string().max(100).optional(),
-})
 
 export const Route = createFileRoute('/api/vps/provision')({
   server: {
@@ -53,22 +47,11 @@ export const Route = createFileRoute('/api/vps/provision')({
             )
           }
 
-          const parsed = provisionBodySchema.safeParse(await request.json())
-
-          if (!parsed.success) {
-            return Response.json(
-              { error: 'Invalid request body' },
-              { status: 400 },
-            )
-          }
-
           const result = await provisionUserServer({
             userId: session.user.id,
-            region: parsed.data.region,
-            serverType: parsed.data.serverType,
           })
 
-          return Response.json(result)
+          return Response.json({ ok: result.status === 'bootstrapping' })
         } catch (error) {
           return safeApiResponse(error)
         }

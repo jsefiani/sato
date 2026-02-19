@@ -41,17 +41,56 @@ import {
 
 const rows = [
   {
-    icons: [siNotion, siGmail, siGooglecalendar, siTrello, siAsana, siJira, siLinear, siTodoist, siAirtable, siZapier, siZoom, siGooglecloud],
+    icons: [
+      siNotion,
+      siGmail,
+      siGooglecalendar,
+      siTrello,
+      siAsana,
+      siJira,
+      siLinear,
+      siTodoist,
+      siAirtable,
+      siZapier,
+      siZoom,
+      siGooglecloud,
+    ],
     direction: 'left' as const,
     duration: '55s',
   },
   {
-    icons: [siTelegram, siWhatsapp, siDiscord, siX, siInstagram, siReddit, siYoutube, siSpotify, siTwitch, siMedium, siWordpress, siFigma],
+    icons: [
+      siTelegram,
+      siWhatsapp,
+      siDiscord,
+      siX,
+      siInstagram,
+      siReddit,
+      siYoutube,
+      siSpotify,
+      siTwitch,
+      siMedium,
+      siWordpress,
+      siFigma,
+    ],
     direction: 'right' as const,
     duration: '60s',
   },
   {
-    icons: [siGithub, siStripe, siShopify, siDropbox, siGoogledrive, siGooglesheets, siUber, siNetflix, siVercel, siSupabase, siFirebase, siDocker],
+    icons: [
+      siGithub,
+      siStripe,
+      siShopify,
+      siDropbox,
+      siGoogledrive,
+      siGooglesheets,
+      siUber,
+      siNetflix,
+      siVercel,
+      siSupabase,
+      siFirebase,
+      siDocker,
+    ],
     direction: 'left' as const,
     duration: '58s',
     hiddenOnMobile: true,
@@ -63,7 +102,8 @@ const rows = [
   <div
     class="pointer-events-none absolute inset-0"
     style="background: radial-gradient(ellipse at 50% 0%, hsl(220 70% 45% / 0.04) 0%, transparent 60%);"
-  ></div>
+  >
+  </div>
 
   <div class="relative mx-auto max-w-6xl px-6">
     <div class="mb-12 flex flex-col items-center gap-2 text-center md:mb-16">
@@ -72,43 +112,46 @@ const rows = [
         Connect your favorite apps
       </h2>
       <p class="mt-2 max-w-lg text-base text-muted-foreground">
-        Sato works with 100+ apps you already use — so your assistant fits right into your workflow.
+        Sato works with 100+ apps you already use — so your assistant fits right
+        into your workflow.
       </p>
     </div>
   </div>
 
   <div class="marquee-wrapper relative overflow-hidden">
     <div class="flex flex-col gap-4">
-      {rows.map((row) => (
-        <div
-          class:list={[
-            'marquee-track',
-            row.direction === 'left' ? 'scroll-left' : 'scroll-right',
-            row.hiddenOnMobile && 'hidden sm:flex',
-          ]}
-          style={`--duration: ${row.duration}`}
-        >
-          {/* Two identical groups — each takes exactly 50% of the track */}
-          {[false, true].map((isDupe) => (
-            <div class="marquee-group" aria-hidden={isDupe || undefined}>
-              {row.icons.map((icon) => (
-                <div class="marquee-chip">
-                  <svg
-                    class="size-4 shrink-0"
-                    viewBox="0 0 24 24"
-                    fill={`#${icon.hex}`}
-                    role={!isDupe ? 'img' : undefined}
-                    aria-label={!isDupe ? icon.title : undefined}
-                  >
-                    <path d={icon.path} />
-                  </svg>
-                  <span class="whitespace-nowrap text-sm">{icon.title}</span>
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
-      ))}
+      {
+        rows.map((row) => (
+          <div
+            class:list={[
+              'marquee-track',
+              row.direction === 'left' ? 'scroll-left' : 'scroll-right',
+              row.hiddenOnMobile && 'hidden sm:flex',
+            ]}
+            style={`--duration: ${row.duration}`}
+          >
+            {/* Two identical groups — each takes exactly 50% of the track */}
+            {[false, true].map((isDupe) => (
+              <div class="marquee-group" aria-hidden={isDupe || undefined}>
+                {row.icons.map((icon) => (
+                  <div class="marquee-chip">
+                    <svg
+                      class="size-4 shrink-0"
+                      viewBox="0 0 24 24"
+                      fill={`#${icon.hex}`}
+                      role={!isDupe ? 'img' : undefined}
+                      aria-label={!isDupe ? icon.title : undefined}
+                    >
+                      <path d={icon.path} />
+                    </svg>
+                    <span class="whitespace-nowrap text-sm">{icon.title}</span>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        ))
+      }
     </div>
   </div>
 </section>

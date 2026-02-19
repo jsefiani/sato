@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { motion } from 'motion/react'
@@ -17,12 +17,27 @@ import {
   Terminal,
   Trash2,
 } from 'lucide-react'
+import {
+  siAlibabacloud,
+  siAnthropic,
+  siGooglegemini,
+  siMeta,
+  siOpenrouter,
+} from 'simple-icons'
 import type {
   SetupState,
   TopupPack,
 } from '@/components/onboarding/onboarding-utils'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,10 +55,7 @@ interface VerifyState {
   ok: boolean
   gateway: {
     loaded: boolean
-    runtimeStatus: string | null
-    probeUrl: string | null
     rpcOk: boolean
-    rpcError: string | null
   }
   health: {
     ok: boolean
@@ -60,6 +72,46 @@ interface VpsLogs {
 
 function formatMessages(value: number): string {
   return new Intl.NumberFormat().format(value)
+}
+
+const modelBrandLogos = {
+  'openrouter/anthropic/claude-sonnet-4': siAnthropic,
+  'openrouter/anthropic/claude-3.5-haiku': siAnthropic,
+  'openrouter/openai/gpt-4.1-mini': siOpenrouter,
+  'openrouter/google/gemini-2.5-flash': siGooglegemini,
+  'openrouter/moonshotai/kimi-k2.5': siOpenrouter,
+  'openrouter/deepseek/deepseek-r1': siOpenrouter,
+  'openrouter/qwen/qwen3-coder': siAlibabacloud,
+  'openrouter/meta-llama/llama-3.3-70b-instruct': siMeta,
+} as const
+
+function resolveModelBrandLogo({ model }: { model: string }) {
+  if (model in modelBrandLogos) {
+    return modelBrandLogos[model as keyof typeof modelBrandLogos]
+  }
+
+  return siOpenrouter
+}
+
+function ModelBrandLogo({
+  model,
+  className,
+}: {
+  model: string
+  className?: string
+}) {
+  const logo = resolveModelBrandLogo({ model })
+
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill={`#${logo.hex}`}
+      aria-hidden="true"
+      className={['size-4 shrink-0', className].filter(Boolean).join(' ')}
+    >
+      <path d={logo.path} />
+    </svg>
+  )
 }
 
 const container = {
@@ -79,6 +131,9 @@ const item = {
   },
 }
 
+const MODEL_RESTART_WATCH_TIMEOUT_MS = 45_000
+const MODEL_RESTART_QUERY_POLL_MS = 2_000
+
 export default function Dashboard() {
   const { data: session } = authClient.useSession()
   const queryClient = useQueryClient()
@@ -96,36 +151,23 @@ export default function Dashboard() {
 
   const state = setupQuery.data ?? null
 
-  const needsStatusStream =
-    !!state?.vps &&
-    (state.vps.status === 'provisioning' ||
-      state.vps.status === 'bootstrapping' ||
-      (state.vps.status === 'active' && state.openClawReady === false))
-
-  useEventStream({
-    url: '/api/vps/status-stream',
-    enabled: needsStatusStream,
-    queryKey: ['setup-status'],
-    merge: true,
-  })
-  const telegramSetup =
-    state?.channelSetup.channels.find(
-      (channel) => channel.channel === 'telegram',
-    ) ?? null
-  const persistedTelegramBotUsername =
-    telegramSetup?.displayName?.replace(/^@+/, '') ?? null
-
-  const isAssistantLive =
-    state?.vps?.status === 'active' && state.openClawReady === true
-
-  const telegramBotHandle = persistedTelegramBotUsername
-    ? `@${persistedTelegramBotUsername}`
-    : null
-  const telegramConnected = telegramSetup?.connected === true
-  const telegramConfigured =
-    telegramConnected || telegramSetup?.setupState === 'configuring'
-
   const [stripeLoading, setStripeLoading] = useState(false)
+  const [showAdvanced, setShowAdvanced] = useState(false)
+  const [showLogs, setShowLogs] = useState(false)
+  const [isModelDialogOpen, setIsModelDialogOpen] = useState(false)
+  const [isModelMenuOpen, setIsModelMenuOpen] = useState(false)
+  const [isModelRestartWatchActive, setIsModelRestartWatchActive] =
+    useState(false)
+  const [hasSeenModelRestartDown, setHasSeenModelRestartDown] = useState(false)
+  const [modelRestartWatchStartedAt, setModelRestartWatchStartedAt] = useState<
+    number | null
+  >(null)
+  const [preferredModelOverride, setPreferredModelOverride] = useState<
+    string | null
+  >(null)
+  const [pendingModelSelection, setPendingModelSelection] = useState<string>(
+    DEFAULT_MODEL.value,
+  )
 
   const openPortal = async () => {
     setStripeLoading(true)
@@ -165,9 +207,6 @@ export default function Dashboard() {
     }
   }
 
-  const [showAdvanced, setShowAdvanced] = useState(false)
-  const [showLogs, setShowLogs] = useState(false)
-
   const destroyMutation = useMutation({
     mutationFn: async () => {
       const res = await fetch('/api/vps/destroy', {
@@ -184,24 +223,42 @@ export default function Dashboard() {
   })
 
   const modelMutation = useMutation({
-    mutationFn: async (model: string) => {
+    mutationFn: async ({
+      modelLabel,
+    }: {
+      modelValue: string
+      modelLabel: string
+    }) => {
       const res = await fetch('/api/model', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model }),
+        body: JSON.stringify({ model: modelLabel }),
       })
       const payload = (await res.json()) as { error?: string }
       if (!res.ok) throw new Error(payload.error ?? 'Failed to update model')
     },
-    onMutate: async (model) => {
+    onMutate: async ({ modelValue, modelLabel }) => {
       await queryClient.cancelQueries({ queryKey: ['setup-status'] })
       const previous = queryClient.getQueryData<SetupState>(['setup-status'])
       queryClient.setQueryData<SetupState>(['setup-status'], (old) =>
-        old ? { ...old, preferredModel: model } : old,
+        old
+          ? { ...old, preferredModel: modelLabel, openClawReady: false }
+          : old,
       )
+      setPreferredModelOverride(modelValue)
+      setIsModelRestartWatchActive(true)
+      setHasSeenModelRestartDown(false)
+      setModelRestartWatchStartedAt(Date.now())
       return { previous }
     },
-    onError: (_err, _model, context) => {
+    onSuccess: () => {
+      setIsModelDialogOpen(false)
+    },
+    onError: (_err, _vars, context) => {
+      setPreferredModelOverride(null)
+      setIsModelRestartWatchActive(false)
+      setHasSeenModelRestartDown(false)
+      setModelRestartWatchStartedAt(null)
       if (context?.previous) {
         queryClient.setQueryData(['setup-status'], context.previous)
       }
@@ -211,10 +268,133 @@ export default function Dashboard() {
     },
   })
 
-  const currentModel = state?.preferredModel ?? DEFAULT_MODEL.value
+  const statePreferredModelValue =
+    SUPPORTED_MODELS.find((model) => model.label === state?.preferredModel)
+      ?.value ?? DEFAULT_MODEL.value
+  const currentModel = preferredModelOverride ?? statePreferredModelValue
   const currentModelLabel =
     SUPPORTED_MODELS.find((m) => m.value === currentModel)?.label ??
     DEFAULT_MODEL.label
+  const pendingModel =
+    SUPPORTED_MODELS.find((m) => m.value === pendingModelSelection) ??
+    DEFAULT_MODEL
+
+  useEffect(() => {
+    if (!preferredModelOverride) return
+    if (statePreferredModelValue === preferredModelOverride) {
+      setPreferredModelOverride(null)
+    }
+  }, [preferredModelOverride, statePreferredModelValue])
+
+  useEffect(() => {
+    if (!isModelDialogOpen || modelMutation.isPending) {
+      setIsModelMenuOpen(false)
+    }
+  }, [isModelDialogOpen, modelMutation.isPending])
+
+  useEffect(() => {
+    if (!isModelRestartWatchActive) return
+
+    if (state?.vps?.status !== 'active') {
+      setIsModelRestartWatchActive(false)
+      setHasSeenModelRestartDown(false)
+      setModelRestartWatchStartedAt(null)
+      return
+    }
+
+    if (!hasSeenModelRestartDown && state.openClawReady === false) {
+      setHasSeenModelRestartDown(true)
+      return
+    }
+
+    if (
+      hasSeenModelRestartDown &&
+      !modelMutation.isPending &&
+      state.openClawReady === true
+    ) {
+      setIsModelRestartWatchActive(false)
+      setHasSeenModelRestartDown(false)
+      setModelRestartWatchStartedAt(null)
+    }
+  }, [
+    hasSeenModelRestartDown,
+    isModelRestartWatchActive,
+    modelMutation.isPending,
+    state?.openClawReady,
+    state?.vps?.status,
+  ])
+
+  useEffect(() => {
+    if (!isModelRestartWatchActive || !modelRestartWatchStartedAt) return
+
+    const remainingMs =
+      modelRestartWatchStartedAt + MODEL_RESTART_WATCH_TIMEOUT_MS - Date.now()
+
+    if (remainingMs <= 0) {
+      setIsModelRestartWatchActive(false)
+      setHasSeenModelRestartDown(false)
+      setModelRestartWatchStartedAt(null)
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setIsModelRestartWatchActive(false)
+      setHasSeenModelRestartDown(false)
+      setModelRestartWatchStartedAt(null)
+    }, remainingMs)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [isModelRestartWatchActive, modelRestartWatchStartedAt])
+
+  useEffect(() => {
+    if (!isModelRestartWatchActive) return
+
+    const intervalId = window.setInterval(() => {
+      void queryClient.invalidateQueries({ queryKey: ['setup-status'] })
+    }, MODEL_RESTART_QUERY_POLL_MS)
+
+    return () => window.clearInterval(intervalId)
+  }, [isModelRestartWatchActive, queryClient])
+
+  const needsStatusStream =
+    modelMutation.isPending ||
+    isModelRestartWatchActive ||
+    (!!state?.vps &&
+      (state.vps.status === 'provisioning' ||
+        state.vps.status === 'bootstrapping' ||
+        (state.vps.status === 'active' && state.openClawReady === false)))
+
+  useEventStream({
+    url: '/api/vps/status-stream',
+    enabled: needsStatusStream,
+    queryKey: ['setup-status'],
+    merge: true,
+  })
+  const telegramSetup =
+    state?.channelSetup.channels.find(
+      (channel) => channel.channel === 'telegram',
+    ) ?? null
+  const persistedTelegramBotUsername =
+    telegramSetup?.displayName?.replace(/^@+/, '') ?? null
+
+  const isAssistantLive =
+    !modelMutation.isPending &&
+    !isModelRestartWatchActive &&
+    state?.vps?.status === 'active' &&
+    state.openClawReady === true
+  const canViewDebugLogs = import.meta.env.DEV
+  const isAssistantRestarting =
+    state?.vps?.status === 'active' &&
+    (modelMutation.isPending ||
+      isModelRestartWatchActive ||
+      state.openClawReady === false)
+
+  const telegramBotHandle = persistedTelegramBotUsername
+    ? `@${persistedTelegramBotUsername}`
+    : null
+  const telegramConnected = telegramSetup?.connected === true
+  const telegramConfigured =
+    telegramConnected || telegramSetup?.setupState === 'configuring'
 
   const verifyMutation = useMutation({
     mutationFn: async () => {
@@ -321,10 +501,16 @@ export default function Dashboard() {
                   <p className="text-sm font-medium text-foreground/80">
                     {isAssistantLive
                       ? 'Your assistant is running'
-                      : 'Assistant offline'}
+                      : isAssistantRestarting
+                        ? 'Assistant restarting'
+                        : 'Assistant offline'}
                   </p>
                   <p className="text-[13px] text-muted-foreground/80">
-                    {isAssistantLive ? 'Everything looks good' : statusLabel}
+                    {isAssistantLive
+                      ? 'Everything looks good'
+                      : isAssistantRestarting
+                        ? 'Applying model change. This should take a few seconds.'
+                        : statusLabel}
                   </p>
                 </div>
               </div>
@@ -369,37 +555,18 @@ export default function Dashboard() {
                   </p>
                 </div>
               </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  disabled={!isAssistantLive}
-                  render={
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={!isAssistantLive}
-                    />
-                  }
-                >
-                  Change
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-64">
-                  <DropdownMenuRadioGroup
-                    value={currentModel}
-                    onValueChange={(value) => modelMutation.mutate(value)}
-                  >
-                    {SUPPORTED_MODELS.map((m) => (
-                      <DropdownMenuRadioItem key={m.value} value={m.value}>
-                        <div>
-                          <p className="text-sm">{m.label}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {m.description}
-                          </p>
-                        </div>
-                      </DropdownMenuRadioItem>
-                    ))}
-                  </DropdownMenuRadioGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!isAssistantLive}
+                onClick={() => {
+                  modelMutation.reset()
+                  setPendingModelSelection(currentModel)
+                  setIsModelDialogOpen(true)
+                }}
+              >
+                Change
+              </Button>
             </div>
           </Card>
         </motion.div>
@@ -430,34 +597,35 @@ export default function Dashboard() {
           </Card>
         </motion.div>
 
-        {isAssistantLive && (
-          <motion.div variants={item}>
-            <Card className="p-5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-foreground/4">
-                    <MessageSquare className="h-4 w-4 text-foreground/80" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-foreground/80">
-                      Chat with assistant
-                    </p>
-                    <p className="text-[13px] text-muted-foreground/80">
-                      Open the web chat interface
-                    </p>
-                  </div>
+        <motion.div variants={item}>
+          <Card className="p-5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-foreground/4">
+                  <MessageSquare className="h-4 w-4 text-foreground/80" />
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => navigate({ to: '/chat' })}
-                >
-                  Open chat
-                </Button>
+                <div>
+                  <p className="text-sm font-medium text-foreground/80">
+                    Chat with assistant
+                  </p>
+                  <p className="text-[13px] text-muted-foreground/80">
+                    {isAssistantLive
+                      ? 'Open the web chat interface'
+                      : 'Available when your assistant is running'}
+                  </p>
+                </div>
               </div>
-            </Card>
-          </motion.div>
-        )}
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!isAssistantLive}
+                onClick={() => navigate({ to: '/chat' })}
+              >
+                Open chat
+              </Button>
+            </div>
+          </Card>
+        </motion.div>
 
         <motion.div variants={item}>
           <Card className="p-5">
@@ -582,7 +750,7 @@ export default function Dashboard() {
               animate={{ opacity: 1, height: 'auto' }}
               className="mt-2 space-y-3 rounded-2xl border border-border/70 bg-card/30 p-5"
             >
-              {isAssistantLive && (
+              {canViewDebugLogs && isAssistantLive && (
                 <div className="space-y-3">
                   <Button
                     variant="outline"
@@ -729,6 +897,142 @@ export default function Dashboard() {
           )}
         </motion.div>
       </motion.div>
+
+      <Dialog
+        open={isModelDialogOpen}
+        onOpenChange={(open) => {
+          if (modelMutation.isPending) return
+          if (open) {
+            setPendingModelSelection(currentModel)
+          }
+          setIsModelDialogOpen(open)
+        }}
+      >
+        <DialogContent
+          className="sm:max-w-lg"
+          showCloseButton={!modelMutation.isPending}
+        >
+          <DialogHeader>
+            <DialogTitle>Change AI model</DialogTitle>
+            <DialogDescription>
+              Pick the model your assistant should use for new messages.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <div className="rounded-lg border border-border/70 bg-secondary/40 p-3">
+              <p className="text-sm font-medium text-foreground/80">
+                Model changes restart your assistant.
+              </p>
+              <p className="mt-1 text-[13px] text-muted-foreground/80">
+                Chat can be temporarily unavailable while the restart finishes.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-[13px] font-medium text-foreground/80">
+                Selected model
+              </p>
+              <DropdownMenu
+                open={isModelMenuOpen}
+                onOpenChange={setIsModelMenuOpen}
+              >
+                <DropdownMenuTrigger
+                  disabled={modelMutation.isPending}
+                  render={
+                    <Button
+                      variant="outline"
+                      className="w-full justify-between"
+                      disabled={modelMutation.isPending}
+                    />
+                  }
+                >
+                  <span className="flex min-w-0 items-center gap-2 text-left">
+                    <ModelBrandLogo model={pendingModel.value} />
+                    <span className="truncate">{pendingModel.label}</span>
+                  </span>
+                  <ChevronDown />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="start"
+                  className="max-h-72 w-(--anchor-width)"
+                >
+                  <DropdownMenuRadioGroup
+                    value={pendingModelSelection}
+                    onValueChange={(value) => {
+                      setPendingModelSelection(value)
+                      setIsModelMenuOpen(false)
+                    }}
+                  >
+                    {SUPPORTED_MODELS.map((model) => {
+                      return (
+                        <DropdownMenuRadioItem
+                          key={model.value}
+                          value={model.value}
+                        >
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <ModelBrandLogo model={model.value} />
+                              <p className="truncate text-[13px] leading-5">
+                                {model.label}
+                              </p>
+                            </div>
+                            <div className="pl-6">
+                              <p className="text-[13px] leading-5 text-muted-foreground">
+                                {model.description}
+                              </p>
+                            </div>
+                          </div>
+                        </DropdownMenuRadioItem>
+                      )
+                    })}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <p className="text-[13px] text-muted-foreground/80">
+                {pendingModel.description}
+              </p>
+            </div>
+
+            {modelMutation.isError && (
+              <p className="text-[13px] text-destructive">
+                Failed to update the model. Please try again.
+              </p>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsModelDialogOpen(false)}
+              disabled={modelMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={
+                modelMutation.isPending ||
+                pendingModelSelection === currentModel
+              }
+              onClick={() =>
+                modelMutation.mutate({
+                  modelValue: pendingModelSelection,
+                  modelLabel: pendingModel.label,
+                })
+              }
+            >
+              {modelMutation.isPending ? (
+                <>
+                  <Loader2 className="animate-spin" />
+                  Applying…
+                </>
+              ) : (
+                'Restart assistant'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

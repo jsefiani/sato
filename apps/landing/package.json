@@ -16,9 +16,11 @@
     "lucide-react": "^0.561.0",
     "motion": "^12.34.0",
     "ogl": "^1.0.11",
+    "postprocessing": "^6.38.2",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "simple-icons": "^16.9.0"
+    "simple-icons": "^16.9.0",
+    "three": "^0.182.0"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.6",
@@ -26,6 +28,7 @@
     "@tailwindcss/vite": "^4.0.6",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
+    "@types/three": "^0.182.0",
     "tailwindcss": "^4.0.6",
     "typescript": "^5.7.2",
     "wrangler": "^4"

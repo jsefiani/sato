@@ -130,10 +130,7 @@ export function useOnboarding({
   const isAssistantLive =
     setupState?.vps?.status === 'active' && setupState.openClawReady === true
 
-  const telegramStatusKey = [
-    'telegram-status',
-    setupState?.vps?.ipv4Address,
-  ] as const
+  const telegramStatusKey = ['telegram-status'] as const
 
   useEventStream({
     url: '/api/vps/telegram/stream',
@@ -165,10 +162,7 @@ export function useOnboarding({
       const res = await fetch('/api/vps/provision', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          region: 'nbg1',
-          serverType: 'cpx22',
-        }),
+        body: JSON.stringify({}),
       })
       const payload = (await res.json()) as { error?: string }
       if (!res.ok) throw new Error(payload.error ?? 'Provisioning failed')

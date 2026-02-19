@@ -24,15 +24,11 @@ const baseState: SetupState = {
     monthlyCycleAnchor: null,
   },
   topupPacks: [],
-  openClawGatewayPort: 18789,
   openClawReady: true,
   bootstrappingError: null,
   vpsFailureReason: null,
   vps: {
     status: 'active',
-    ipv4Address: '127.0.0.1',
-    region: 'nbg1',
-    serverType: 'cpx22',
   },
   channelSetup: {
     channels: [],

@@ -1,10 +1,24 @@
 ---
 import ShinyText from './ShinyTextStatic.astro'
 import FAQAccordion from './FAQAccordion'
+import MeshGradient from './MeshGradient'
+
+const appUrl = import.meta.env.PUBLIC_APP_URL || 'https://app.asksato.ai'
 ---
 
-<section id="faq" class="py-16 md:py-24">
-  <div class="mx-auto max-w-6xl px-6">
+<section id="faq" class="relative overflow-hidden py-16 md:py-24">
+  <div
+    class="pointer-events-none absolute inset-0"
+    style="background: radial-gradient(ellipse at 50% 0%, hsl(220 70% 45% / 0.08) 0%, transparent 62%);"
+  >
+  </div>
+  <div
+    class="pointer-events-none absolute inset-0 [mask-image:linear-gradient(to_bottom,transparent,black_25%,black_75%,transparent)]"
+    style="background-image: radial-gradient(circle, hsl(220 70% 45% / 0.05) 1px, transparent 1px); background-size: 42px 42px;"
+  >
+  </div>
+
+  <div class="relative mx-auto max-w-6xl px-6">
     <div class="mb-16 flex flex-col items-center gap-2 text-center">
       <ShinyText text="FAQ" />
       <h2 class="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
@@ -13,5 +27,38 @@ import FAQAccordion from './FAQAccordion'
     </div>
 
     <FAQAccordion client:visible />
+
+    <div class="mx-auto mt-16 w-full max-w-5xl sm:mt-20">
+      <div
+        class="relative isolate flex min-h-[18rem] items-center justify-center overflow-hidden rounded-[1.75rem] border border-border/80 bg-secondary/40 px-8 py-12 text-center shadow-[0_14px_34px_-28px_hsl(220_70%_45%/_0.2)] sm:min-h-[20rem] sm:px-12 sm:py-14"
+      >
+        <MeshGradient
+          client:visible
+          color1="#dce9ff"
+          color2="#d6e4ff"
+          color3="#e3eeff"
+        />
+
+        <div class="relative mx-auto max-w-3xl">
+          <h3
+            class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl"
+          >
+            Get Time Back
+          </h3>
+          <p
+            class="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base"
+          >
+            Get your personal AI assistant running in under a minute and use it
+            daily on Telegram.
+          </p>
+          <a
+            href={appUrl}
+            class="mt-6 inline-flex rounded-full bg-primary px-9 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            Start 3-Day Trial
+          </a>
+        </div>
+      </div>
+    </div>
   </div>
 </section>

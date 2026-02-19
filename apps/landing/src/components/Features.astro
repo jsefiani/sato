@@ -6,21 +6,21 @@ const features = [
   {
     title: 'It remembers everything',
     description:
-      'Sato learns your preferences, habits, and what matters to you. The more you use it, the more helpful it becomes — like a real assistant who knows you.',
+      'Sato learns your preferences and habits. The more you chat, the more helpful it gets.',
     variant: 'remembers',
     wide: true,
   },
   {
     title: 'Genuinely smart',
     description:
-      'Powered by the latest AI, Sato can help with anything — from planning your week to drafting emails to finding the perfect gift.',
+      'Powered by the latest AI. From planning your week to drafting emails — it handles it all.',
     variant: 'smart',
     wide: true,
   },
   {
     title: 'Completely private',
     description:
-      'Your data is encrypted and protected with multiple layers of security. Your conversations stay between you and your assistant.',
+      'Your conversations stay private and secure. Built with your safety in mind.',
     variant: 'private',
     wide: false,
   },
@@ -42,7 +42,11 @@ const features = [
 ---
 
 <section id="features" class="relative py-16 md:py-24">
-  <div class="pointer-events-none absolute inset-0 [mask-image:linear-gradient(to_bottom,transparent,black_20%,black_80%,transparent)]" style="background-image: radial-gradient(circle, hsl(220 70% 45% / 0.07) 1px, transparent 1px); background-size: 40px 40px;"></div>
+  <div
+    class="pointer-events-none absolute inset-0 [mask-image:linear-gradient(to_bottom,transparent,black_20%,black_80%,transparent)]"
+    style="background-image: radial-gradient(circle, hsl(220 70% 45% / 0.07) 1px, transparent 1px); background-size: 40px 40px;"
+  >
+  </div>
 
   <div class="relative mx-auto max-w-6xl px-6">
     <div class="mb-16 flex flex-col items-center gap-2 text-center">
@@ -54,15 +58,25 @@ const features = [
 
     <div class="grid grid-cols-1 gap-6 md:grid-cols-12">
       {
-        features.map((feature) => (
-          <FeatureCard
-            client:visible
-            className={feature.wide ? 'md:col-span-6' : 'md:col-span-4'}
-            title={feature.title}
-            description={feature.description}
-            variant={feature.variant}
-          />
-        ))
+        features.map((feature) =>
+          feature.variant === 'private' ? (
+            <FeatureCard
+              client:load
+              className={feature.wide ? 'md:col-span-6' : 'md:col-span-4'}
+              title={feature.title}
+              description={feature.description}
+              variant={feature.variant}
+            />
+          ) : (
+            <FeatureCard
+              client:visible
+              className={feature.wide ? 'md:col-span-6' : 'md:col-span-4'}
+              title={feature.title}
+              description={feature.description}
+              variant={feature.variant}
+            />
+          ),
+        )
       }
     </div>
   </div>

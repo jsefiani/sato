@@ -37,6 +37,31 @@ shadcn is configured with the `base-vega` style, which uses **Base UI** (`@base-
 
 Never use Tailwind's default palette (`zinc-*`, `gray-*`, `red-*`, etc.) — it's reset. Only use semantic tokens defined in `apps/web/src/styles.css`.
 
+## API Response Security (Server -> Client)
+
+Default to **deny-by-default** for response fields. Only return data that is strictly required by the current UI state.
+
+Never expose infrastructure/provider/internal details to the frontend unless there is a documented, user-facing requirement:
+
+- IPs and hostnames (`ipv4Address`, `tailscaleIp`, internal URLs)
+- infrastructure metadata (`region`, `serverType`, server/firewall IDs, cloud provider internals)
+- provider internals and model identifiers (prefer display labels over provider-coded IDs in client payloads)
+- low-level diagnostics (stack traces, raw probe/runtime errors, CLI output, detailed failure internals)
+- secrets/tokens/keys or anything derived from them
+
+When implementing API routes, SSE streams, loaders, or server functions:
+
+- return explicit, minimal response shapes (avoid spreading internal objects/DB rows into responses)
+- sanitize errors before returning them; log detailed errors server-side only
+- use separate internal vs client response types when helpful (`Internal*` -> `Client*`)
+- apply the same minimization rules to dev tools and admin endpoints exposed through the web UI
+
+Before finishing a change that touches server/client boundaries, do a quick payload audit:
+
+- identify every field returned to the browser
+- remove fields not directly used by the UI
+- verify no sensitive metadata can leak via success payloads, error payloads, or stream events
+
 ## After making changes
 
 Always run type-checking, linting, and formatting after any code changes:

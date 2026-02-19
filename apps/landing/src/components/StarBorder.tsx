@@ -23,20 +23,20 @@ export default function StarBorder<T extends ElementType = 'div'>({
   return (
     <Component
       className={`star-border-container ${className}`}
-      style={{ padding: `${thickness}px 0`, ...style }}
+      style={{ padding: `${thickness}px`, ...style }}
       {...rest}
     >
       <div
         className="border-gradient-bottom"
         style={{
-          background: `radial-gradient(circle, ${color}, transparent 4%)`,
+          background: `radial-gradient(circle, ${color}, transparent 10%)`,
           animationDuration: speed,
         }}
       />
       <div
         className="border-gradient-top"
         style={{
-          background: `radial-gradient(circle, ${color}, transparent 4%)`,
+          background: `radial-gradient(circle, ${color}, transparent 10%)`,
           animationDuration: speed,
         }}
       />

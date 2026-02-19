@@ -4,7 +4,7 @@ import { safeApiResponse, safeErrorMessage } from '@/lib/api-error'
 import { assertRateLimit } from '@/lib/rate-limit'
 import { requireSession } from '@/lib/session'
 
-const CHECK_INTERVAL_MS = 5_000
+const CHECK_INTERVAL_MS = 2_000
 const MAX_BACKOFF_MS = 60_000
 const KEEPALIVE_INTERVAL_MS = 30_000
 

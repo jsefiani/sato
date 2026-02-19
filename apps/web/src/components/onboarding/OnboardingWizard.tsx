@@ -54,6 +54,12 @@ export default function OnboardingWizard({
       value={{ ...ctx, skipInitialAnimation: !hasMounted.current }}
     >
       <div className="flex flex-1 flex-col px-4 py-12">
+        {stepConfig.showProgress && (
+          <div className="flex justify-center pt-2 pb-8">
+            <OnboardingProgress currentStep={ctx.currentStep} />
+          </div>
+        )}
+
         <div className="flex flex-1 items-center justify-center">
           <div
             className={`w-full ${ctx.currentStep === 'chat' ? 'max-w-2xl' : 'max-w-md'}`}
@@ -71,12 +77,6 @@ export default function OnboardingWizard({
             </AnimatePresence>
           </div>
         </div>
-
-        {stepConfig.showProgress && (
-          <div className="flex justify-center pb-4">
-            <OnboardingProgress currentStep={ctx.currentStep} />
-          </div>
-        )}
       </div>
     </OnboardingProvider>
   )

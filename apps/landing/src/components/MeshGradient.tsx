@@ -1,13 +1,21 @@
 import Grainient from '@/react-bits/Grainient'
 
-export default function MeshGradient() {
+export default function MeshGradient({
+  color1 = '#eaf1fb',
+  color2 = '#e3edfc',
+  color3 = '#edf4fe',
+}: {
+  color1?: string
+  color2?: string
+  color3?: string
+}) {
   return (
     <div className="absolute inset-0 -z-10 overflow-hidden">
       <Grainient
-        color1="#d6e4f7"
-        color2="#c8dcf8"
-        color3="#d0e0fa"
-        saturation={1.3}
+        color1={color1}
+        color2={color2}
+        color3={color3}
+        saturation={1.1}
         contrast={0.8}
         gamma={1.6}
         grainAmount={0.18}

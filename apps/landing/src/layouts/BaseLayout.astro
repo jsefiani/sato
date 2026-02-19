@@ -1,5 +1,21 @@
 ---
 import '../styles/global.css'
+
+interface Props {
+  title?: string
+  description?: string
+  ogTitle?: string
+  ogDescription?: string
+  ogUrl?: string
+}
+
+const {
+  title = 'Sato - Your Private AI Assistant',
+  description = 'Sato is your personal AI assistant that remembers your preferences, helps manage your day, and gets smarter the more you use it - all completely private.',
+  ogTitle = title,
+  ogDescription = description,
+  ogUrl = 'https://withsato.com',
+} = Astro.props
 ---
 
 <!doctype html>
@@ -7,18 +23,12 @@ import '../styles/global.css'
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Sato — Your Private AI Assistant</title>
-    <meta
-      name="description"
-      content="Sato is your personal AI assistant that remembers your preferences, helps manage your day, and gets smarter the more you use it — all completely private."
-    />
-    <meta property="og:title" content="Sato — Your Private AI Assistant" />
-    <meta
-      property="og:description"
-      content="An AI that knows you, and keeps it between you. Private, personal, always available."
-    />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta property="og:title" content={ogTitle} />
+    <meta property="og:description" content={ogDescription} />
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://withsato.com" />
+    <meta property="og:url" content={ogUrl} />
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />

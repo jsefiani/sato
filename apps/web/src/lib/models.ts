@@ -71,3 +71,19 @@ export function normalizeModel(value: string | null | undefined): string {
 
   return DEFAULT_MODEL.value
 }
+
+export function getModelLabel(value: string | null | undefined): string {
+  const normalized = normalizeModel(value)
+  return (
+    SUPPORTED_MODELS.find((model) => model.value === normalized)?.label ??
+    DEFAULT_MODEL.label
+  )
+}
+
+export function getModelValueByLabel(label: string): string | null {
+  const normalizedLabel = label.trim()
+  return (
+    SUPPORTED_MODELS.find((model) => model.label === normalizedLabel)?.value ??
+    null
+  )
+}

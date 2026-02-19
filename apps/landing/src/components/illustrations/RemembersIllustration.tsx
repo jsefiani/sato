@@ -1,48 +1,39 @@
 import { motion } from 'motion/react'
-
-const memories = [
-  { label: '☕ Oat milk latte', x: '8%', y: '8%', delay: 0.1 },
-  { label: '🎸 Learning guitar', x: '42%', y: '2%', delay: 0.25 },
-  { label: "Mom's bday: Mar 12", x: '22%', y: '28%', delay: 0.4 },
-]
+import SatoAvatar from '@/components/SatoAvatar'
 
 export default function RemembersIllustration() {
   return (
-    <div className="flex h-full w-full flex-col px-6 pt-4">
-      {/* Memory tags */}
-      <div className="relative h-20 w-full">
-        {memories.map((mem) => (
-          <motion.span
-            key={mem.label}
-            className="absolute rounded-full border border-border bg-background px-2.5 py-1 text-[10px] font-medium text-foreground shadow-sm"
-            style={{ left: mem.x, top: mem.y }}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: mem.delay }}
-          >
-            {mem.label}
-          </motion.span>
-        ))}
-      </div>
-
-      {/* Recall exchange */}
-      <div className="flex flex-col gap-2.5">
+    <div className="relative flex h-72 w-full flex-col items-center justify-center px-6">
+      {/* Chat exchange */}
+      <div className="flex w-full max-w-xs flex-col gap-2.5">
+        {/* User message */}
         <motion.div
-          className="self-end rounded-2xl rounded-br-sm bg-[#d5dff0] px-3.5 py-2 text-xs text-foreground"
-          initial={{ opacity: 0, y: 8 }}
+          className="flex items-end gap-2 self-end"
+          initial={{ opacity: 0.9, y: 4 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.7 }}
+          transition={{ duration: 0.4, delay: 0.1 }}
         >
-          Order my usual coffee
+          <div className="rounded-2xl rounded-br-sm bg-[#d5dff0] px-3.5 py-2 text-xs text-foreground">
+            I'm stressed about tomorrow
+          </div>
+          <img
+            src="/illustration-user-photo.jpg"
+            alt=""
+            className="h-6 w-6 shrink-0 rounded-full object-cover"
+          />
         </motion.div>
 
+        {/* Sato response */}
         <motion.div
-          className="self-start rounded-2xl rounded-bl-sm border border-border bg-background px-3.5 py-2 text-xs text-foreground"
-          initial={{ opacity: 0, y: 8 }}
+          className="flex items-end gap-2 self-start"
+          initial={{ opacity: 0.9, y: 4 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 1.1 }}
+          transition={{ duration: 0.4, delay: 0.5 }}
         >
-          Oat milk latte from Blue Bottle, right? ☕
+          <SatoAvatar size="md" />
+          <div className="rounded-2xl rounded-bl-sm border border-border bg-background px-3.5 py-2 text-xs text-foreground">
+            The pitch to Sequoia? You crushed your last one — you've got this 💪
+          </div>
         </motion.div>
       </div>
     </div>

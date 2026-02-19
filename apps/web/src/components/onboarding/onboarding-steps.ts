@@ -8,6 +8,7 @@ import type { ComponentType } from 'react'
 
 export interface StepConfig {
   id: OnboardingStep
+  label: string
   component: ComponentType
   requiresSetupState: boolean
   showProgress: boolean
@@ -16,30 +17,35 @@ export interface StepConfig {
 export const STEP_REGISTRY: Array<StepConfig> = [
   {
     id: 'welcome',
+    label: 'Welcome',
     component: WelcomeStep,
     requiresSetupState: false,
-    showProgress: false,
+    showProgress: true,
   },
   {
     id: 'personalize',
+    label: 'Personalize',
     component: PersonalizeStep,
     requiresSetupState: false,
     showProgress: true,
   },
   {
     id: 'trial',
+    label: 'Payment',
     component: TrialStep,
     requiresSetupState: true,
     showProgress: true,
   },
   {
     id: 'launch',
+    label: 'Launch',
     component: LaunchStep,
     requiresSetupState: true,
     showProgress: true,
   },
   {
     id: 'chat',
+    label: 'Chat',
     component: ChatStep,
     requiresSetupState: true,
     showProgress: false,

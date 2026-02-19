@@ -1,0 +1,431 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro'
+import Nav from '../components/Nav.astro'
+import Footer from '../components/Footer.astro'
+
+const lastUpdated = 'February 19, 2026'
+---
+
+<BaseLayout
+  title="Privacy Policy | Sato"
+  description="Privacy Policy for Sato, aligned with GDPR and Belgian data protection law."
+  ogTitle="Privacy Policy | Sato"
+  ogDescription="How Sato collects, uses, and protects personal data."
+  ogUrl="https://withsato.com/privacy"
+>
+  <Nav />
+
+  <main class="relative overflow-hidden bg-background pb-20 pt-36 sm:pt-44">
+    <div
+      class="pointer-events-none absolute inset-0"
+      style="background: radial-gradient(ellipse at 50% 0%, hsl(220 70% 45% / 0.08) 0%, transparent 62%);"
+    >
+    </div>
+
+    <section class="relative mx-auto w-full max-w-2xl px-6">
+      <h1
+        class="mt-4 text-3xl font-bold tracking-tight text-foreground sm:text-4xl"
+      >
+        Privacy Policy
+      </h1>
+      <p class="mt-4 text-sm leading-relaxed text-muted-foreground">
+        This Privacy Policy explains how Sato collects, uses, and protects
+        personal data for the website and product experience. It is drafted with
+        the General Data Protection Regulation (EU) 2016/679 (GDPR) and Belgian
+        privacy law in mind, including the Belgian Act of July 30, 2018 on the
+        protection of natural persons with regard to the processing of personal
+        data.
+      </p>
+      <article
+        class="mt-10 space-y-9 text-sm leading-relaxed text-muted-foreground"
+      >
+        <section>
+          <h2
+            id="data-controller"
+            class="scroll-mt-28 text-lg font-semibold text-foreground"
+          >
+            1. Data Controller
+          </h2>
+          <p class="mt-3">
+            The data controller responsible for this processing is:
+          </p>
+          <ul class="mt-3 list-disc space-y-1.5 pl-5">
+            <li>Legal entity: Sefiani Technologies</li>
+            <li>Company number (BCE/KBO): BE1015571192</li>
+            <li>
+              Privacy contact:
+              <a
+                href="mailto:privacy@asksato.ai"
+                class="underline decoration-border underline-offset-4 transition-colors hover:text-foreground"
+              >
+                privacy@asksato.ai
+              </a>
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <h2
+            id="scope"
+            class="scroll-mt-28 text-lg font-semibold text-foreground"
+          >
+            2. Scope of This Policy
+          </h2>
+          <p class="mt-3">
+            This policy applies to personal data processed through:
+          </p>
+          <ul class="mt-3 list-disc space-y-1.5 pl-5">
+            <li>the Sato marketing website</li>
+            <li>the Sato application and onboarding flow</li>
+            <li>support, billing, and account operations related to Sato</li>
+            <li>
+              third-party integrations and messaging platforms used to interact
+              with the assistant
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <h2
+            id="personal-data"
+            class="scroll-mt-28 text-lg font-semibold text-foreground"
+          >
+            3. Personal Data We Process
+          </h2>
+          <ul class="mt-3 list-disc space-y-1.5 pl-5">
+            <li>
+              <span class="font-medium text-foreground">Account data:</span>
+              name, email, authentication identifiers, and account status.
+            </li>
+            <li>
+              <span class="font-medium text-foreground">Usage data:</span>
+              IP addresses, browser metadata, timestamps, product events, and technical
+              logs needed for security, reliability, and abuse prevention.
+            </li>
+            <li>
+              <span class="font-medium text-foreground"
+                >Personalization preferences:</span
+              >
+              assistant name, communication style, use case, and additional context
+              you provide during setup. This data is stored by Sato to configure your
+              assistant.
+            </li>
+            <li>
+              <span class="font-medium text-foreground">Conversation data:</span
+              >
+              prompts, messages, and responses are processed on your dedicated server
+              and sent directly to AI model providers. Sato does not have access to
+              your conversation content.
+            </li>
+            <li>
+              <span class="font-medium text-foreground">Billing data:</span>
+              subscription status, invoices, and payment metadata. Card details are
+              handled by payment providers and are not stored by us.
+            </li>
+            <li>
+              <span class="font-medium text-foreground">Support data:</span>
+              information you share when requesting help.
+            </li>
+          </ul>
+          <p class="mt-3">
+            We apply data minimization and only collect data that is reasonably
+            necessary to operate and secure the service.
+          </p>
+        </section>
+
+        <section>
+          <h2
+            id="legal-bases"
+            class="scroll-mt-28 text-lg font-semibold text-foreground"
+          >
+            4. Why We Process Data and Legal Bases (GDPR Art. 6)
+          </h2>
+          <ul class="mt-3 list-disc space-y-1.5 pl-5">
+            <li>
+              <span class="font-medium text-foreground"
+                >Contract (Art. 6(1)(b)):</span
+              >
+              to create your account, provide the assistant, process payments, and
+              deliver support.
+            </li>
+            <li>
+              <span class="font-medium text-foreground"
+                >Legitimate interests (Art. 6(1)(f)):</span
+              >
+              to secure the service, prevent fraud or abuse, improve reliability,
+              and defend legal claims.
+            </li>
+            <li>
+              <span class="font-medium text-foreground"
+                >Legal obligations (Art. 6(1)(c)):</span
+              >
+              for accounting, tax, and compliance duties under applicable law.
+            </li>
+            <li>
+              <span class="font-medium text-foreground"
+                >Consent (Art. 6(1)(a)):</span
+              >
+              where legally required, such as for non-essential cookies or specific
+              optional features.
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <h2
+            id="data-sharing"
+            class="scroll-mt-28 text-lg font-semibold text-foreground"
+          >
+            5. How We Share Data
+          </h2>
+          <p class="mt-3">
+            We do not sell personal data. We share data only when necessary
+            with:
+          </p>
+          <ul class="mt-3 list-disc space-y-1.5 pl-5">
+            <li>hosting and infrastructure providers</li>
+            <li>payment providers</li>
+            <li>authentication providers (Google)</li>
+            <li>AI/model providers acting under contractual safeguards</li>
+            <li>
+              messaging platforms (such as Telegram) that you connect as a chat
+              interface — messages flow through their infrastructure and are
+              subject to their own privacy policies. Sato does not store
+              messaging platform credentials on its servers; they are only
+              present on your dedicated server.
+            </li>
+            <li>authorities if legally required</li>
+          </ul>
+          <p class="mt-3">
+            All processors are subject to appropriate contractual and security
+            obligations.
+          </p>
+        </section>
+
+        <section>
+          <h2
+            id="international-transfers"
+            class="scroll-mt-28 text-lg font-semibold text-foreground"
+          >
+            6. International Transfers
+          </h2>
+          <p class="mt-3">
+            When personal data is transferred outside the European Economic
+            Area, we rely on recognized safeguards, such as adequacy decisions
+            or Standard Contractual Clauses, together with supplementary
+            measures where appropriate.
+          </p>
+        </section>
+
+        <section>
+          <h2
+            id="data-retention"
+            class="scroll-mt-28 text-lg font-semibold text-foreground"
+          >
+            7. Data Retention
+          </h2>
+          <p class="mt-3">
+            We keep personal data only as long as necessary for the purposes
+            above. The following guideline durations apply:
+          </p>
+          <ul class="mt-3 list-disc space-y-1.5 pl-5">
+            <li>
+              <span class="font-medium text-foreground">Account data:</span>
+              retained while your account is active, plus 30 days after account deletion
+              to allow for recovery and complete any pending operations.
+            </li>
+            <li>
+              <span class="font-medium text-foreground"
+                >Billing and invoice records:</span
+              >
+              retained for 7 years as required by Belgian accounting law.
+            </li>
+            <li>
+              <span class="font-medium text-foreground">Security logs:</span>
+              retained for up to 12 months, based on risk and necessity.
+            </li>
+          </ul>
+          <p class="mt-3">
+            Actual retention may vary where required by law or legitimate
+            interests. Where feasible, data is deleted, anonymized, or
+            irreversibly aggregated once no longer required.
+          </p>
+        </section>
+
+        <section>
+          <h2
+            id="security"
+            class="scroll-mt-28 text-lg font-semibold text-foreground"
+          >
+            8. Security Measures
+          </h2>
+          <p class="mt-3">
+            We implement technical and organizational safeguards appropriate to
+            the risk, including access controls, encryption in transit, least
+            privilege practices, and monitoring for abuse or unauthorized
+            access.
+          </p>
+          <p class="mt-3">
+            No system is perfectly secure. If a personal data breach occurs, we
+            will handle it according to GDPR and applicable Belgian law.
+          </p>
+        </section>
+
+        <section>
+          <h2
+            id="your-rights"
+            class="scroll-mt-28 text-lg font-semibold text-foreground"
+          >
+            9. Your Rights Under GDPR
+          </h2>
+          <p class="mt-3">Subject to legal conditions, you may request:</p>
+          <ul class="mt-3 list-disc space-y-1.5 pl-5">
+            <li>access to your personal data</li>
+            <li>rectification of inaccurate data</li>
+            <li>erasure (right to be forgotten)</li>
+            <li>restriction of processing</li>
+            <li>data portability</li>
+            <li>objection to processing based on legitimate interests</li>
+            <li>withdrawal of consent where processing is consent-based</li>
+          </ul>
+          <p class="mt-3">
+            To exercise your rights, contact us at
+            <a
+              href="mailto:privacy@asksato.ai"
+              class="font-medium text-foreground underline decoration-border underline-offset-4 transition-colors hover:text-foreground"
+            >
+              privacy@asksato.ai</a
+            >.
+          </p>
+        </section>
+
+        <section>
+          <h2
+            id="complaints"
+            class="scroll-mt-28 text-lg font-semibold text-foreground"
+          >
+            10. Complaints to the Belgian Supervisory Authority
+          </h2>
+          <p class="mt-3">
+            You have the right to lodge a complaint with the Belgian Data
+            Protection Authority (APD/GBA):
+          </p>
+          <ul class="mt-3 list-disc space-y-1.5 pl-5">
+            <li>
+              Website:
+              <a
+                href="https://www.dataprotectionauthority.be"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="underline decoration-border underline-offset-4 transition-colors hover:text-foreground"
+              >
+                www.dataprotectionauthority.be
+              </a>
+            </li>
+            <li>Email: contact@apd-gba.be</li>
+            <li>Address: Drukpersstraat 35, 1000 Brussels, Belgium</li>
+            <li>Phone: +32 (0)2 274 48 00</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2
+            id="cookies"
+            class="scroll-mt-28 text-lg font-semibold text-foreground"
+          >
+            11. Cookies and Similar Technologies
+          </h2>
+          <p class="mt-3">
+            We use necessary cookies and similar technologies to operate the
+            service securely. These include:
+          </p>
+          <ul class="mt-3 list-disc space-y-1.5 pl-5">
+            <li>
+              <span class="font-medium text-foreground"
+                >Session and authentication cookies:</span
+              >
+              essential for keeping you signed in and maintaining your session state.
+              These do not require consent as they are strictly necessary for the
+              service to function.
+            </li>
+            <li>
+              <span class="font-medium text-foreground"
+                >Non-essential cookies:</span
+              >
+              if we introduce analytics or similar non-essential cookies in the future,
+              they will only be placed after obtaining your consent through a cookie
+              banner or settings mechanism.
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <h2
+            id="automated-decisions"
+            class="scroll-mt-28 text-lg font-semibold text-foreground"
+          >
+            12. Automated Decision-Making
+          </h2>
+          <p class="mt-3">
+            Sato uses artificial intelligence to provide its personal assistant
+            features. AI processing — including generating responses,
+            suggestions, and summaries — happens on your dedicated server via
+            third-party model providers, not on Sato's infrastructure. We do not
+            use automated processing, including profiling, to make decisions
+            that produce legal effects or similarly significant effects on you
+            (GDPR Art. 22).
+          </p>
+          <p class="mt-3">
+            You remain in control of any actions taken as a result of AI
+            responses.
+          </p>
+          <p class="mt-3">
+            If you have questions about how AI is used to process your data,
+            contact us at
+            <a
+              href="mailto:privacy@asksato.ai"
+              class="font-medium text-foreground underline decoration-border underline-offset-4 transition-colors hover:text-foreground"
+            >
+              privacy@asksato.ai</a
+            >.
+          </p>
+        </section>
+
+        <section>
+          <h2
+            id="children"
+            class="scroll-mt-28 text-lg font-semibold text-foreground"
+          >
+            13. Children
+          </h2>
+          <p class="mt-3">
+            Sato is not intended for children. If we become aware that personal
+            data has been provided in violation of applicable age requirements,
+            we will take appropriate steps to delete or restrict that data.
+          </p>
+        </section>
+
+        <section>
+          <h2
+            id="changes"
+            class="scroll-mt-28 text-lg font-semibold text-foreground"
+          >
+            14. Changes to This Policy
+          </h2>
+          <p class="mt-3">
+            We may update this Privacy Policy from time to time to reflect
+            legal, technical, or business changes. Material updates will be
+            notified by appropriate means. The latest version is always
+            published on this page.
+          </p>
+        </section>
+      </article>
+
+      <p class="mt-10 text-sm text-muted-foreground">
+        Last updated: {lastUpdated}
+      </p>
+    </section>
+  </main>
+
+  <Footer />
+</BaseLayout>

@@ -1,5 +1,6 @@
 ---
 import ShinyText from './ShinyTextStatic.astro'
+import MeshGradient from './MeshGradient'
 
 const appUrl = import.meta.env.PUBLIC_APP_URL || 'https://app.asksato.ai'
 
@@ -16,7 +17,6 @@ const plans = [
       '5,000 messages',
     ],
     cta: 'Try Sato',
-    note: 'Then $29/mo after 3 days',
     featured: false,
   },
   {
@@ -37,81 +37,116 @@ const plans = [
 ]
 ---
 
-<section id="pricing" class="py-16 md:py-24">
-  <div class="mx-auto max-w-6xl px-6">
-    <div class="mb-16 flex flex-col items-center gap-2 text-center">
+<section id="pricing" class="relative overflow-hidden py-16 md:py-24">
+  <div
+    class="pointer-events-none absolute inset-0"
+    style="background: radial-gradient(ellipse at 50% 0%, hsl(220 70% 45% / 0.08) 0%, transparent 62%);"
+  >
+  </div>
+  <div
+    class="pointer-events-none absolute inset-0 [mask-image:linear-gradient(to_bottom,transparent,black_25%,black_75%,transparent)]"
+    style="background-image: radial-gradient(circle, hsl(220 70% 45% / 0.05) 1px, transparent 1px); background-size: 42px 42px;"
+  >
+  </div>
+
+  <div class="relative mx-auto max-w-6xl px-6">
+    <div
+      class="mx-auto mb-14 flex max-w-2xl flex-col items-center gap-3 text-center md:mb-16"
+    >
       <ShinyText text="Pricing" />
       <h2 class="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
         Simple, transparent pricing
       </h2>
+      <p class="text-sm leading-relaxed text-muted-foreground sm:text-base">
+        Start with a 3-day trial, then keep your assistant running with one
+        clear monthly plan.
+      </p>
     </div>
 
-    <div class="mx-auto grid max-w-3xl gap-6 md:grid-cols-2">
+    <div
+      class="mx-auto grid w-full max-w-[45rem] gap-6 md:grid-cols-2 md:gap-6"
+    >
       {
-        plans.map((plan) => (
-          <div
-            class:list={[
-              'flex flex-col rounded-2xl border p-8 transition-transform duration-200 hover:scale-[1.02]',
-              plan.featured
-                ? 'border-brand/30 bg-brand/5'
-                : 'border-border bg-card',
-            ]}
-          >
-            <div class="mb-6">
-              <h3 class="mb-1 text-lg font-semibold text-foreground">
-                {plan.name}
-              </h3>
-              <p class="text-sm text-muted-foreground">{plan.description}</p>
-            </div>
+        plans.map((plan) => {
+          const card = (
+            <article
+              class:list={[
+                'relative flex h-full w-full flex-col rounded-[1.75rem] border p-8 md:p-9',
+                plan.featured
+                  ? 'isolate overflow-hidden border-border/80 bg-secondary/40 shadow-[0_24px_60px_-34px_hsl(220_70%_45%/_0.35)]'
+                  : 'border-border/80 bg-background shadow-[0_12px_30px_-24px_hsl(222_47%_11%/_0.2)]',
+              ]}
+            >
+              {plan.featured ? (
+                <MeshGradient
+                  client:visible
+                  color1="#dce9ff"
+                  color2="#d6e4ff"
+                  color3="#e3eeff"
+                />
+              ) : null}
+              <div class="space-y-1">
+                <h3 class="text-lg font-semibold text-foreground">
+                  {plan.name}
+                </h3>
+                <p class="text-sm text-muted-foreground">{plan.description}</p>
+              </div>
 
-            <div class="mb-6">
-              <span class="text-4xl font-bold tracking-tight text-foreground">
-                {plan.price}
-              </span>
-              <span class="text-muted-foreground">{plan.period}</span>
-            </div>
+              <div class="mt-6 flex items-end gap-1.5">
+                <span class="text-4xl font-bold tracking-tight text-foreground">
+                  {plan.price}
+                </span>
+                <span class="pb-1 text-sm text-muted-foreground">
+                  {plan.period}
+                </span>
+              </div>
 
-            <ul class="mb-8 flex flex-col gap-3">
-              {plan.features.map((feature) => (
-                <li class="flex items-center gap-2 text-sm text-muted-foreground">
-                  <svg
-                    class="h-4 w-4 shrink-0 text-brand"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                  {feature}
-                </li>
-              ))}
-            </ul>
+              <p class="mt-2 min-h-5 text-xs text-muted-foreground">
+                {plan.note ?? '\u00A0'}
+              </p>
 
-            <div class="mt-auto">
-              <a
-                href={appUrl}
-                class:list={[
-                  'block w-full rounded-full py-2.5 text-center text-sm font-medium transition-colors',
-                  plan.featured
-                    ? 'bg-brand text-white hover:bg-brand/90'
-                    : 'border border-border bg-secondary/50 text-foreground hover:bg-secondary',
-                ]}
-              >
-                {plan.cta}
-              </a>
-              {plan.note && (
-                <p class="mt-3 text-center text-xs text-muted-foreground">
-                  {plan.note}
-                </p>
-              )}
-            </div>
-          </div>
-        ))
+              <ul class="mt-7 flex flex-col gap-3">
+                {plan.features.map((feature) => (
+                  <li class="flex items-start gap-2.5">
+                    <span class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-light text-brand">
+                      <svg
+                        class="h-3.5 w-3.5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    </span>
+                    <span class="text-sm leading-relaxed text-muted-foreground">
+                      {feature}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+
+              <div class="mt-auto pt-8">
+                <a
+                  href={appUrl}
+                  class:list={[
+                    'inline-flex w-full items-center justify-center rounded-full px-4 py-2.5 text-sm font-medium transition-colors',
+                    plan.featured
+                      ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                      : 'border border-border bg-background text-foreground hover:bg-secondary/70',
+                  ]}
+                >
+                  {plan.cta}
+                </a>
+              </div>
+            </article>
+          )
+
+          return card
+        })
       }
     </div>
-
   </div>
 </section>

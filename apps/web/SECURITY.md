@@ -89,6 +89,8 @@ Key points:
 
 - **API error sanitization**: Allowlist-based error message filtering (`api-error.ts`). Only pre-approved error messages are returned to clients; all others are replaced with `"Something went wrong"` and logged server-side. Applies to REST JSON responses, SSE error events, and nested fields like `lastError` inside successful response payloads.
 
+- **Response data minimization**: Client-facing API payloads intentionally exclude infrastructure/provider details (for example server IDs, public/private IPs, region/server type, and low-level gateway probe diagnostics). Responses return only fields required for the current UI state.
+
 ### Authentication & Sessions
 
 - **Better Auth**: Session-based authentication with Google OAuth (OIDC).

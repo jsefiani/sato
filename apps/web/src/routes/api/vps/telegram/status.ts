@@ -47,7 +47,6 @@ export const Route = createFileRoute('/api/vps/telegram/status')({
 
           const rows = await db
             .select({
-              ipv4Address: vpsInstance.ipv4Address,
               tailscaleIp: vpsInstance.tailscaleIp,
               status: vpsInstance.status,
               provisionedAt: vpsInstance.provisionedAt,
@@ -103,7 +102,6 @@ export const Route = createFileRoute('/api/vps/telegram/status')({
             connected,
             configured,
             vpsStatus: instance.status,
-            ipv4Address: instance.ipv4Address,
           })
         } catch (error) {
           return safeApiResponse(error)

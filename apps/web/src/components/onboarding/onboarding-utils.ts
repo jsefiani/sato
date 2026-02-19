@@ -32,9 +32,6 @@ export interface AccessState {
 
 export interface VpsStatus {
   status: string
-  ipv4Address: string | null
-  region: string
-  serverType: string
 }
 
 export interface CreditState {
@@ -58,18 +55,11 @@ export type ChannelSetupState =
   | 'connected'
   | 'error'
 
-export type ChannelHealthState = 'unknown' | 'checking' | 'online' | 'offline'
-
 export interface ChannelConnectionState {
   channel: string
   setupState: ChannelSetupState
   connected: boolean
-  connectedAt: string | null
-  externalAccountId: string | null
   displayName: string | null
-  healthStatus: ChannelHealthState
-  lastCheckedAt: string | null
-  lastError: string | null
 }
 
 export interface ChannelSetupSummary {
@@ -85,7 +75,6 @@ export interface SetupState {
   access: AccessState
   credits: CreditState
   topupPacks: Array<TopupPack>
-  openClawGatewayPort?: number
   openClawReady?: boolean
   bootstrappingError?: string | null
   vpsFailureReason?: string | null

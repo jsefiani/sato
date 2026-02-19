@@ -130,7 +130,7 @@ export const Route = createFileRoute('/api/admin/vps/maintain')({
             })
 
             return Response.json(
-              { error: `Maintenance action failed: ${errorMessage}` },
+              { error: 'Maintenance action failed' },
               { status: 502 },
             )
           }

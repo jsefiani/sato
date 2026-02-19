@@ -27,6 +27,10 @@ import { createVpsBootstrapToken } from '@/lib/vps-bootstrap-token'
 const CLEANUP_ATTEMPTS = 3
 const CLEANUP_BACKOFF_MS = 500
 const BOOTSTRAP_TEMPLATE = bootstrapTemplateRaw.replace(/\r\n/g, '\n').trimEnd()
+const PROVISIONING_TEMPORARY_FAILURE_MESSAGE =
+  'Assistant setup is temporarily unavailable. Please retry in a few minutes.'
+const PROVISIONING_CLEANUP_PENDING_MESSAGE =
+  'Assistant cleanup is taking longer than expected. Please retry shortly.'
 
 interface ProvisionInput {
   userId: string
@@ -162,8 +166,14 @@ function getErrorMessage(error: unknown): string {
 function mapProvisioningErrorMessage(message: string): string {
   const lower = message.toLowerCase()
 
-  if (lower.includes('image not found')) {
-    return `Configured VPS snapshot image '${env.HETZNER_SNAPSHOT_ID}' was not found in Hetzner. Check that your running app env and Hetzner project token match, then retry setup.`
+  if (
+    lower.includes('image not found') ||
+    lower.includes('hetzner api error') ||
+    lower.includes('configured vps snapshot') ||
+    lower.includes('configured snapshot') ||
+    lower.includes('configured image')
+  ) {
+    return PROVISIONING_TEMPORARY_FAILURE_MESSAGE
   }
 
   return message
@@ -331,9 +341,11 @@ async function cleanupStaleResourcesForUser(userId: string): Promise<void> {
     .where(eq(vpsInstance.userId, userId))
 
   if (hasCleanupErrors) {
-    throw new Error(
-      `Unable to clean up previous failed resources: ${cleanupErrors.join(' | ')}`,
+    console.error(
+      '[vps-provision] Failed to clean up stale resources:',
+      cleanupErrors.join(' | '),
     )
+    throw new Error(PROVISIONING_CLEANUP_PENDING_MESSAGE)
   }
 }
 
@@ -525,8 +537,6 @@ export async function provisionUserServer(input: ProvisionInput) {
 
     return {
       status: 'bootstrapping',
-      serverId: server.serverId,
-      ipv4Address: server.ipv4Address,
     }
   } catch (error) {
     const message = mapProvisioningErrorMessage(getErrorMessage(error))
@@ -547,7 +557,7 @@ export async function provisionUserServer(input: ProvisionInput) {
       .where(eq(vpsInstance.userId, input.userId))
 
     const errorMessage = hasCleanupErrors
-      ? `${message} | cleanup: ${cleanup.errors.join(' | ')}`
+      ? PROVISIONING_CLEANUP_PENDING_MESSAGE
       : message
 
     await db
@@ -565,6 +575,7 @@ export async function provisionUserServer(input: ProvisionInput) {
       metadata: JSON.stringify({
         requestId,
         message,
+        rawError: getErrorMessage(error),
         snapshotId,
         cleanupErrors: cleanup.errors,
         cleanupRemainingServerId: cleanup.remainingServerId,
@@ -642,8 +653,6 @@ export async function destroyUserServer(userId: string): Promise<void> {
   })
 
   if (hasCleanupErrors) {
-    throw new Error(
-      `Failed to fully remove server resources: ${cleanup.errors.join(' | ')}`,
-    )
+    throw new Error(PROVISIONING_CLEANUP_PENDING_MESSAGE)
   }
 }

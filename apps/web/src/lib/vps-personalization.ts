@@ -154,9 +154,11 @@ export async function ensureChatEndpointEnabled(
 export async function applyModelConfig({
   tailscaleIp,
   model,
+  waitForReady = true,
 }: {
   tailscaleIp: string
   model: string
+  waitForReady?: boolean
 }): Promise<void> {
   const modelId = normalizeModel(model)
 
@@ -201,6 +203,10 @@ export async function applyModelConfig({
 
   const restartCmd = `/bin/bash -lc 'export HOME=/root; export PATH=/usr/local/bin:/usr/bin:/bin; systemctl restart openclaw-gateway'`
   await runVpsSshCommand(tailscaleIp, restartCmd, { timeoutMs: 30_000 })
+
+  if (!waitForReady) {
+    return
+  }
 
   for (let i = 0; i < GATEWAY_READY_ATTEMPTS; i++) {
     if (await isTcpPortReachable(tailscaleIp, GATEWAY_PORT)) return

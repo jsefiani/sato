@@ -26,7 +26,7 @@ export default function HeroContent() {
         Get your time <span className="italic text-brand">back.</span>
       </h1>
 
-      <p className="mt-6 max-w-xl text-base leading-relaxed text-muted-foreground">
+      <p className="mt-6 max-w-xl text-base leading-relaxed text-muted-foreground lg:max-w-2xl">
         Sato is your personal AI assistant that remembers your preferences,
         helps manage your day, and gets smarter the more you use it — all
         completely private.

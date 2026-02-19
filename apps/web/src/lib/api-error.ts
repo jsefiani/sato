@@ -55,6 +55,8 @@ const SAFE_ERROR_MESSAGES = new Set([
   'That token format looks invalid. Double-check the BotFather token and try again.',
   'Pairing code is required',
   'Pairing code should be 8 uppercase letters/numbers (without 0/1).',
+  'Assistant setup is temporarily unavailable. Please retry in a few minutes.',
+  'Assistant cleanup is taking longer than expected. Please retry shortly.',
   'Gateway probe requires pairing, but Telegram account is configured.',
   'Telegram status could not be parsed yet. The gateway may still be warming up.',
 ])
@@ -63,9 +65,4 @@ const SAFE_ERROR_PREFIXES = [
   'Assistant setup failed on this VPS.',
   'Assistant setup is still in progress.',
   'Assistant is not ready for',
-  'Configured VPS snapshot',
-  'Configured snapshot',
-  'Configured image',
-  'Failed to fully remove server resources:',
-  'Unable to clean up previous failed resources:',
 ]

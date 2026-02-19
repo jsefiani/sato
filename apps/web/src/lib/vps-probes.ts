@@ -3,7 +3,8 @@ import { isTcpPortReachable } from '@/lib/readiness'
 export const OPENCLAW_GATEWAY_PORT = 18789
 
 const OPENCLAW_PROBE_TIMEOUT_MS = 800
-const OPENCLAW_PROBE_CACHE_TTL_MS = 10_000
+const OPENCLAW_PROBE_CACHE_TTL_OK_MS = 2_000
+const OPENCLAW_PROBE_CACHE_TTL_DOWN_MS = 2_000
 
 const readinessProbeCache = new Map<
   string,
@@ -38,7 +39,11 @@ export async function probeOpenClawGateway(
     .then((value) => {
       readinessProbeCache.set(ipv4Address, {
         value,
-        expiresAt: Date.now() + OPENCLAW_PROBE_CACHE_TTL_MS,
+        expiresAt:
+          Date.now() +
+          (value
+            ? OPENCLAW_PROBE_CACHE_TTL_OK_MS
+            : OPENCLAW_PROBE_CACHE_TTL_DOWN_MS),
         inFlight: null,
       })
       return value
@@ -46,7 +51,7 @@ export async function probeOpenClawGateway(
     .catch(() => {
       readinessProbeCache.set(ipv4Address, {
         value: false,
-        expiresAt: Date.now() + OPENCLAW_PROBE_CACHE_TTL_MS,
+        expiresAt: Date.now() + OPENCLAW_PROBE_CACHE_TTL_DOWN_MS,
         inFlight: null,
       })
       return false
