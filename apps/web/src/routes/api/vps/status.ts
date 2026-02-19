@@ -47,6 +47,8 @@ const BOOTSTRAP_FAILURE_MESSAGES: Record<string, string> = {
     'Bootstrap failed because the Telegram plugin was not enabled.',
   gateway_bind_failed:
     'Bootstrap failed because OpenClaw gateway did not bind on port 18789.',
+  tailscale_serve_config_failed:
+    'Bootstrap failed while configuring private gateway access via Tailscale Serve.',
 }
 
 export const Route = createFileRoute('/api/vps/status')({
@@ -405,7 +407,7 @@ export async function computeVpsProbeState({ userId }: { userId: string }) {
     vpsFailureReason = bootstrapError
   }
 
-  if (instance?.ipv4Address) {
+  if (instance) {
     if (
       !instance.tailscaleIp &&
       instance.tailscaleHostname &&
@@ -427,7 +429,7 @@ export async function computeVpsProbeState({ userId }: { userId: string }) {
       }
     }
 
-    const gatewayProbeHost = instance.tailscaleIp ?? instance.ipv4Address
+    const gatewayProbeHost = instance.tailscaleIp
     openClawReady = gatewayProbeHost
       ? await probeOpenClawGateway(gatewayProbeHost)
       : false

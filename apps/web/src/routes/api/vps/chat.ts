@@ -7,6 +7,7 @@ import { db } from '@/db'
 import { vpsInstance } from '@/db/schema'
 import { safeApiResponse } from '@/lib/api-error'
 import { assertSameOrigin } from '@/lib/csrf'
+import { getGatewayAuthToken } from '@/lib/gateway-auth'
 import { assertRateLimit } from '@/lib/rate-limit'
 import { requireSession } from '@/lib/session'
 import {
@@ -63,12 +64,15 @@ export const Route = createFileRoute('/api/vps/chat')({
               userId: session.user.id,
               tailscaleIp: instance.tailscaleIp,
             }),
-            ensureChatEndpointEnabled(instance.tailscaleIp),
+            ensureChatEndpointEnabled({
+              tailscaleIp: instance.tailscaleIp,
+              userId: session.user.id,
+            }),
           ])
 
           const openclawGateway = createOpenAI({
             baseURL: `http://${instance.tailscaleIp}:18789/v1`,
-            apiKey: 'openclaw',
+            apiKey: getGatewayAuthToken({ userId: session.user.id }),
           })
 
           const result = streamText({

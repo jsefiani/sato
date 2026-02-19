@@ -3,6 +3,7 @@ import { z } from 'zod'
 const envSchema = z.object({
   APP_URL: z.string().min(1),
   APP_ENCRYPTION_KEY: z.string().min(1),
+  OPENCLAW_GATEWAY_TOKEN_SECRET: z.string().min(1).optional(),
   DATABASE_URL: z.string().min(1),
   DATABASE_SSL: z.string().default('true'),
 

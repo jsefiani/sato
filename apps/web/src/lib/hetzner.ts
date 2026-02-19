@@ -72,7 +72,6 @@ const HETZNER_API_BASE_URL = 'https://api.hetzner.cloud/v1'
 const SERVER_TYPE_ALIAS: Record<string, string> = {
   cx22: 'cpx22',
 }
-const PUBLIC_SOURCE_IPS = ['0.0.0.0/0', '::/0']
 const DEBUG_ALLOW_PUBLIC_SSH = env.HETZNER_DEBUG_ALLOW_PUBLIC_SSH === 'true'
 const DEBUG_SSH_SOURCE_IPS = env.HETZNER_DEBUG_SSH_SOURCE_IPS.split(',')
   .map((entry) => entry.trim())
@@ -86,26 +85,7 @@ interface HetznerFirewallRule {
 }
 
 function buildFirewallRules(): Array<HetznerFirewallRule> {
-  const rules: Array<HetznerFirewallRule> = [
-    {
-      direction: 'in',
-      protocol: 'tcp',
-      port: '80',
-      source_ips: PUBLIC_SOURCE_IPS,
-    },
-    {
-      direction: 'in',
-      protocol: 'tcp',
-      port: '443',
-      source_ips: PUBLIC_SOURCE_IPS,
-    },
-    {
-      direction: 'in',
-      protocol: 'tcp',
-      port: '18789',
-      source_ips: PUBLIC_SOURCE_IPS,
-    },
-  ]
+  const rules: Array<HetznerFirewallRule> = []
 
   if (DEBUG_ALLOW_PUBLIC_SSH && DEBUG_SSH_SOURCE_IPS.length > 0) {
     rules.push({

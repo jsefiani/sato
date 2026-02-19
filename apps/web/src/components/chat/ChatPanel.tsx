@@ -1,9 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import { useChat } from '@ai-sdk/react'
 import { DefaultChatTransport } from 'ai'
-import { motion } from 'motion/react'
-import { ArrowUp } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import {
+  Conversation,
+  Message,
+  MessageContent,
+  PromptInput,
+  PromptInputSubmit,
+  PromptInputTextarea,
+  PromptInputToolbar,
+  Response,
+} from '@/components/ai-elements'
 
 export default function ChatPanel() {
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -44,71 +51,54 @@ export default function ChatPanel() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div
-        ref={scrollRef}
-        className="flex-1 space-y-3 overflow-y-auto rounded-2xl border border-border/70 bg-card/30 p-4"
-      >
+      <Conversation ref={scrollRef}>
         {messages.map((message) => {
-          const text = message.parts
-            .map((p) => ('text' in p ? p.text : ''))
-            .join('')
-
-          if (!text) return null
-
           const isUser = (message.role as string) === 'user'
+          const renderedParts = message.parts.map((part, index) => {
+            return isUser ? (
+              <span
+                key={`${message.id}-${index}`}
+                className="whitespace-pre-wrap"
+              >
+                {part.text}
+              </span>
+            ) : (
+              <Response key={`${message.id}-${index}`}>{part.text}</Response>
+            )
+          })
 
           return (
-            <motion.div
-              key={message.id}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
-            >
-              <div
-                className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
-                  isUser
-                    ? 'bg-foreground text-primary-foreground'
-                    : 'bg-secondary/80 text-foreground/90'
-                }`}
-              >
-                {text}
-              </div>
-            </motion.div>
+            <Message key={message.id} from={isUser ? 'user' : 'assistant'}>
+              <MessageContent>{renderedParts}</MessageContent>
+            </Message>
           )
         })}
         {isLoading &&
           (messages[messages.length - 1]?.role as string) === 'user' && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex justify-start"
-            >
-              <div className="flex items-center gap-1 rounded-2xl bg-secondary/80 px-4 py-3">
-                <span className="typing-dot h-1.5 w-1.5 rounded-full bg-muted-foreground/60" />
-                <span className="typing-dot h-1.5 w-1.5 rounded-full bg-muted-foreground/60" />
-                <span className="typing-dot h-1.5 w-1.5 rounded-full bg-muted-foreground/60" />
-              </div>
-            </motion.div>
+            <Message from="assistant">
+              <MessageContent className="py-3">
+                <div className="flex items-center gap-1">
+                  <span className="typing-dot h-1.5 w-1.5 rounded-full bg-muted-foreground/60" />
+                  <span className="typing-dot h-1.5 w-1.5 rounded-full bg-muted-foreground/60" />
+                  <span className="typing-dot h-1.5 w-1.5 rounded-full bg-muted-foreground/60" />
+                </div>
+              </MessageContent>
+            </Message>
           )}
-      </div>
+      </Conversation>
 
-      <form onSubmit={handleSubmit} className="mt-3 flex items-center gap-2">
-        <input
+      <PromptInput onSubmit={handleSubmit}>
+        <PromptInputTextarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Type a message..."
           disabled={status !== 'ready'}
-          className="border-input focus-visible:border-ring focus-visible:ring-ring/50 h-10 w-full min-w-0 rounded-xl border bg-transparent px-3 text-sm shadow-xs outline-none transition-[color,box-shadow] placeholder:text-muted-foreground focus-visible:ring-3"
+          className="min-h-10"
         />
-        <Button
-          type="submit"
-          size="sm"
-          disabled={!input.trim() || status !== 'ready'}
-          className="h-10 w-10 shrink-0 rounded-xl p-0"
-        >
-          <ArrowUp className="h-4 w-4" />
-        </Button>
-      </form>
+        <PromptInputToolbar>
+          <PromptInputSubmit disabled={!input.trim() || status !== 'ready'} />
+        </PromptInputToolbar>
+      </PromptInput>
     </div>
   )
 }

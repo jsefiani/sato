@@ -1,0 +1,386 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro'
+import Nav from '../components/Nav.astro'
+import Footer from '../components/Footer.astro'
+
+const lastUpdated = 'February 19, 2026'
+---
+
+<BaseLayout
+  title="Terms of Service | Sato"
+  description="Terms of Service for Sato — rules, acceptable use, billing, and liability."
+  ogTitle="Terms of Service | Sato"
+  ogDescription="Terms governing your use of Sato's managed AI assistant platform."
+  ogUrl="https://withsato.com/terms"
+>
+  <Nav />
+
+  <main class="relative overflow-hidden bg-background pb-20 pt-36 sm:pt-44">
+    <div
+      class="pointer-events-none absolute inset-0"
+      style="background: radial-gradient(ellipse at 50% 0%, hsl(220 70% 45% / 0.08) 0%, transparent 62%);"
+    >
+    </div>
+
+    <section class="relative mx-auto w-full max-w-2xl px-6">
+      <h1
+        class="mt-4 text-3xl font-bold tracking-tight text-foreground sm:text-4xl"
+      >
+        Terms of Service
+      </h1>
+      <p class="mt-4 text-sm leading-relaxed text-muted-foreground">
+        These Terms of Service govern your access to and use of Sato. By using
+        the service, you agree to be bound by these Terms. Please also review
+        our <a
+          href="/privacy"
+          class="underline decoration-border underline-offset-4 transition-colors hover:text-foreground"
+          >Privacy Policy</a
+        > for details on how we handle your data.
+      </p>
+      <article
+        class="mt-10 space-y-9 text-sm leading-relaxed text-muted-foreground"
+      >
+        <section>
+          <h2
+            id="acceptance"
+            class="scroll-mt-28 text-lg font-semibold text-foreground"
+          >
+            1. Introduction & Acceptance
+          </h2>
+          <p class="mt-3">
+            By accessing or using Sato, you confirm that you have read,
+            understood, and agree to these Terms of Service. If you do not
+            agree, you must not use the service.
+          </p>
+          <ul class="mt-3 list-disc space-y-1.5 pl-5">
+            <li>You must be at least 18 years old to use Sato.</li>
+            <li>
+              For information on how we collect and process personal data, see
+              our <a
+                href="/privacy"
+                class="underline decoration-border underline-offset-4 transition-colors hover:text-foreground"
+                >Privacy Policy</a
+              >.
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <h2
+            id="service-description"
+            class="scroll-mt-28 text-lg font-semibold text-foreground"
+          >
+            2. Description of the Service
+          </h2>
+          <ul class="mt-3 list-disc space-y-1.5 pl-5">
+            <li>
+              Sato is a managed AI assistant hosting platform. Each user gets a
+              dedicated server provisioned and managed by Sato.
+            </li>
+            <li>
+              AI responses are generated on the user's server via third-party
+              model providers — Sato does not control or guarantee AI output.
+            </li>
+            <li>
+              Optional integrations (such as Telegram) route messages through
+              third-party infrastructure.
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <h2
+            id="account-registration"
+            class="scroll-mt-28 text-lg font-semibold text-foreground"
+          >
+            3. Account Registration
+          </h2>
+          <ul class="mt-3 list-disc space-y-1.5 pl-5">
+            <li>Accounts are created via Google OAuth.</li>
+            <li>
+              You are responsible for maintaining the security of your account.
+            </li>
+            <li>
+              One account per person. You must provide accurate information.
+            </li>
+            <li>
+              Sato may suspend or terminate accounts that violate these Terms.
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <h2
+            id="pricing"
+            class="scroll-mt-28 text-lg font-semibold text-foreground"
+          >
+            4. Pricing, Payments & Credits
+          </h2>
+          <ul class="mt-3 list-disc space-y-1.5 pl-5">
+            <li>
+              Current plans, pricing, and message limits are displayed on the
+              pricing page and during checkout.
+            </li>
+            <li>
+              Payments are processed by Stripe. Sato never stores your card
+              details.
+            </li>
+            <li>
+              Credits are non-transferable. Monthly credits and trial credits
+              expire at the end of each billing cycle or when the trial ends,
+              respectively. Purchased top-up credits do not expire while the
+              account is active.
+            </li>
+            <li>Prices may change with 30 days' notice.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2
+            id="refunds"
+            class="scroll-mt-28 text-lg font-semibold text-foreground"
+          >
+            5. Refunds & Cancellation
+          </h2>
+          <ul class="mt-3 list-disc space-y-1.5 pl-5">
+            <li>
+              The 14-day EU withdrawal right applies, but is waived once the
+              user explicitly consents to immediate VPS provisioning (per EU
+              Directive 2011/83/EU, Art. 16(a)).
+            </li>
+            <li>No refunds after VPS is provisioned.</li>
+            <li>
+              You can cancel anytime through your account. Service remains
+              active until the end of the current billing period.
+            </li>
+            <li>No refunds for unused portions of a billing period.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2
+            id="acceptable-use"
+            class="scroll-mt-28 text-lg font-semibold text-foreground"
+          >
+            6. Acceptable Use
+          </h2>
+          <p class="mt-3">You agree not to use Sato for:</p>
+          <ul class="mt-3 list-disc space-y-1.5 pl-5">
+            <li>illegal activity, harassment, spam, or malware distribution</li>
+            <li>
+              attempting to access other users' servers or Sato infrastructure
+            </li>
+            <li>developing competing products using the service</li>
+            <li>
+              circumventing rate limits, security measures, or access controls
+            </li>
+            <li>
+              scraping or using data to train AI/ML models without authorization
+            </li>
+            <li>reselling or redistributing access to the service</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2
+            id="third-party-services"
+            class="scroll-mt-28 text-lg font-semibold text-foreground"
+          >
+            7. Third-Party Services
+          </h2>
+          <p class="mt-3">
+            Sato integrates with third-party services that are subject to their
+            own terms:
+          </p>
+          <ul class="mt-3 list-disc space-y-1.5 pl-5">
+            <li>
+              <span class="font-medium text-foreground"
+                >AI model providers (via OpenRouter):</span
+              > Sato does not control model outputs; use is subject to provider terms.
+            </li>
+            <li>
+              <span class="font-medium text-foreground">Telegram:</span>
+              messages flow through Telegram's infrastructure and are subject to Telegram's
+              Terms of Service.
+            </li>
+            <li>
+              <span class="font-medium text-foreground">Stripe:</span> payment processing
+              is subject to Stripe's terms.
+            </li>
+            <li>
+              <span class="font-medium text-foreground">Hetzner:</span>
+              infrastructure is subject to their terms.
+            </li>
+          </ul>
+          <p class="mt-3">
+            Sato is not liable for third-party service outages or changes.
+          </p>
+        </section>
+
+        <section>
+          <h2
+            id="intellectual-property"
+            class="scroll-mt-28 text-lg font-semibold text-foreground"
+          >
+            8. Intellectual Property
+          </h2>
+          <ul class="mt-3 list-disc space-y-1.5 pl-5">
+            <li>
+              Sato's platform, branding, and code are owned by Sefiani
+              Technologies.
+            </li>
+            <li>
+              You retain ownership of your conversation content and
+              personalization data.
+            </li>
+            <li>
+              Sato does not claim rights over your conversations, which live on
+              your dedicated server.
+            </li>
+            <li>
+              You grant Sato a limited license to process your personalization
+              preferences for service delivery.
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <h2
+            id="availability"
+            class="scroll-mt-28 text-lg font-semibold text-foreground"
+          >
+            9. Service Availability & Disclaimers
+          </h2>
+          <ul class="mt-3 list-disc space-y-1.5 pl-5">
+            <li>
+              The service is provided "as is" and "as available" — no uptime
+              guarantees.
+            </li>
+            <li>
+              AI responses may be inaccurate, incomplete, or inappropriate. They
+              do not constitute professional, medical, or legal advice.
+            </li>
+            <li>
+              Sato does not back up conversation data on user servers. You are
+              responsible for your own data.
+            </li>
+            <li>
+              Sato may modify, suspend, or discontinue features with reasonable
+              notice.
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <h2
+            id="liability"
+            class="scroll-mt-28 text-lg font-semibold text-foreground"
+          >
+            10. Limitation of Liability
+          </h2>
+          <ul class="mt-3 list-disc space-y-1.5 pl-5">
+            <li>
+              Sato's total liability is capped at the fees paid by you in the
+              preceding 12 months.
+            </li>
+            <li>
+              Sato is not liable for indirect, incidental, or consequential
+              damages.
+            </li>
+            <li>
+              Sato is not liable for data loss on your dedicated server,
+              third-party service failures, or AI-generated content.
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <h2
+            id="termination"
+            class="scroll-mt-28 text-lg font-semibold text-foreground"
+          >
+            11. Account Termination
+          </h2>
+          <ul class="mt-3 list-disc space-y-1.5 pl-5">
+            <li>
+              <span class="font-medium text-foreground">By you:</span> cancel anytime;
+              service remains active until the end of the billing period.
+            </li>
+            <li>
+              <span class="font-medium text-foreground"
+                >By Sato for abuse or violation:</span
+              > immediate termination, no grace period; VPS destroyed.
+            </li>
+            <li>
+              <span class="font-medium text-foreground"
+                >By Sato for non-payment:</span
+              > 7-day notice before VPS destruction.
+            </li>
+          </ul>
+          <p class="mt-3">
+            Upon termination, your VPS and all data on it are permanently
+            destroyed.
+          </p>
+        </section>
+
+        <section>
+          <h2
+            id="governing-law"
+            class="scroll-mt-28 text-lg font-semibold text-foreground"
+          >
+            12. Governing Law & Disputes
+          </h2>
+          <ul class="mt-3 list-disc space-y-1.5 pl-5">
+            <li>These Terms are governed by Belgian law.</li>
+            <li>
+              Disputes shall be submitted to the courts of Brussels, Belgium.
+            </li>
+            <li>
+              Nothing in these Terms limits your rights as a consumer under EU
+              law.
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <h2
+            id="changes"
+            class="scroll-mt-28 text-lg font-semibold text-foreground"
+          >
+            13. Changes to These Terms
+          </h2>
+          <p class="mt-3">
+            Sato may update these Terms from time to time. Material changes will
+            be notified by email or in-app notice. Continued use after changes
+            constitutes acceptance. The latest version is always available on
+            this page.
+          </p>
+        </section>
+
+        <section>
+          <h2
+            id="contact"
+            class="scroll-mt-28 text-lg font-semibold text-foreground"
+          >
+            14. Contact
+          </h2>
+          <p class="mt-3">
+            For questions about these Terms, contact us at
+            <a
+              href="mailto:privacy@asksato.ai"
+              class="font-medium text-foreground underline decoration-border underline-offset-4 transition-colors hover:text-foreground"
+            >
+              privacy@asksato.ai</a
+            >.
+          </p>
+        </section>
+      </article>
+
+      <p class="mt-10 text-sm text-muted-foreground">
+        Last updated: {lastUpdated}
+      </p>
+    </section>
+  </main>
+
+  <Footer />
+</BaseLayout>

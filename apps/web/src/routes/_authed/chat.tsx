@@ -11,8 +11,8 @@ function ChatPage() {
   const navigate = useNavigate()
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col px-4 py-6 text-foreground">
-      <div className="mx-auto flex w-full max-w-xl flex-1 flex-col">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 py-6 text-foreground">
+      <div className="mx-auto flex min-h-0 w-full max-w-xl flex-1 flex-col overflow-hidden">
         <div className="mb-4 flex items-center gap-3">
           <Button
             variant="ghost"

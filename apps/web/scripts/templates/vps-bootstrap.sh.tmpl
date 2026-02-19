@@ -68,7 +68,7 @@ if ! sudo -u openclaw env HOME=/opt/openclaw \
   OPENROUTER_API_KEY="$OPENROUTER_API_KEY" \
   openclaw onboard --non-interactive --accept-risk --mode local \
   --auth-choice openrouter-api-key --openrouter-api-key "$OPENROUTER_API_KEY" \
-  --gateway-port 18789 --gateway-bind lan --skip-skills --skip-health; then
+  --gateway-port 18789 --gateway-bind loopback --skip-skills --skip-health; then
   send_checkpoint "bootstrap_failed" "openclaw_onboard_failed" "$TS_IPV4"
   exit 1
 fi
@@ -79,8 +79,8 @@ if ! sudo -u openclaw env HOME=/opt/openclaw PATH=/usr/local/bin:/usr/bin:/bin \
   python3 -c "import json,os; p='/opt/openclaw/.openclaw/openclaw.json'; c=json.load(open(p)) if os.path.exists(p) else {}; c.setdefault('gateway',{}).setdefault('auth',{})['allowTailscale']=True; json.dump(c, open(p,'w'), indent=2)"
 fi
 if ! sudo -u openclaw env HOME=/opt/openclaw PATH=/usr/local/bin:/usr/bin:/bin \
-  openclaw config set gateway.auth.token openclaw; then
-  python3 -c "import json,os; p='/opt/openclaw/.openclaw/openclaw.json'; c=json.load(open(p)) if os.path.exists(p) else {}; c.setdefault('gateway',{}).setdefault('auth',{})['token']='openclaw'; json.dump(c, open(p,'w'), indent=2)"
+  openclaw config set gateway.auth.token '{{OPENCLAW_GATEWAY_TOKEN}}'; then
+  python3 -c "import json,os; p='/opt/openclaw/.openclaw/openclaw.json'; c=json.load(open(p)) if os.path.exists(p) else {}; c.setdefault('gateway',{}).setdefault('auth',{})['token']='{{OPENCLAW_GATEWAY_TOKEN}}'; json.dump(c, open(p,'w'), indent=2)"
 fi
 if ! sudo -u openclaw env HOME=/opt/openclaw PATH=/usr/local/bin:/usr/bin:/bin \
   openclaw config set --json gateway.http.endpoints.chatCompletions.enabled true; then
@@ -154,6 +154,21 @@ if [ "$GATEWAY_READY" -ne 1 ]; then
   journalctl -u openclaw-gateway -n 200 --no-pager || true
   exit 1
 fi
+
+if ! tailscale serve --bg --yes --tcp 18789 127.0.0.1:18789; then
+  echo "Failed to configure Tailscale Serve for gateway TCP forwarding"
+  send_checkpoint "bootstrap_failed" "tailscale_serve_config_failed" "$TS_IPV4"
+  exit 1
+fi
+
+SERVE_STATUS="$(tailscale serve status 2>/dev/null || true)"
+if ! printf '%s\n' "$SERVE_STATUS" | grep -q '18789'; then
+  echo "Tailscale Serve does not show expected gateway TCP forwarding on 18789"
+  printf '%s\n' "$SERVE_STATUS"
+  send_checkpoint "bootstrap_failed" "tailscale_serve_config_failed" "$TS_IPV4"
+  exit 1
+fi
+
 send_checkpoint "gateway_ready" "gateway_ready" "$TS_IPV4"
 
 # Lock SSH back to Tailscale-only after successful bootstrap
@@ -161,9 +176,7 @@ apply_ufw_rules() {
   ufw --force reset &&
     ufw default deny incoming &&
     ufw default allow outgoing &&
-    ufw allow 80/tcp &&
-    ufw allow 443/tcp &&
-    ufw allow 18789/tcp &&
+    ufw allow in on tailscale0 to any port 18789 proto tcp &&
     ufw allow in on tailscale0 to any port 22 proto tcp &&
     ufw --force enable
 }

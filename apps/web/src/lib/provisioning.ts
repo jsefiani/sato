@@ -19,6 +19,7 @@ import {
   normalizeHetznerServerType,
   removeFirewallFromServer,
 } from '@/lib/hetzner'
+import { getGatewayAuthToken } from '@/lib/gateway-auth'
 import { createId } from '@/lib/ids'
 import { normalizeModel } from '@/lib/models'
 import { createEphemeralAuthKey, deleteDeviceByHostname } from '@/lib/tailscale'
@@ -78,12 +79,14 @@ function renderBootstrapTemplate({
   bootstrapCheckpointToken,
   tailscaleAuthKey,
   tailscaleHostname,
+  openclawGatewayToken,
   preferredModel,
 }: {
   bootstrapCheckpointUrl: string
   bootstrapCheckpointToken: string
   tailscaleAuthKey: string
   tailscaleHostname: string
+  openclawGatewayToken: string
   preferredModel: string
 }): string {
   const replacements = {
@@ -91,6 +94,7 @@ function renderBootstrapTemplate({
     CHECKPOINT_TOKEN: escapeForSingleQuotedBash(bootstrapCheckpointToken),
     TAILSCALE_AUTH_KEY: escapeForSingleQuotedBash(tailscaleAuthKey),
     TAILSCALE_HOSTNAME: escapeForSingleQuotedBash(tailscaleHostname),
+    OPENCLAW_GATEWAY_TOKEN: escapeForSingleQuotedBash(openclawGatewayToken),
     PREFERRED_MODEL: escapeForSingleQuotedBash(preferredModel),
   }
 
@@ -122,6 +126,7 @@ function buildSnapshotCloudInit({
   tailscaleHostname,
   bootstrapCheckpointUrl,
   bootstrapCheckpointToken,
+  openclawGatewayToken,
   preferredModel,
 }: {
   openRouterApiKey: string
@@ -129,6 +134,7 @@ function buildSnapshotCloudInit({
   tailscaleHostname: string
   bootstrapCheckpointUrl: string
   bootstrapCheckpointToken: string
+  openclawGatewayToken: string
   preferredModel: string
 }): string {
   const safeApiKey = escapeForSingleQuotedBash(openRouterApiKey)
@@ -137,6 +143,7 @@ function buildSnapshotCloudInit({
     bootstrapCheckpointToken,
     tailscaleAuthKey,
     tailscaleHostname,
+    openclawGatewayToken,
     preferredModel,
   })
 
@@ -455,6 +462,7 @@ export async function provisionUserServer(input: ProvisionInput) {
       requestId,
       userId: input.userId,
     })
+    const openclawGatewayToken = getGatewayAuthToken({ userId: input.userId })
     const bootstrapCheckpointUrl = new URL(
       '/api/vps/status',
       env.APP_URL,
@@ -485,6 +493,7 @@ export async function provisionUserServer(input: ProvisionInput) {
       tailscaleHostname,
       bootstrapCheckpointUrl,
       bootstrapCheckpointToken,
+      openclawGatewayToken,
       preferredModel: normalizeModel(userRow?.preferredModel),
     })
 

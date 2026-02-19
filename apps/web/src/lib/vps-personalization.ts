@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { db } from '@/db'
 import { user } from '@/db/schema'
+import { getGatewayAuthToken } from '@/lib/gateway-auth'
 import { DEFAULT_MODEL, normalizeModel } from '@/lib/models'
 import { isTcpPortReachable } from '@/lib/readiness'
 import { runVpsSshCommand } from '@/lib/vps-ssh'
@@ -79,11 +80,16 @@ export async function injectPersonalization({
     .where(eq(user.id, userId))
 }
 
-export async function ensureChatEndpointEnabled(
-  tailscaleIp: string,
-): Promise<void> {
+export async function ensureChatEndpointEnabled({
+  tailscaleIp,
+  userId,
+}: {
+  tailscaleIp: string
+  userId: string
+}): Promise<void> {
   const checkCmd = `sudo -u openclaw env HOME=/opt/openclaw bash -c 'cat /opt/openclaw/.openclaw/openclaw.json 2>/dev/null || echo "{}"'`
   const configJson = await runVpsSshCommand(tailscaleIp, checkCmd)
+  const gatewayToken = getGatewayAuthToken({ userId })
   let desiredPrimaryModel = DEFAULT_MODEL.value
 
   try {
@@ -94,11 +100,16 @@ export async function ensureChatEndpointEnabled(
         : null
     desiredPrimaryModel = normalizeModel(configuredPrimary)
     const modelNeedsRepair = configuredPrimary !== desiredPrimaryModel
+    const configuredGatewayToken =
+      typeof config?.gateway?.auth?.token === 'string'
+        ? config.gateway.auth.token
+        : null
 
     if (
       config?.gateway?.http?.endpoints?.chatCompletions?.enabled === true &&
       config?.gateway?.auth?.allowTailscale === true &&
-      config?.gateway?.auth?.token === 'openclaw' &&
+      (configuredGatewayToken === gatewayToken ||
+        configuredGatewayToken === 'openclaw') &&
       !('provider' in config) &&
       !modelNeedsRepair
     ) {
@@ -112,7 +123,7 @@ export async function ensureChatEndpointEnabled(
     "sudo -u openclaw env HOME=/opt/openclaw bash -c '",
     'mkdir -p /opt/openclaw/.openclaw',
     'openclaw config set --json gateway.auth.allowTailscale true 2>/dev/null || true',
-    'openclaw config set gateway.auth.token openclaw 2>/dev/null || true',
+    `openclaw config set gateway.auth.token ${JSON.stringify(gatewayToken)} 2>/dev/null || true`,
     'openclaw config set --json gateway.http.endpoints.chatCompletions.enabled true 2>/dev/null || true',
     `openclaw config set agents.defaults.model.primary ${JSON.stringify(desiredPrimaryModel)} 2>/dev/null || true`,
     `python3 -c "`,
@@ -129,7 +140,7 @@ export async function ensureChatEndpointEnabled(
     `  models.setdefault(\\"openrouter/openrouter/auto\\", {})`,
     `  m[\\"fallbacks\\"] = [\\"openrouter/openrouter/auto\\"]`,
     `c.setdefault(\\"gateway\\",{}).setdefault(\\"auth\\",{})[\\"allowTailscale\\"] = True`,
-    `c.setdefault(\\"gateway\\",{}).setdefault(\\"auth\\",{})[\\"token\\"] = \\"openclaw\\"`,
+    `c.setdefault(\\"gateway\\",{}).setdefault(\\"auth\\",{})[\\"token\\"] = \\"${gatewayToken}\\"`,
     `c.setdefault(\\"gateway\\",{}).setdefault(\\"http\\",{}).setdefault(\\"endpoints\\",{}).setdefault(\\"chatCompletions\\",{})[\\"enabled\\"] = True`,
     `json.dump(c, open(p,\\"w\\"), indent=2)`,
     '"',

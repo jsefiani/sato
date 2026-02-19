@@ -64,6 +64,28 @@ function SignIn() {
           </svg>
           Continue with Google
         </Button>
+
+        <p className="text-center text-xs text-muted-foreground">
+          By continuing, you agree to Sato's{' '}
+          <a
+            href="https://withsato.com/terms"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline underline-offset-4 hover:text-foreground"
+          >
+            Terms of Service
+          </a>{' '}
+          and{' '}
+          <a
+            href="https://withsato.com/privacy"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline underline-offset-4 hover:text-foreground"
+          >
+            Privacy Policy
+          </a>
+          .
+        </p>
       </div>
     </div>
   )

@@ -43,6 +43,7 @@ IMAGE="ubuntu-24.04"
 SNAPSHOT_DESCRIPTION="sato-openclaw-${OPENCLAW_VERSION}"
 SNAPSHOT_DEBUG_PUBLIC_SSH="${SNAPSHOT_DEBUG_PUBLIC_SSH:-false}"
 SSH_PRIVATE_KEY_PATH="${SSH_PRIVATE_KEY_PATH:-${HETZNER_SSH_PRIVATE_KEY_PATH:-}}"
+RELEASE_NOTES_FILE="$SCRIPT_DIR/../docs/snapshot-release-notes.md"
 if [ -n "$OVERRIDE_SSH_PRIVATE_KEY_PATH" ]; then
   SSH_PRIVATE_KEY_PATH="$OVERRIDE_SSH_PRIVATE_KEY_PATH"
 fi
@@ -114,6 +115,48 @@ cleanup() {
 }
 
 trap cleanup EXIT
+
+append_snapshot_release_notes() {
+  local notes_dir today built_at
+  notes_dir="$(dirname "$RELEASE_NOTES_FILE")"
+  today="$(date -u +%Y-%m-%d)"
+  built_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+  mkdir -p "$notes_dir"
+
+  if [ ! -f "$RELEASE_NOTES_FILE" ]; then
+    cat > "$RELEASE_NOTES_FILE" << 'HEADER'
+# VPS Snapshot Release Notes
+
+This file tracks Hetzner snapshot builds for Sato user VPSes.
+HEADER
+  fi
+
+  if grep -Fq "Snapshot ID: \`$IMAGE_ID\`" "$RELEASE_NOTES_FILE"; then
+    echo "Release notes already include snapshot $IMAGE_ID."
+    return 0
+  fi
+
+  cat >> "$RELEASE_NOTES_FILE" << EOF
+
+## ${today} - Snapshot ${IMAGE_ID}
+- Snapshot ID: \`${IMAGE_ID}\`
+- Description: \`${SNAPSHOT_DESCRIPTION}\`
+- OpenClaw version: \`${OPENCLAW_VERSION}\`
+- Base image: \`${IMAGE}\`
+- Builder profile: \`${SERVER_TYPE}\` in \`${LOCATION}\`
+- Gateway/network defaults in snapshot:
+  - UFW deny incoming by default
+  - allow \`tailscale0\` TCP 22
+  - allow \`tailscale0\` TCP 18789
+  - public SSH debug mode: \`${SNAPSHOT_DEBUG_PUBLIC_SSH}\`
+- Built at (UTC): \`${built_at}\`
+- Notes:
+  - Snapshot prepared for loopback OpenClaw gateway access with Tailscale control-plane routing.
+EOF
+
+  echo "Appended release notes entry to $RELEASE_NOTES_FILE"
+}
 
 preflight_checks
 
@@ -198,9 +241,7 @@ systemctl enable tailscaled
 # UFW firewall rules
 ufw default deny incoming
 ufw default allow outgoing
-ufw allow 80/tcp
-ufw allow 443/tcp
-ufw allow 18789/tcp
+ufw allow in on tailscale0 to any port 18789 proto tcp
 if [ "$DEBUG_PUBLIC_SSH" = "true" ]; then
   ufw allow 22/tcp
 else
@@ -439,5 +480,9 @@ echo "==========================================="
 echo ""
 echo "Add this to your .env:"
 echo "  HETZNER_SNAPSHOT_ID=$IMAGE_ID"
+
+if ! append_snapshot_release_notes; then
+  echo "WARNING: Failed to append release notes entry to $RELEASE_NOTES_FILE"
+fi
 
 # The EXIT trap will delete the temporary server
