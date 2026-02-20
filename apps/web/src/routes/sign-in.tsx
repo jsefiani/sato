@@ -68,7 +68,7 @@ function SignIn() {
         <p className="text-center text-xs text-muted-foreground">
           By continuing, you agree to Sato's{' '}
           <a
-            href="https://withsato.com/terms"
+            href="https://asksato.ai/terms"
             target="_blank"
             rel="noopener noreferrer"
             className="underline underline-offset-4 hover:text-foreground"
@@ -77,7 +77,7 @@ function SignIn() {
           </a>{' '}
           and{' '}
           <a
-            href="https://withsato.com/privacy"
+            href="https://asksato.ai/privacy"
             target="_blank"
             rel="noopener noreferrer"
             className="underline underline-offset-4 hover:text-foreground"
