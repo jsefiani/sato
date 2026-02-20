@@ -9,6 +9,7 @@ import { auditLog, provisioningJob, user, vpsInstance } from '@/db/schema'
 import { getOpenClawVersion } from '@/lib/vps-maintenance'
 import { getUserAccessState } from '@/lib/access-control'
 import { safeApiResponse, safeErrorMessage } from '@/lib/api-error'
+import { CREDITS_PER_USD, creditsToUsd } from '@/lib/credit-policy'
 import {
   getTopupPacks,
   getUserCreditStateSnapshot,
@@ -83,6 +84,17 @@ export const Route = createFileRoute('/api/vps/status')({
             hasPersonalized,
             access,
             credits,
+            creditPolicy: {
+              creditsPerUsd: CREDITS_PER_USD,
+              trialUsdRemaining: creditsToUsd(credits.trialCreditsRemaining),
+              monthlyUsdRemaining: creditsToUsd(
+                credits.monthlyCreditsRemaining,
+              ),
+              purchasedUsdRemaining: creditsToUsd(
+                credits.purchasedCreditsRemaining,
+              ),
+              totalUsdRemaining: creditsToUsd(credits.totalCreditsRemaining),
+            },
             topupPacks: getTopupPacks().map((pack) => ({
               id: pack.id,
               label: pack.label,

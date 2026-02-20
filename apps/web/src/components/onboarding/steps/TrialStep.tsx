@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 
 const features = [
   'Your own private AI assistant',
-  'Unlimited conversations',
+  '1,500 trial credits included',
   'Telegram integration',
 ]
 
@@ -146,7 +146,7 @@ export default function TrialStep() {
             <span className="font-medium text-foreground">
               {daysLeft} {daysLeft === 1 ? 'day' : 'days'} remaining.
             </span>{' '}
-            After your trial, your plan converts to $29/mo.
+            After your trial, your plan converts to $49/mo.
           </motion.p>
 
           <motion.div variants={itemVariants} className="mt-10 w-full max-w-sm">

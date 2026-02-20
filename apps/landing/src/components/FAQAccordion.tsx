@@ -26,7 +26,12 @@ const items = [
   {
     question: 'What happens after the trial?',
     answer:
-      'After your 3-day trial, your plan automatically converts to $29/mo. You can cancel anytime from your dashboard — no surprise charges, ever.',
+      'After your 3-day trial, your plan automatically converts to $49/mo. You can cancel anytime from your dashboard — no surprise charges, ever.',
+  },
+  {
+    question: 'What do credits mean?',
+    answer:
+      'Credits are your AI usage budget. 1,000 credits = $1 AI usage. Credit usage per response depends on selected model and response length. Some top-up bundles include bonus credits.',
   },
   {
     question: 'Why is there a $1 trial fee?',

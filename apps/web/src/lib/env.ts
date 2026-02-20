@@ -1,4 +1,8 @@
 import { z } from 'zod'
+import {
+  DEFAULT_MONTHLY_INCLUDED_CREDITS,
+  DEFAULT_TRIAL_INCLUDED_CREDITS,
+} from '@/lib/credit-policy'
 
 const envSchema = z.object({
   APP_URL: z.string().min(1),
@@ -35,8 +39,16 @@ const envSchema = z.object({
   VPS_SSH_USER: z.string().default('root'),
   VPS_SSH_PORT: z.coerce.number().int().min(1).default(22),
 
-  TRIAL_INCLUDED_CREDITS: z.coerce.number().int().min(0).default(5000),
-  MONTHLY_INCLUDED_CREDITS: z.coerce.number().int().min(0).default(20_000),
+  TRIAL_INCLUDED_CREDITS: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .default(DEFAULT_TRIAL_INCLUDED_CREDITS),
+  MONTHLY_INCLUDED_CREDITS: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .default(DEFAULT_MONTHLY_INCLUDED_CREDITS),
 })
 
 type Env = z.infer<typeof envSchema>

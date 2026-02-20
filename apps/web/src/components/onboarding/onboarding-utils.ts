@@ -43,6 +43,14 @@ export interface CreditState {
   monthlyCycleAnchor: string | null
 }
 
+export interface CreditPolicy {
+  creditsPerUsd: number
+  trialUsdRemaining: number
+  monthlyUsdRemaining: number
+  purchasedUsdRemaining: number
+  totalUsdRemaining: number
+}
+
 export interface TopupPack {
   id: string
   label: string
@@ -74,6 +82,7 @@ export interface SetupState {
   preferredModel?: string | null
   access: AccessState
   credits: CreditState
+  creditPolicy?: CreditPolicy
   topupPacks: Array<TopupPack>
   openClawReady?: boolean
   bootstrappingError?: string | null

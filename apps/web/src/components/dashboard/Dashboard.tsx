@@ -70,7 +70,7 @@ interface VpsLogs {
   cloudInitStatus: string
 }
 
-function formatMessages(value: number): string {
+function formatCredits(value: number): string {
   return new Intl.NumberFormat().format(value)
 }
 
@@ -444,13 +444,14 @@ export default function Dashboard() {
     return 'No active plan'
   }, [state])
 
-  const totalMessages = state?.credits.totalCreditsRemaining ?? 0
-  const maxMessages =
+  const totalCredits = state?.credits.totalCreditsRemaining ?? 0
+  const maxCredits =
     (state?.credits.monthlyCreditsGrant ?? 0) +
     (state?.credits.purchasedCreditsRemaining ?? 0) +
     (state?.credits.trialCreditsRemaining ?? 0)
-  const messagesPercent =
-    maxMessages > 0 ? Math.min((totalMessages / maxMessages) * 100, 100) : 0
+  const creditsPercent =
+    maxCredits > 0 ? Math.min((totalCredits / maxCredits) * 100, 100) : 0
+  const creditsPerUsd = state?.creditPolicy?.creditsPerUsd ?? 1000
 
   const firstName = session?.user.name.split(' ')[0] ?? 'there'
 
@@ -575,24 +576,28 @@ export default function Dashboard() {
           <Card className="p-5">
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium text-foreground/80">
-                Messages remaining
+                Credits remaining
               </p>
               <p className="text-lg font-semibold tabular-nums text-foreground">
-                {formatMessages(totalMessages)}
+                {formatCredits(totalCredits)}
               </p>
             </div>
             <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-secondary">
               <motion.div
                 className="h-full rounded-full bg-foreground"
                 initial={{ width: 0 }}
-                animate={{ width: `${messagesPercent}%` }}
+                animate={{ width: `${creditsPercent}%` }}
                 transition={{ duration: 0.8, ease: 'easeOut' }}
               />
             </div>
             <p className="mt-2.5 text-[12px] text-muted-foreground/80">
-              {formatMessages(state.credits.trialCreditsRemaining)} trial ·{' '}
-              {formatMessages(state.credits.monthlyCreditsRemaining)} monthly ·{' '}
-              {formatMessages(state.credits.purchasedCreditsRemaining)} extra
+              {formatCredits(state.credits.trialCreditsRemaining)} trial ·{' '}
+              {formatCredits(state.credits.monthlyCreditsRemaining)} monthly ·{' '}
+              {formatCredits(state.credits.purchasedCreditsRemaining)} extra
+            </p>
+            <p className="mt-1 text-[12px] text-muted-foreground/70">
+              {formatCredits(creditsPerUsd)} credits = $1 AI usage. Usage varies
+              by model and response length.
             </p>
           </Card>
         </motion.div>
@@ -709,10 +714,11 @@ export default function Dashboard() {
             <Card className="p-5">
               <div className="flex flex-col gap-1">
                 <p className="text-sm font-medium text-foreground/80">
-                  Need more messages?
+                  Need more credits?
                 </p>
                 <p className="mt-1 text-[13px] text-muted-foreground/80">
-                  Top up your balance anytime.
+                  Top up your balance anytime. Some top-up bundles include bonus
+                  credits.
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
