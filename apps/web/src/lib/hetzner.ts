@@ -252,6 +252,7 @@ export async function createServer(
     server_type: input.serverType,
     image: input.image,
     location: input.region,
+    backups: false,
     user_data: input.userData,
     labels: input.labels,
     firewalls: [{ firewall: Number(firewallId) }],

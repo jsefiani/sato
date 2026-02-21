@@ -61,7 +61,7 @@ Key points:
 
 - **Bootstrap checkpoints (phone-home)**: The cloud-init bootstrap script reports signed progress checkpoints (`started`, `tailscale_joined`, `gateway_ready`, `completed`, `failed`) back to the control plane, allowing setup diagnostics without opening public SSH.
 
-- **Cloud-init hardening**: After bootstrap, the `.env` file containing the OpenRouter API key is cleared (`> /opt/openclaw/.env`), and the Hetzner metadata endpoint is blocked via iptables (`-d 169.254.169.254 -j DROP`) to prevent credential leakage from the instance metadata service.
+- **Cloud-init hardening**: After bootstrap, the temporary OpenRouter key file is cleared (`> /etc/sato/openclaw.env`), and the Hetzner metadata endpoint is blocked via iptables (`-d 169.254.169.254 -j DROP`) to prevent credential leakage from the instance metadata service.
 
 - **fail2ban on VPS snapshot**: Installed and enabled in the base snapshot to protect against brute-force attempts on any exposed service.
 
@@ -83,9 +83,10 @@ Key points:
 
 - **Rate limiting**: In-memory sliding window rate limiter (`rate-limit.ts`) with per-category limits:
   - `vps-provision`: 3 req / 10 min
+  - `vps-unlock`: 30 req / min
   - `billing`: 10 req / min
   - `vps-status`: 60 req / min
-  - `telegram`: 10 req / min
+  - `telegram`: 30 req / min
   - `stripe-webhook`: 100 req / min
   - `auth`: 10 req / min
 
@@ -106,6 +107,12 @@ Key points:
 
 - **Encrypted secrets at rest**: Sensitive values (e.g., Telegram bot tokens) are encrypted with AES-256-GCM before database storage (`crypto.ts`). Each encrypted value includes a unique IV and authentication tag.
 
+- **OpenClaw data encrypted at rest**: During bootstrap, Sato creates an encrypted LUKS data container and mounts it at `/opt/openclaw` before OpenClaw starts. The OpenClaw runtime then reads/writes on the encrypted volume transparently. Provisioning fails closed if unlock or mount fails.
+
+- **Provider backups disabled by default**: New VPS provisioning explicitly disables Hetzner automatic backups for user nodes until an encrypted backup/restore pipeline is rolled out.
+
+- **Managed-trust boundary**: Encryption at rest protects offline disk/snapshot access, but does not prevent privileged access on a running VPS. Production operator access is restricted and audited.
+
 - **Database SSL**: PostgreSQL connections use SSL with certificate validation by default (`rejectUnauthorized: true`). Opt-out via `DATABASE_SSL=false` for local development only.
 
 - **Tailscale SSH authentication**: VPS SSH access uses Tailscale SSH — no private keys or known-hosts files. The Tailscale daemon authenticates connections based on node identity and ACL grants. SSH host key verification is handled at the WireGuard tunnel layer.
@@ -115,6 +122,8 @@ Key points:
 - **Stripe webhook HMAC verification**: Webhooks are verified using HMAC-SHA256 with timing-safe comparison (`billing.ts`). Includes timestamp validation with a 5-minute tolerance window to prevent replay attacks.
 
 - **Stripe event deduplication**: Processed webhook event IDs are stored in the `stripe_webhook_event` table. Duplicate events are silently skipped.
+
+- **Duplicate subscription checkout prevention**: Subscription checkout creation is denied when the user already has an `active`/`trialing` subscription (checked in local billing state and Stripe customer subscriptions). Subscription Checkout Session creation also uses a scoped Stripe idempotency key to reduce duplicate sessions from rapid retries.
 
 - **Dispute-triggered subscription cancellation**: On `charge.dispute.created`, the user's subscription is immediately canceled via the Stripe API. This revokes access through the existing access-control logic (`canceled` = `hasAccess: false`). The dispute details (ID, charge, amount, reason) are logged to the audit log. On `charge.dispute.closed`, the outcome (won/lost/withdrawn) is logged. If the dispute is won, the user can re-subscribe manually.
 
@@ -130,6 +139,7 @@ Key points:
 
 - **Audit logging**: Key events are written to the `audit_log` table with structured JSON metadata:
   - `vps.provisioned`, `vps.provisioning_failed`, `vps.destroyed`
+  - `vps.data_volume_unlocked`, `vps.data_volume_unlock_denied`
   - `vps.maintenance_succeeded`, `vps.maintenance_failed` (admin-triggered VPS maintenance)
   - Billing events (subscription changes, top-up purchases)
   - Stripe webhook processing

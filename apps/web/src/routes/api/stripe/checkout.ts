@@ -1,5 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { createCheckoutSession } from '@/lib/billing'
+import {
+  ACTIVE_OR_TRIALING_SUBSCRIPTION_EXISTS_MESSAGE,
+  createCheckoutSession,
+} from '@/lib/billing'
 import { safeApiResponse } from '@/lib/api-error'
 import { assertSameOrigin } from '@/lib/csrf'
 import { assertRateLimit } from '@/lib/rate-limit'
@@ -22,13 +25,23 @@ export const Route = createFileRoute('/api/stripe/checkout')({
           )
           if (rateLimited) return rateLimited
 
-          const checkoutUrl = await createCheckoutSession(
-            session.user.id,
-            session.user.email,
-          )
+          const checkoutUrl = await createCheckoutSession({
+            userId: session.user.id,
+            email: session.user.email,
+          })
 
           return Response.json({ checkoutUrl })
         } catch (error) {
+          if (
+            error instanceof Error &&
+            error.message === ACTIVE_OR_TRIALING_SUBSCRIPTION_EXISTS_MESSAGE
+          ) {
+            return Response.json(
+              { error: ACTIVE_OR_TRIALING_SUBSCRIPTION_EXISTS_MESSAGE },
+              { status: 409 },
+            )
+          }
+
           return safeApiResponse(error)
         }
       },

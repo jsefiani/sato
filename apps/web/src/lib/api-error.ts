@@ -6,6 +6,19 @@ function isMessageSafe(message: string): boolean {
   return SAFE_ERROR_PREFIXES.some((prefix) => message.startsWith(prefix))
 }
 
+function redactLogMessage(message: string): string {
+  if (!message.includes('Failed query:')) {
+    return message
+  }
+
+  const [queryOnly] = message.split('\nparams:')
+  if (!queryOnly) {
+    return 'Failed query: [redacted]'
+  }
+
+  return `${queryOnly}\nparams: [redacted]`
+}
+
 export function safeErrorMessage(error: unknown): string {
   if (!(error instanceof Error)) {
     return 'Something went wrong'
@@ -15,7 +28,10 @@ export function safeErrorMessage(error: unknown): string {
     return error.message
   }
 
-  console.error('[api-error] Suppressed error:', error.message)
+  console.error(
+    '[api-error] Suppressed error:',
+    redactLogMessage(error.message),
+  )
   return 'Something went wrong'
 }
 
@@ -48,6 +64,7 @@ const SAFE_ERROR_MESSAGES = new Set([
   'Your free trial has expired or your subscription is inactive. Please subscribe to continue.',
   'You are out of credits. Buy a credit pack to keep using your assistant.',
   'No Stripe customer found for this user',
+  'You already have an active or trialing subscription.',
   'Missing top-up pack',
   'Unknown top-up pack',
   'Stripe checkout did not return a URL',
@@ -57,6 +74,7 @@ const SAFE_ERROR_MESSAGES = new Set([
   'Pairing code should be 8 uppercase letters/numbers (without 0/1).',
   'Assistant setup is temporarily unavailable. Please retry in a few minutes.',
   'Assistant cleanup is taking longer than expected. Please retry shortly.',
+  'Provisioning requires APP_URL to be reachable from the VPS. Use a public URL (or tunnel URL), not localhost.',
   'Gateway probe requires pairing, but Telegram account is configured.',
   'Telegram status could not be parsed yet. The gateway may still be warming up.',
 ])

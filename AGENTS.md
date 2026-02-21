@@ -37,6 +37,10 @@ shadcn is configured with the `base-vega` style, which uses **Base UI** (`@base-
 
 Never use Tailwind's default palette (`zinc-*`, `gray-*`, `red-*`, etc.) — it's reset. Only use semantic tokens defined in `apps/web/src/styles.css`.
 
+## Layout Spacing
+
+Prefer `gap`-based spacing in flex/grid containers for UI layout (`gap-*`) over margin-based separation (`mt-*`, `mb-*`, `ml-*`, `mr-*`, `mx-*`, `my-*`, `space-x-*`, `space-y-*`). Use margin utilities only when a layout cannot be expressed cleanly with `gap`.
+
 ## API Response Security (Server -> Client)
 
 Default to **deny-by-default** for response fields. Only return data that is strictly required by the current UI state.

@@ -35,11 +35,11 @@ export const Route = createFileRoute('/api/stripe/topup')({
             )
           }
 
-          const checkoutUrl = await createTopupCheckoutSession(
-            session.user.id,
-            session.user.email,
-            parsed.data.packId,
-          )
+          const checkoutUrl = await createTopupCheckoutSession({
+            userId: session.user.id,
+            email: session.user.email,
+            packId: parsed.data.packId,
+          })
 
           return Response.json({ checkoutUrl })
         } catch (error) {

@@ -11,7 +11,7 @@ const items = [
   {
     question: 'Is my data really private?',
     answer:
-      'Yes. Your assistant runs on its own dedicated server — your conversations are completely isolated. No one else can access them, not even our team.',
+      'Your assistant runs on its own dedicated server. Access is tightly controlled and logged when support is needed.',
   },
   {
     question: 'Do I need to be tech-savvy?',

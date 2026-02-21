@@ -216,7 +216,7 @@ export DEBIAN_FRONTEND=noninteractive
 
 # System packages
 apt-get update -qq
-apt-get install -y -qq curl git ufw fail2ban unattended-upgrades
+apt-get install -y -qq curl git ufw fail2ban unattended-upgrades cryptsetup
 
 # Automatic security updates
 cat > /etc/apt/apt.conf.d/50unattended-upgrades << 'UUCFG'
@@ -332,7 +332,7 @@ systemctl daemon-reload
 systemctl enable openclaw-gateway
 
 # Snapshot quality gate: fail fast if required runtime dependencies are missing.
-for REQUIRED_BIN in ufw tailscale openclaw; do
+for REQUIRED_BIN in ufw tailscale openclaw cryptsetup; do
   if ! command -v "$REQUIRED_BIN" >/dev/null 2>&1; then
     echo "ERROR: Required binary missing before snapshot: $REQUIRED_BIN"
     exit 1

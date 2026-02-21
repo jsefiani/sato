@@ -17,11 +17,11 @@ import { Route as ApiModelRouteImport } from './routes/api/model'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as AuthedSetupRouteImport } from './routes/_authed/setup'
 import { Route as AuthedChatRouteImport } from './routes/_authed/chat'
-import { Route as ApiVpsVerifyRouteImport } from './routes/api/vps/verify'
 import { Route as ApiVpsStatusStreamRouteImport } from './routes/api/vps/status-stream'
 import { Route as ApiVpsStatusRouteImport } from './routes/api/vps/status'
 import { Route as ApiVpsProvisionRouteImport } from './routes/api/vps/provision'
 import { Route as ApiVpsLogsRouteImport } from './routes/api/vps/logs'
+import { Route as ApiVpsEncryptionKeyRouteImport } from './routes/api/vps/encryption-key'
 import { Route as ApiVpsDestroyRouteImport } from './routes/api/vps/destroy'
 import { Route as ApiVpsChatRouteImport } from './routes/api/vps/chat'
 import { Route as ApiStripeWebhookRouteImport } from './routes/api/stripe/webhook'
@@ -74,11 +74,6 @@ const AuthedChatRoute = AuthedChatRouteImport.update({
   path: '/chat',
   getParentRoute: () => AuthedRoute,
 } as any)
-const ApiVpsVerifyRoute = ApiVpsVerifyRouteImport.update({
-  id: '/api/vps/verify',
-  path: '/api/vps/verify',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiVpsStatusStreamRoute = ApiVpsStatusStreamRouteImport.update({
   id: '/api/vps/status-stream',
   path: '/api/vps/status-stream',
@@ -97,6 +92,11 @@ const ApiVpsProvisionRoute = ApiVpsProvisionRouteImport.update({
 const ApiVpsLogsRoute = ApiVpsLogsRouteImport.update({
   id: '/api/vps/logs',
   path: '/api/vps/logs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiVpsEncryptionKeyRoute = ApiVpsEncryptionKeyRouteImport.update({
+  id: '/api/vps/encryption-key',
+  path: '/api/vps/encryption-key',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiVpsDestroyRoute = ApiVpsDestroyRouteImport.update({
@@ -175,11 +175,11 @@ export interface FileRoutesByFullPath {
   '/api/stripe/webhook': typeof ApiStripeWebhookRoute
   '/api/vps/chat': typeof ApiVpsChatRoute
   '/api/vps/destroy': typeof ApiVpsDestroyRoute
+  '/api/vps/encryption-key': typeof ApiVpsEncryptionKeyRoute
   '/api/vps/logs': typeof ApiVpsLogsRoute
   '/api/vps/provision': typeof ApiVpsProvisionRoute
   '/api/vps/status': typeof ApiVpsStatusRoute
   '/api/vps/status-stream': typeof ApiVpsStatusStreamRoute
-  '/api/vps/verify': typeof ApiVpsVerifyRoute
   '/api/admin/vps/maintain': typeof ApiAdminVpsMaintainRoute
   '/api/vps/telegram/approve': typeof ApiVpsTelegramApproveRoute
   '/api/vps/telegram/connect': typeof ApiVpsTelegramConnectRoute
@@ -201,11 +201,11 @@ export interface FileRoutesByTo {
   '/api/stripe/webhook': typeof ApiStripeWebhookRoute
   '/api/vps/chat': typeof ApiVpsChatRoute
   '/api/vps/destroy': typeof ApiVpsDestroyRoute
+  '/api/vps/encryption-key': typeof ApiVpsEncryptionKeyRoute
   '/api/vps/logs': typeof ApiVpsLogsRoute
   '/api/vps/provision': typeof ApiVpsProvisionRoute
   '/api/vps/status': typeof ApiVpsStatusRoute
   '/api/vps/status-stream': typeof ApiVpsStatusStreamRoute
-  '/api/vps/verify': typeof ApiVpsVerifyRoute
   '/api/admin/vps/maintain': typeof ApiAdminVpsMaintainRoute
   '/api/vps/telegram/approve': typeof ApiVpsTelegramApproveRoute
   '/api/vps/telegram/connect': typeof ApiVpsTelegramConnectRoute
@@ -229,11 +229,11 @@ export interface FileRoutesById {
   '/api/stripe/webhook': typeof ApiStripeWebhookRoute
   '/api/vps/chat': typeof ApiVpsChatRoute
   '/api/vps/destroy': typeof ApiVpsDestroyRoute
+  '/api/vps/encryption-key': typeof ApiVpsEncryptionKeyRoute
   '/api/vps/logs': typeof ApiVpsLogsRoute
   '/api/vps/provision': typeof ApiVpsProvisionRoute
   '/api/vps/status': typeof ApiVpsStatusRoute
   '/api/vps/status-stream': typeof ApiVpsStatusStreamRoute
-  '/api/vps/verify': typeof ApiVpsVerifyRoute
   '/api/admin/vps/maintain': typeof ApiAdminVpsMaintainRoute
   '/api/vps/telegram/approve': typeof ApiVpsTelegramApproveRoute
   '/api/vps/telegram/connect': typeof ApiVpsTelegramConnectRoute
@@ -257,11 +257,11 @@ export interface FileRouteTypes {
     | '/api/stripe/webhook'
     | '/api/vps/chat'
     | '/api/vps/destroy'
+    | '/api/vps/encryption-key'
     | '/api/vps/logs'
     | '/api/vps/provision'
     | '/api/vps/status'
     | '/api/vps/status-stream'
-    | '/api/vps/verify'
     | '/api/admin/vps/maintain'
     | '/api/vps/telegram/approve'
     | '/api/vps/telegram/connect'
@@ -283,11 +283,11 @@ export interface FileRouteTypes {
     | '/api/stripe/webhook'
     | '/api/vps/chat'
     | '/api/vps/destroy'
+    | '/api/vps/encryption-key'
     | '/api/vps/logs'
     | '/api/vps/provision'
     | '/api/vps/status'
     | '/api/vps/status-stream'
-    | '/api/vps/verify'
     | '/api/admin/vps/maintain'
     | '/api/vps/telegram/approve'
     | '/api/vps/telegram/connect'
@@ -310,11 +310,11 @@ export interface FileRouteTypes {
     | '/api/stripe/webhook'
     | '/api/vps/chat'
     | '/api/vps/destroy'
+    | '/api/vps/encryption-key'
     | '/api/vps/logs'
     | '/api/vps/provision'
     | '/api/vps/status'
     | '/api/vps/status-stream'
-    | '/api/vps/verify'
     | '/api/admin/vps/maintain'
     | '/api/vps/telegram/approve'
     | '/api/vps/telegram/connect'
@@ -335,11 +335,11 @@ export interface RootRouteChildren {
   ApiStripeWebhookRoute: typeof ApiStripeWebhookRoute
   ApiVpsChatRoute: typeof ApiVpsChatRoute
   ApiVpsDestroyRoute: typeof ApiVpsDestroyRoute
+  ApiVpsEncryptionKeyRoute: typeof ApiVpsEncryptionKeyRoute
   ApiVpsLogsRoute: typeof ApiVpsLogsRoute
   ApiVpsProvisionRoute: typeof ApiVpsProvisionRoute
   ApiVpsStatusRoute: typeof ApiVpsStatusRoute
   ApiVpsStatusStreamRoute: typeof ApiVpsStatusStreamRoute
-  ApiVpsVerifyRoute: typeof ApiVpsVerifyRoute
   ApiAdminVpsMaintainRoute: typeof ApiAdminVpsMaintainRoute
   ApiVpsTelegramApproveRoute: typeof ApiVpsTelegramApproveRoute
   ApiVpsTelegramConnectRoute: typeof ApiVpsTelegramConnectRoute
@@ -405,13 +405,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedChatRouteImport
       parentRoute: typeof AuthedRoute
     }
-    '/api/vps/verify': {
-      id: '/api/vps/verify'
-      path: '/api/vps/verify'
-      fullPath: '/api/vps/verify'
-      preLoaderRoute: typeof ApiVpsVerifyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/vps/status-stream': {
       id: '/api/vps/status-stream'
       path: '/api/vps/status-stream'
@@ -438,6 +431,13 @@ declare module '@tanstack/react-router' {
       path: '/api/vps/logs'
       fullPath: '/api/vps/logs'
       preLoaderRoute: typeof ApiVpsLogsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/vps/encryption-key': {
+      id: '/api/vps/encryption-key'
+      path: '/api/vps/encryption-key'
+      fullPath: '/api/vps/encryption-key'
+      preLoaderRoute: typeof ApiVpsEncryptionKeyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/vps/destroy': {
@@ -555,11 +555,11 @@ const rootRouteChildren: RootRouteChildren = {
   ApiStripeWebhookRoute: ApiStripeWebhookRoute,
   ApiVpsChatRoute: ApiVpsChatRoute,
   ApiVpsDestroyRoute: ApiVpsDestroyRoute,
+  ApiVpsEncryptionKeyRoute: ApiVpsEncryptionKeyRoute,
   ApiVpsLogsRoute: ApiVpsLogsRoute,
   ApiVpsProvisionRoute: ApiVpsProvisionRoute,
   ApiVpsStatusRoute: ApiVpsStatusRoute,
   ApiVpsStatusStreamRoute: ApiVpsStatusStreamRoute,
-  ApiVpsVerifyRoute: ApiVpsVerifyRoute,
   ApiAdminVpsMaintainRoute: ApiAdminVpsMaintainRoute,
   ApiVpsTelegramApproveRoute: ApiVpsTelegramApproveRoute,
   ApiVpsTelegramConnectRoute: ApiVpsTelegramConnectRoute,

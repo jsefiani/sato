@@ -16,7 +16,7 @@ export default function TelegramStandalone({
     <OnboardingProvider value={{ ...ctx, skipInitialAnimation: false }}>
       <div className="flex flex-1 flex-col px-4 py-12">
         <div className="flex flex-1 items-center justify-center">
-          <div className="w-full max-w-md">
+          <div className="w-full max-w-lg">
             <TelegramStep />
           </div>
         </div>

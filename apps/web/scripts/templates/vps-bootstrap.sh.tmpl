@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-mkdir -p /var/lib/sato
+mkdir -p /var/lib/sato /etc/sato
 echo "started $(date -Is)" > /var/lib/sato/bootstrap-state
 CHECKPOINT_URL='{{CHECKPOINT_URL}}'
 CHECKPOINT_TOKEN='{{CHECKPOINT_TOKEN}}'
@@ -27,6 +27,135 @@ on_bootstrap_error() {
 }
 trap 'on_bootstrap_error "$?" "$LINENO"' ERR
 
+install_storage_prepare_script() {
+  cat > /usr/local/sbin/sato-openclaw-storage.sh <<'EOF_HELPER'
+#!/usr/bin/env bash
+set -euo pipefail
+
+ENCRYPTION_KEY_URL='{{ENCRYPTION_KEY_URL}}'
+ENCRYPTION_USER_ID='{{ENCRYPTION_USER_ID}}'
+ENCRYPTION_AUTH_SECRET='{{ENCRYPTION_AUTH_SECRET}}'
+DATA_VOLUME_SIZE_GB='{{DATA_VOLUME_SIZE_GB}}'
+DATA_IMAGE='/var/lib/sato/openclaw-data.img'
+MAPPER_NAME='sato-openclaw-data'
+MAPPER_PATH="/dev/mapper/${MAPPER_NAME}"
+CREATED=0
+
+create_unlock_signature() {
+  local requested_at="$1"
+
+  python3 - "$ENCRYPTION_AUTH_SECRET" "$ENCRYPTION_USER_ID" "$requested_at" <<'PY'
+import base64
+import hashlib
+import hmac
+import sys
+
+secret, user_id, requested_at = sys.argv[1:4]
+message = f"{user_id}:{requested_at}".encode("utf-8")
+signature = hmac.new(secret.encode("utf-8"), message, hashlib.sha256).digest()
+print(base64.urlsafe_b64encode(signature).decode("utf-8").rstrip("="))
+PY
+}
+
+request_data_key() {
+  local requested_at
+  requested_at="$(date +%s)"
+  local signature
+  signature="$(create_unlock_signature "$requested_at")"
+
+  local response
+  response="$(curl -fsS -m 10 -X POST "$ENCRYPTION_KEY_URL" \
+    -H 'Content-Type: application/json' \
+    -d "{\"userId\":\"$ENCRYPTION_USER_ID\",\"requestedAt\":$requested_at,\"signature\":\"$signature\"}")"
+
+  python3 -c 'import json,sys; payload=json.load(sys.stdin); print(payload.get("key", ""))' <<<"$response"
+}
+
+DATA_KEY="$(request_data_key)"
+if [ -z "$DATA_KEY" ]; then
+  echo "Failed to resolve data encryption key"
+  exit 1
+fi
+
+if [ ! -f "$DATA_IMAGE" ]; then
+  if ! fallocate -l "${DATA_VOLUME_SIZE_GB}G" "$DATA_IMAGE"; then
+    truncate -s "${DATA_VOLUME_SIZE_GB}G" "$DATA_IMAGE"
+  fi
+  chmod 600 "$DATA_IMAGE"
+  printf '%s' "$DATA_KEY" | cryptsetup luksFormat --batch-mode --type luks2 "$DATA_IMAGE" --key-file -
+  CREATED=1
+fi
+
+if ! cryptsetup status "$MAPPER_NAME" >/dev/null 2>&1; then
+  printf '%s' "$DATA_KEY" | cryptsetup luksOpen "$DATA_IMAGE" "$MAPPER_NAME" --key-file -
+fi
+
+if [ "$CREATED" -eq 1 ] || ! blkid "$MAPPER_PATH" >/dev/null 2>&1; then
+  mkfs.ext4 -F "$MAPPER_PATH" >/dev/null
+fi
+
+mkdir -p /opt/openclaw
+if ! mountpoint -q /opt/openclaw; then
+  mount "$MAPPER_PATH" /opt/openclaw
+fi
+
+chown openclaw:openclaw /opt/openclaw
+chmod 700 /opt/openclaw
+
+unset DATA_KEY
+
+echo "SATO_DATA_VOLUME_CREATED=$CREATED"
+EOF_HELPER
+
+  chmod 700 /usr/local/sbin/sato-openclaw-storage.sh
+}
+
+install_storage_systemd_unit() {
+  cat > /etc/systemd/system/sato-openclaw-storage.service <<'UNIT'
+[Unit]
+Description=Sato OpenClaw encrypted storage preparation
+After=network-online.target
+Wants=network-online.target
+Before=openclaw-gateway.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/sato-openclaw-storage.sh
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+  mkdir -p /etc/systemd/system/openclaw-gateway.service.d
+  cat > /etc/systemd/system/openclaw-gateway.service.d/storage.conf <<'UNIT'
+[Unit]
+Requires=sato-openclaw-storage.service
+After=sato-openclaw-storage.service
+UNIT
+
+  systemctl daemon-reload
+  systemctl enable sato-openclaw-storage
+}
+
+prepare_encrypted_storage() {
+  local output=""
+
+  if ! output="$(/usr/local/sbin/sato-openclaw-storage.sh 2>&1)"; then
+    printf '%s\n' "$output"
+    send_checkpoint "bootstrap_failed" "data_volume_unlock_failed"
+    exit 1
+  fi
+
+  printf '%s\n' "$output"
+
+  if printf '%s\n' "$output" | grep -q 'SATO_DATA_VOLUME_CREATED=1'; then
+    send_checkpoint "data_volume_created" "data_volume_created"
+  fi
+
+  send_checkpoint "data_volume_unlocked" "data_volume_unlocked"
+}
+
 export HOME=/root
 export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 export NO_COLOR=1
@@ -37,9 +166,20 @@ echo "hostname: $(hostname)"
 cloud-init status --long || true
 
 # Load API key
+if [ ! -f /etc/sato/openclaw.env ]; then
+  send_checkpoint "bootstrap_failed" "openrouter_env_missing"
+  exit 1
+fi
+
 set -a
-source /opt/openclaw/.env
+source /etc/sato/openclaw.env
 set +a
+
+if [ -z "${OPENROUTER_API_KEY:-}" ]; then
+  send_checkpoint "bootstrap_failed" "openrouter_key_missing"
+  exit 1
+fi
+
 TS_IPV4=""
 send_checkpoint "bootstrap_started" "bootstrap_started"
 
@@ -60,6 +200,12 @@ if [ "$TS_JOINED" -ne 1 ]; then
 fi
 TS_IPV4="$(tailscale ip -4 2>/dev/null | head -n 1 || true)"
 send_checkpoint "tailscale_joined" "tailscale_joined" "$TS_IPV4"
+
+systemctl stop openclaw-gateway 2>/dev/null || true
+
+install_storage_prepare_script
+install_storage_systemd_unit
+prepare_encrypted_storage
 
 # Configure OpenClaw as unprivileged user (already installed in snapshot)
 if ! sudo -u openclaw env HOME=/opt/openclaw \
@@ -191,8 +337,8 @@ else
   send_checkpoint "bootstrap_warning" "ufw_missing" "$TS_IPV4"
 fi
 
-# Harden: clear the .env file (OpenClaw already loaded it)
-: > /opt/openclaw/.env
+# Harden: clear bootstrap env file after OpenClaw onboarding
+: > /etc/sato/openclaw.env
 
 # Harden: block metadata endpoint to prevent API key leakage
 iptables -A OUTPUT -d 169.254.169.254 -j DROP || true

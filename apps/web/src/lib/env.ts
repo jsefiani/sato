@@ -38,6 +38,8 @@ const envSchema = z.object({
 
   VPS_SSH_USER: z.string().default('root'),
   VPS_SSH_PORT: z.coerce.number().int().min(1).default(22),
+  VPS_DATA_VOLUME_SIZE_GB: z.coerce.number().int().min(5).default(20),
+  VPS_ENCRYPTION_KEY_TTL_SECONDS: z.coerce.number().int().min(60).default(600),
 
   TRIAL_INCLUDED_CREDITS: z.coerce
     .number()

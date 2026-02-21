@@ -22,6 +22,9 @@ const config = defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  server: {
+    allowedHosts: ['dev.asksato.ai'],
+  },
   plugins: [
     devtools(),
     nitro({

@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
-import { eq } from 'drizzle-orm'
+import { and, eq, inArray } from 'drizzle-orm'
 import { db } from '@/db'
 import {
   auditLog,
@@ -22,6 +22,13 @@ interface StripeCustomerResponse {
 interface StripeCheckoutResponse {
   id: string
   url: string | null
+}
+
+interface StripeSubscriptionListResponse {
+  data: Array<{
+    id: string
+    status: string
+  }>
 }
 
 interface StripeSubscriptionResponse {
@@ -63,6 +70,11 @@ interface InvoiceObject {
 }
 
 const STRIPE_API_BASE_URL = 'https://api.stripe.com/v1'
+const ACTIVE_OR_TRIALING_SUBSCRIPTION_STATUSES = ['active', 'trialing'] as const
+const SUBSCRIPTION_CHECKOUT_IDEMPOTENCY_WINDOW_MS = 10 * 60 * 1000
+
+export const ACTIVE_OR_TRIALING_SUBSCRIPTION_EXISTS_MESSAGE =
+  'You already have an active or trialing subscription.'
 
 function formEncode(payload: Record<string, string>): string {
   const body = new URLSearchParams()
@@ -72,16 +84,23 @@ function formEncode(payload: Record<string, string>): string {
   return body.toString()
 }
 
-async function stripeRequest<T>(
-  path: string,
-  method: 'GET' | 'POST' | 'DELETE',
-  payload?: Record<string, string>,
-): Promise<T> {
+async function stripeRequest<T>({
+  path,
+  method,
+  payload,
+  idempotencyKey,
+}: {
+  path: string
+  method: 'GET' | 'POST' | 'DELETE'
+  payload?: Record<string, string>
+  idempotencyKey?: string
+}): Promise<T> {
   const response = await fetch(`${STRIPE_API_BASE_URL}${path}`, {
     method,
     headers: {
       Authorization: `Bearer ${env.STRIPE_SECRET_KEY}`,
       'Content-Type': 'application/x-www-form-urlencoded',
+      ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
     },
     body: payload ? formEncode(payload) : undefined,
   })
@@ -92,6 +111,23 @@ async function stripeRequest<T>(
   }
 
   return (await response.json()) as T
+}
+
+function isActiveOrTrialingStatus({ status }: { status: string }): boolean {
+  return ACTIVE_OR_TRIALING_SUBSCRIPTION_STATUSES.some(
+    (value) => value === status,
+  )
+}
+
+function buildSubscriptionCheckoutIdempotencyKey({
+  userId,
+}: {
+  userId: string
+}): string {
+  const idempotencyBucket = Math.floor(
+    Date.now() / SUBSCRIPTION_CHECKOUT_IDEMPOTENCY_WINDOW_MS,
+  )
+  return ['subscription', 'checkout', userId, idempotencyBucket].join(':')
 }
 
 async function ensureStripeCustomer(
@@ -107,14 +143,14 @@ async function ensureStripeCustomer(
     return existingCustomer.id
   }
 
-  const customer = await stripeRequest<StripeCustomerResponse>(
-    '/customers',
-    'POST',
-    {
+  const customer = await stripeRequest<StripeCustomerResponse>({
+    path: '/customers',
+    method: 'POST',
+    payload: {
       email,
       'metadata[user_id]': userId,
     },
-  )
+  })
 
   await db.insert(billingCustomer).values({
     id: customer.id,
@@ -136,16 +172,66 @@ async function getUserIdByCustomerId(
   return customer?.userId ?? null
 }
 
-export async function createCheckoutSession(
-  userId: string,
-  email: string,
-): Promise<string> {
-  const customerId = await ensureStripeCustomer(userId, email)
+async function hasLocalActiveOrTrialingSubscription({
+  userId,
+}: {
+  userId: string
+}): Promise<boolean> {
+  const subscription = await db.query.billingSubscription.findFirst({
+    where: and(
+      eq(billingSubscription.userId, userId),
+      inArray(
+        billingSubscription.status,
+        ACTIVE_OR_TRIALING_SUBSCRIPTION_STATUSES,
+      ),
+    ),
+    columns: { id: true },
+  })
 
-  const checkout = await stripeRequest<StripeCheckoutResponse>(
-    '/checkout/sessions',
-    'POST',
-    {
+  return Boolean(subscription)
+}
+
+async function hasStripeActiveOrTrialingSubscription({
+  customerId,
+}: {
+  customerId: string
+}): Promise<boolean> {
+  const subscriptions = await stripeRequest<StripeSubscriptionListResponse>({
+    path: `/subscriptions?customer=${encodeURIComponent(customerId)}&status=all&limit=100`,
+    method: 'GET',
+  })
+
+  return subscriptions.data.some((subscription) =>
+    isActiveOrTrialingStatus({ status: subscription.status }),
+  )
+}
+
+export async function createCheckoutSession({
+  userId,
+  email,
+}: {
+  userId: string
+  email: string
+}): Promise<string> {
+  const hasLocalSubscription = await hasLocalActiveOrTrialingSubscription({
+    userId,
+  })
+  if (hasLocalSubscription) {
+    throw new Error(ACTIVE_OR_TRIALING_SUBSCRIPTION_EXISTS_MESSAGE)
+  }
+
+  const customerId = await ensureStripeCustomer(userId, email)
+  const hasStripeSubscription = await hasStripeActiveOrTrialingSubscription({
+    customerId,
+  })
+  if (hasStripeSubscription) {
+    throw new Error(ACTIVE_OR_TRIALING_SUBSCRIPTION_EXISTS_MESSAGE)
+  }
+
+  const checkout = await stripeRequest<StripeCheckoutResponse>({
+    path: '/checkout/sessions',
+    method: 'POST',
+    payload: {
       mode: 'subscription',
       customer: customerId,
       success_url: `${env.APP_URL}/setup?step=trial&checkout=success`,
@@ -160,7 +246,10 @@ export async function createCheckoutSession(
       'metadata[user_id]': userId,
       'metadata[checkout_kind]': 'subscription',
     },
-  )
+    idempotencyKey: buildSubscriptionCheckoutIdempotencyKey({
+      userId,
+    }),
+  })
 
   if (!checkout.url) {
     throw new Error('Stripe checkout did not return a URL')
@@ -169,11 +258,15 @@ export async function createCheckoutSession(
   return checkout.url
 }
 
-export async function createTopupCheckoutSession(
-  userId: string,
-  email: string,
-  packId: string,
-): Promise<string> {
+export async function createTopupCheckoutSession({
+  userId,
+  email,
+  packId,
+}: {
+  userId: string
+  email: string
+  packId: string
+}): Promise<string> {
   const customerId = await ensureStripeCustomer(userId, email)
   const pack = getTopupPacks().find((entry) => entry.id === packId)
 
@@ -181,10 +274,10 @@ export async function createTopupCheckoutSession(
     throw new Error('Unknown top-up pack')
   }
 
-  const checkout = await stripeRequest<StripeCheckoutResponse>(
-    '/checkout/sessions',
-    'POST',
-    {
+  const checkout = await stripeRequest<StripeCheckoutResponse>({
+    path: '/checkout/sessions',
+    method: 'POST',
+    payload: {
       mode: 'payment',
       customer: customerId,
       success_url: `${env.APP_URL}/?topup=success`,
@@ -195,7 +288,7 @@ export async function createTopupCheckoutSession(
       'metadata[checkout_kind]': 'topup',
       'metadata[topup_pack_id]': pack.id,
     },
-  )
+  })
 
   if (!checkout.url) {
     throw new Error('Stripe checkout did not return a URL')
@@ -214,14 +307,14 @@ export async function createPortalSession(userId: string): Promise<string> {
     throw new Error('No Stripe customer found for this user')
   }
 
-  const portal = await stripeRequest<{ url: string }>(
-    '/billing_portal/sessions',
-    'POST',
-    {
+  const portal = await stripeRequest<{ url: string }>({
+    path: '/billing_portal/sessions',
+    method: 'POST',
+    payload: {
       customer: customer.id,
       return_url: `${env.APP_URL}/`,
     },
-  )
+  })
 
   return portal.url
 }
@@ -335,10 +428,10 @@ async function saveSubscription(
 async function retrieveSubscription(
   subscriptionId: string,
 ): Promise<StripeSubscriptionResponse> {
-  return stripeRequest<StripeSubscriptionResponse>(
-    `/subscriptions/${subscriptionId}`,
-    'GET',
-  )
+  return stripeRequest<StripeSubscriptionResponse>({
+    path: `/subscriptions/${subscriptionId}`,
+    method: 'GET',
+  })
 }
 
 function readCheckoutSession(
@@ -396,7 +489,10 @@ function readDispute(obj: Record<string, unknown>) {
 }
 
 async function cancelSubscription(subscriptionId: string): Promise<void> {
-  await stripeRequest(`/subscriptions/${subscriptionId}`, 'DELETE')
+  await stripeRequest({
+    path: `/subscriptions/${subscriptionId}`,
+    method: 'DELETE',
+  })
 }
 
 async function markStripeEventProcessed(event: StripeEvent): Promise<boolean> {

@@ -28,16 +28,24 @@ export default function HeroContent() {
 
       <p className="mt-6 max-w-xl text-base leading-relaxed text-muted-foreground lg:max-w-2xl">
         Sato is your personal AI assistant that remembers your preferences,
-        helps manage your day, and gets smarter the more you use it — all
-        completely private.
+        helps manage your day, and gets smarter the more you use it — all with
+        strong privacy and security safeguards.
       </p>
 
-      <div className="mt-8">
+      <div className="mt-8 flex flex-col items-center">
         <a
           href={import.meta.env.PUBLIC_APP_URL || 'https://app.asksato.ai'}
           className="inline-flex rounded-full bg-primary px-8 py-3 text-base font-medium text-primary-foreground transition-colors hover:bg-primary/90"
         >
           Try Sato
+        </a>
+        <a
+          href="https://openclaw.ai"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-4 inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+        >
+          Powered by OpenClaw
         </a>
       </div>
     </motion.div>

@@ -1,5 +1,6 @@
 type RateLimitCategory =
   | 'vps-provision'
+  | 'vps-unlock'
   | 'billing'
   | 'vps-status'
   | 'telegram'
@@ -15,6 +16,7 @@ interface RateLimitConfig {
 
 const RATE_LIMITS: Record<RateLimitCategory, RateLimitConfig> = {
   'vps-provision': { maxRequests: 3, windowMs: 10 * 60 * 1000 },
+  'vps-unlock': { maxRequests: 30, windowMs: 60 * 1000 },
   billing: { maxRequests: 10, windowMs: 60 * 1000 },
   'vps-status': { maxRequests: 60, windowMs: 60 * 1000 },
   telegram: { maxRequests: 30, windowMs: 60 * 1000 },

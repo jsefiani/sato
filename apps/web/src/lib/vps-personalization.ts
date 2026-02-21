@@ -10,6 +10,46 @@ const GATEWAY_PORT = 18789
 const GATEWAY_READY_ATTEMPTS = 10
 const GATEWAY_READY_INTERVAL_MS = 1_000
 
+function buildRootShellCommand({ command }: { command: string }): string {
+  const escaped = command.replace(/'/g, `'"'"'`)
+  return `/bin/bash -lc 'export HOME=/root; export PATH=/usr/local/bin:/usr/bin:/bin; ${escaped}'`
+}
+
+async function restartOpenClawGateway({
+  tailscaleIp,
+  waitForReady,
+}: {
+  tailscaleIp: string
+  waitForReady: boolean
+}): Promise<void> {
+  if (!waitForReady) {
+    try {
+      await runVpsSshCommand(
+        tailscaleIp,
+        buildRootShellCommand({
+          command:
+            'if command -v systemctl >/dev/null 2>&1; then systemctl restart --no-block openclaw-gateway || systemctl restart openclaw-gateway; fi',
+        }),
+        { timeoutMs: 15_000 },
+      )
+    } catch (error) {
+      console.warn(
+        '[vps-personalization] Model config updated but gateway restart did not complete immediately.',
+        error,
+      )
+    }
+    return
+  }
+
+  await runVpsSshCommand(
+    tailscaleIp,
+    buildRootShellCommand({
+      command: 'systemctl restart openclaw-gateway',
+    }),
+    { timeoutMs: 30_000 },
+  )
+}
+
 function buildSoulMd({
   assistantName,
   communicationStyle,
@@ -149,9 +189,7 @@ export async function ensureChatEndpointEnabled({
 
   await runVpsSshCommand(tailscaleIp, writeCmd)
 
-  // Restart the gateway so it picks up the new config (no hot-reload support)
-  const restartCmd = `/bin/bash -lc 'export HOME=/root; export PATH=/usr/local/bin:/usr/bin:/bin; systemctl restart openclaw-gateway'`
-  await runVpsSshCommand(tailscaleIp, restartCmd, { timeoutMs: 30_000 })
+  await restartOpenClawGateway({ tailscaleIp, waitForReady: true })
 
   // Wait for the gateway to accept connections before returning
   for (let i = 0; i < GATEWAY_READY_ATTEMPTS; i++) {
@@ -212,8 +250,7 @@ export async function applyModelConfig({
 
   await runVpsSshCommand(tailscaleIp, writeCmd)
 
-  const restartCmd = `/bin/bash -lc 'export HOME=/root; export PATH=/usr/local/bin:/usr/bin:/bin; systemctl restart openclaw-gateway'`
-  await runVpsSshCommand(tailscaleIp, restartCmd, { timeoutMs: 30_000 })
+  await restartOpenClawGateway({ tailscaleIp, waitForReady })
 
   if (!waitForReady) {
     return

@@ -12,10 +12,6 @@ import {
   Loader2,
   MessageCircle,
   MessageSquare,
-  Settings,
-  ShieldCheck,
-  Terminal,
-  Trash2,
 } from 'lucide-react'
 import {
   siAlibabacloud,
@@ -45,30 +41,9 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Separator } from '@/components/ui/separator'
 import { authClient } from '@/lib/auth-client'
 import { DEFAULT_MODEL, SUPPORTED_MODELS } from '@/lib/models'
 import { useEventStream } from '@/lib/use-event-stream'
-
-interface VerifyState {
-  checkedAt: string
-  ok: boolean
-  gateway: {
-    loaded: boolean
-    rpcOk: boolean
-  }
-  health: {
-    ok: boolean
-    durationMs: number | null
-    channelsOk: number
-    channelsFailed: number
-  }
-}
-
-interface VpsLogs {
-  bootstrapLog: string
-  cloudInitStatus: string
-}
 
 function formatCredits(value: number): string {
   return new Intl.NumberFormat().format(value)
@@ -152,8 +127,6 @@ export default function Dashboard() {
   const state = setupQuery.data ?? null
 
   const [stripeLoading, setStripeLoading] = useState(false)
-  const [showAdvanced, setShowAdvanced] = useState(false)
-  const [showLogs, setShowLogs] = useState(false)
   const [isModelDialogOpen, setIsModelDialogOpen] = useState(false)
   const [isModelMenuOpen, setIsModelMenuOpen] = useState(false)
   const [isModelRestartWatchActive, setIsModelRestartWatchActive] =
@@ -382,7 +355,6 @@ export default function Dashboard() {
     !isModelRestartWatchActive &&
     state?.vps?.status === 'active' &&
     state.openClawReady === true
-  const canViewDebugLogs = import.meta.env.DEV
   const isAssistantRestarting =
     state?.vps?.status === 'active' &&
     (modelMutation.isPending ||
@@ -395,28 +367,6 @@ export default function Dashboard() {
   const telegramConnected = telegramSetup?.connected === true
   const telegramConfigured =
     telegramConnected || telegramSetup?.setupState === 'configuring'
-
-  const verifyMutation = useMutation({
-    mutationFn: async () => {
-      const res = await fetch('/api/vps/verify')
-      const payload = (await res.json()) as VerifyState & {
-        error?: string
-      }
-      if (!res.ok) throw new Error(payload.error ?? 'Verification failed')
-      return payload
-    },
-  })
-
-  const logsQuery = useQuery({
-    queryKey: ['vps-logs'],
-    queryFn: async () => {
-      const res = await fetch('/api/vps/logs')
-      if (!res.ok) throw new Error('Failed to fetch logs')
-      return res.json() as Promise<VpsLogs>
-    },
-    enabled: showLogs,
-    refetchInterval: showLogs ? 10_000 : false,
-  })
 
   const statusLabel = state?.vps
     ? ({
@@ -737,143 +687,21 @@ export default function Dashboard() {
           </motion.div>
         )}
 
-        <motion.div variants={item}>
-          <button
-            type="button"
-            onClick={() => setShowAdvanced((v) => !v)}
-            className="flex w-full items-center gap-2 rounded-2xl border border-border/70 bg-card/30 p-4 text-sm text-muted-foreground/80 transition-colors hover:text-muted-foreground"
-          >
-            <Settings className="h-3.5 w-3.5" />
-            Advanced
-            <ChevronDown
-              className={`ml-auto h-3.5 w-3.5 transition-transform ${showAdvanced ? 'rotate-180' : ''}`}
-            />
-          </button>
-
-          {showAdvanced && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              className="mt-2 space-y-3 rounded-2xl border border-border/70 bg-card/30 p-5"
-            >
-              {canViewDebugLogs && isAssistantLive && (
-                <div className="space-y-3">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => verifyMutation.mutate()}
-                    disabled={verifyMutation.isPending}
-                  >
-                    <ShieldCheck className="h-3.5 w-3.5" />
-                    {verifyMutation.isPending
-                      ? 'Checking…'
-                      : 'Run health check'}
-                  </Button>
-
-                  {verifyMutation.data && (
-                    <div className="grid gap-1.5 text-[13px] text-muted-foreground sm:grid-cols-2">
-                      <p>
-                        Connection:{' '}
-                        <span
-                          className={
-                            verifyMutation.data.gateway.loaded
-                              ? 'text-foreground/80'
-                              : 'text-destructive'
-                          }
-                        >
-                          {verifyMutation.data.gateway.loaded
-                            ? 'working'
-                            : 'not working'}
-                        </span>
-                      </p>
-                      <p>
-                        Communication:{' '}
-                        <span
-                          className={
-                            verifyMutation.data.gateway.rpcOk
-                              ? 'text-foreground/80'
-                              : 'text-destructive'
-                          }
-                        >
-                          {verifyMutation.data.gateway.rpcOk
-                            ? 'working'
-                            : 'not working'}
-                        </span>
-                      </p>
-                      <p>
-                        System:{' '}
-                        <span
-                          className={
-                            verifyMutation.data.health.ok
-                              ? 'text-foreground/80'
-                              : 'text-destructive'
-                          }
-                        >
-                          {verifyMutation.data.health.ok
-                            ? 'healthy'
-                            : 'needs attention'}
-                        </span>
-                      </p>
-                      <p>
-                        Features: {verifyMutation.data.health.channelsOk}{' '}
-                        working / {verifyMutation.data.health.channelsFailed}{' '}
-                        issues
-                      </p>
-                    </div>
-                  )}
+        {state.vps && state.vps.status !== 'terminated' && (
+          <motion.div variants={item}>
+            <Card className="rounded-2xl border-destructive/30 p-5">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-stretch sm:justify-between">
+                <div className="space-y-1">
+                  <h2 className="text-sm font-semibold text-destructive">
+                    Danger zone
+                  </h2>
+                  <p className="text-sm text-muted-foreground/80">
+                    Remove the assistant and deprovision its server. This cannot
+                    be undone.
+                  </p>
                 </div>
-              )}
 
-              {isAssistantLive && (
-                <div className="space-y-3">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowLogs((v) => !v)}
-                  >
-                    <Terminal className="h-3.5 w-3.5" />
-                    {showLogs ? 'Hide logs' : 'Setup logs'}
-                  </Button>
-
-                  {showLogs && (
-                    <div className="space-y-3 rounded-xl border border-border/70 bg-background/50 p-4">
-                      {logsQuery.isLoading ? (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground/80">
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          Fetching logs…
-                        </div>
-                      ) : logsQuery.isError ? (
-                        <p className="text-sm text-destructive">
-                          Failed to load logs.
-                        </p>
-                      ) : (
-                        <>
-                          <div>
-                            <h3 className="mb-2 text-[13px] font-medium text-foreground/80">
-                              Setup Log
-                            </h3>
-                            <pre className="max-h-48 overflow-auto whitespace-pre-wrap rounded-lg bg-background p-3 font-mono text-[12px] text-muted-foreground/80">
-                              {logsQuery.data?.bootstrapLog}
-                            </pre>
-                          </div>
-                          <div>
-                            <h3 className="mb-2 text-[13px] font-medium text-foreground/80">
-                              Server setup
-                            </h3>
-                            <pre className="max-h-48 overflow-auto whitespace-pre-wrap rounded-lg bg-background p-3 font-mono text-[12px] text-muted-foreground/80">
-                              {logsQuery.data?.cloudInitStatus}
-                            </pre>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {state.vps && state.vps.status !== 'terminated' && (
-                <div className="pt-3">
-                  <Separator className="mb-3" />
+                <div className="sm:flex sm:items-center">
                   <Button
                     variant="destructive"
                     size="sm"
@@ -886,22 +714,22 @@ export default function Dashboard() {
                     }}
                     disabled={destroyMutation.isPending}
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
                     {destroyMutation.isPending
                       ? 'Removing…'
                       : 'Remove assistant'}
                   </Button>
-                  {destroyMutation.isSuccess && (
-                    <p className="mt-2 flex items-center gap-1.5 text-[13px] text-foreground/80">
-                      <Check className="h-3 w-3" />
-                      Assistant removed.
-                    </p>
-                  )}
                 </div>
+              </div>
+
+              {destroyMutation.isSuccess && (
+                <p className="mt-3 flex items-center gap-1.5 text-[13px] text-foreground/80">
+                  <Check className="size-3" />
+                  Assistant removed.
+                </p>
               )}
-            </motion.div>
-          )}
-        </motion.div>
+            </Card>
+          </motion.div>
+        )}
       </motion.div>
 
       <Dialog

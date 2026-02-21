@@ -2,7 +2,13 @@ import { eq } from 'drizzle-orm'
 import bootstrapTemplateRaw from '../../scripts/templates/vps-bootstrap.sh.tmpl?raw'
 import type { HetznerLabels } from '@/lib/hetzner'
 import { db } from '@/db'
-import { auditLog, provisioningJob, user, vpsInstance } from '@/db/schema'
+import {
+  auditLog,
+  provisioningJob,
+  user,
+  vpsDataEncryption,
+  vpsInstance,
+} from '@/db/schema'
 import {
   deleteUserOpenRouterKey,
   ensureUserOpenRouterApiKey,
@@ -23,6 +29,7 @@ import { getGatewayAuthToken } from '@/lib/gateway-auth'
 import { createId } from '@/lib/ids'
 import { normalizeModel } from '@/lib/models'
 import { createEphemeralAuthKey, deleteDeviceByHostname } from '@/lib/tailscale'
+import { createDataEncryptionForUser } from '@/lib/vps-data-encryption'
 import { createVpsBootstrapToken } from '@/lib/vps-bootstrap-token'
 
 const CLEANUP_ATTEMPTS = 3
@@ -32,6 +39,8 @@ const PROVISIONING_TEMPORARY_FAILURE_MESSAGE =
   'Assistant setup is temporarily unavailable. Please retry in a few minutes.'
 const PROVISIONING_CLEANUP_PENDING_MESSAGE =
   'Assistant cleanup is taking longer than expected. Please retry shortly.'
+const PROVISIONING_APP_URL_UNREACHABLE_MESSAGE =
+  'Provisioning requires APP_URL to be reachable from the VPS. Use a public URL (or tunnel URL), not localhost.'
 
 interface ProvisionInput {
   userId: string
@@ -80,6 +89,10 @@ function renderBootstrapTemplate({
   tailscaleAuthKey,
   tailscaleHostname,
   openclawGatewayToken,
+  encryptionKeyUrl,
+  encryptionUserId,
+  encryptionAuthSecret,
+  dataVolumeSizeGb,
   preferredModel,
 }: {
   bootstrapCheckpointUrl: string
@@ -87,6 +100,10 @@ function renderBootstrapTemplate({
   tailscaleAuthKey: string
   tailscaleHostname: string
   openclawGatewayToken: string
+  encryptionKeyUrl: string
+  encryptionUserId: string
+  encryptionAuthSecret: string
+  dataVolumeSizeGb: number
   preferredModel: string
 }): string {
   const replacements = {
@@ -95,6 +112,10 @@ function renderBootstrapTemplate({
     TAILSCALE_AUTH_KEY: escapeForSingleQuotedBash(tailscaleAuthKey),
     TAILSCALE_HOSTNAME: escapeForSingleQuotedBash(tailscaleHostname),
     OPENCLAW_GATEWAY_TOKEN: escapeForSingleQuotedBash(openclawGatewayToken),
+    ENCRYPTION_KEY_URL: escapeForSingleQuotedBash(encryptionKeyUrl),
+    ENCRYPTION_USER_ID: escapeForSingleQuotedBash(encryptionUserId),
+    ENCRYPTION_AUTH_SECRET: escapeForSingleQuotedBash(encryptionAuthSecret),
+    DATA_VOLUME_SIZE_GB: String(dataVolumeSizeGb),
     PREFERRED_MODEL: escapeForSingleQuotedBash(preferredModel),
   }
 
@@ -127,6 +148,10 @@ function buildSnapshotCloudInit({
   bootstrapCheckpointUrl,
   bootstrapCheckpointToken,
   openclawGatewayToken,
+  encryptionKeyUrl,
+  encryptionUserId,
+  encryptionAuthSecret,
+  dataVolumeSizeGb,
   preferredModel,
 }: {
   openRouterApiKey: string
@@ -135,6 +160,10 @@ function buildSnapshotCloudInit({
   bootstrapCheckpointUrl: string
   bootstrapCheckpointToken: string
   openclawGatewayToken: string
+  encryptionKeyUrl: string
+  encryptionUserId: string
+  encryptionAuthSecret: string
+  dataVolumeSizeGb: number
   preferredModel: string
 }): string {
   const safeApiKey = escapeForSingleQuotedBash(openRouterApiKey)
@@ -144,6 +173,10 @@ function buildSnapshotCloudInit({
     tailscaleAuthKey,
     tailscaleHostname,
     openclawGatewayToken,
+    encryptionKeyUrl,
+    encryptionUserId,
+    encryptionAuthSecret,
+    dataVolumeSizeGb,
     preferredModel,
   })
 
@@ -151,18 +184,18 @@ function buildSnapshotCloudInit({
     '#cloud-config',
     'package_update: false',
     'write_files:',
-    '  - path: /opt/openclaw/.env',
-    '    owner: openclaw:openclaw',
+    '  - path: /etc/sato/openclaw.env',
+    '    owner: root:root',
     "    permissions: '0600'",
     '    content: |',
     `      OPENROUTER_API_KEY='${safeApiKey}'`,
-    '  - path: /opt/openclaw/bootstrap.sh',
+    '  - path: /var/lib/sato/bootstrap.sh',
     '    owner: root:root',
     "    permissions: '0700'",
     '    content: |',
     indentForCloudConfigBlock(bootstrapScript),
     'runcmd:',
-    "  - /bin/bash -lc '/opt/openclaw/bootstrap.sh > /var/log/sato-openclaw-bootstrap.log 2>&1'",
+    "  - /bin/bash -lc '/var/lib/sato/bootstrap.sh > /var/log/sato-openclaw-bootstrap.log 2>&1'",
   ].join('\n')
 }
 
@@ -193,6 +226,22 @@ function sanitizeLabelValue(value: string): string {
     .slice(0, 63)
 
   return sanitized || 'na'
+}
+
+function assertProvisioningAppUrlReachable(): void {
+  let appUrl: URL
+  try {
+    appUrl = new URL(env.APP_URL)
+  } catch {
+    throw new Error(PROVISIONING_APP_URL_UNREACHABLE_MESSAGE)
+  }
+
+  const host = appUrl.hostname.trim().toLowerCase()
+  const localHosts = new Set(['localhost', '127.0.0.1', '::1'])
+
+  if (localHosts.has(host)) {
+    throw new Error(PROVISIONING_APP_URL_UNREACHABLE_MESSAGE)
+  }
 }
 
 function sleep(ms: number): Promise<void> {
@@ -378,6 +427,7 @@ export async function provisionUserServer(input: ProvisionInput) {
   }
 
   await clearUserChannelConnections(input.userId)
+  assertProvisioningAppUrlReachable()
 
   const region = (input.region ?? instanceRow?.region ?? 'nbg1')
     .trim()
@@ -447,14 +497,18 @@ export async function provisionUserServer(input: ProvisionInput) {
   let createdServerId: string | null = null
 
   try {
-    const [openRouterApiKey, tailscaleAuth, userRow] = await Promise.all([
-      ensureUserOpenRouterApiKey(input.userId),
-      createEphemeralAuthKey(),
-      db.query.user.findFirst({
-        where: eq(user.id, input.userId),
-        columns: { preferredModel: true },
-      }),
-    ])
+    const [openRouterApiKey, tailscaleAuth, userRow, dataEncryption] =
+      await Promise.all([
+        ensureUserOpenRouterApiKey(input.userId),
+        createEphemeralAuthKey(),
+        db.query.user.findFirst({
+          where: eq(user.id, input.userId),
+          columns: { preferredModel: true },
+        }),
+        createDataEncryptionForUser({
+          userId: input.userId,
+        }),
+      ])
     const firewallName = buildResourceName('fw', input.userId)
     const serverName = buildResourceName('srv', input.userId)
     const tailscaleHostname = buildTailscaleHostname({ serverName })
@@ -465,6 +519,10 @@ export async function provisionUserServer(input: ProvisionInput) {
     const openclawGatewayToken = getGatewayAuthToken({ userId: input.userId })
     const bootstrapCheckpointUrl = new URL(
       '/api/vps/status',
+      env.APP_URL,
+    ).toString()
+    const encryptionKeyUrl = new URL(
+      '/api/vps/encryption-key',
       env.APP_URL,
     ).toString()
 
@@ -494,6 +552,10 @@ export async function provisionUserServer(input: ProvisionInput) {
       bootstrapCheckpointUrl,
       bootstrapCheckpointToken,
       openclawGatewayToken,
+      encryptionKeyUrl,
+      encryptionUserId: input.userId,
+      encryptionAuthSecret: dataEncryption.unlockAuthSecret,
+      dataVolumeSizeGb: env.VPS_DATA_VOLUME_SIZE_GB,
       preferredModel: normalizeModel(userRow?.preferredModel),
     })
 
@@ -614,7 +676,12 @@ export async function destroyUserServer(userId: string): Promise<void> {
 
   const instance = instanceRows.at(0)
 
-  if (!instance) return
+  if (!instance) {
+    await db
+      .delete(vpsDataEncryption)
+      .where(eq(vpsDataEncryption.userId, userId))
+    return
+  }
 
   if (instance.tailscaleHostname || instance.tailscaleIp) {
     try {
@@ -645,6 +712,9 @@ export async function destroyUserServer(userId: string): Promise<void> {
       .where(eq(vpsInstance.userId, userId))
   } else {
     await db.delete(vpsInstance).where(eq(vpsInstance.userId, userId))
+    await db
+      .delete(vpsDataEncryption)
+      .where(eq(vpsDataEncryption.userId, userId))
   }
 
   await db.delete(provisioningJob).where(eq(provisioningJob.userId, userId))

@@ -24,7 +24,7 @@ Run Stripe CLI locally and forward events to:
 pnpm stripe:listen
 ```
 
-This forwards to `http://localhost:3000/api/stripe/webhook`.
+This forwards to `http://localhost:3001/api/stripe/webhook`.
 
 ---
 

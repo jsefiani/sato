@@ -31,6 +31,8 @@ const BOOTSTRAP_FAILURE_FALLBACK =
 const BOOTSTRAP_CHECKPOINT_EVENTS = new Set([
   'bootstrap_started',
   'tailscale_joined',
+  'data_volume_created',
+  'data_volume_unlocked',
   'gateway_ready',
   'bootstrap_warning',
   'bootstrap_completed',
@@ -40,6 +42,10 @@ const BOOTSTRAP_CHECKPOINT_EVENTS = new Set([
 const BOOTSTRAP_FAILURE_MESSAGES: Record<string, string> = {
   tailscale_join_failed:
     'Server failed to join the private network during bootstrap.',
+  openrouter_env_missing:
+    'Server bootstrap could not find OpenRouter credentials.',
+  openrouter_key_missing:
+    'Server bootstrap received an empty OpenRouter credential.',
   openclaw_onboard_failed:
     'Server joined the private network, but OpenClaw onboarding failed.',
   telegram_plugin_enable_failed:
@@ -50,6 +56,8 @@ const BOOTSTRAP_FAILURE_MESSAGES: Record<string, string> = {
     'Bootstrap failed because OpenClaw gateway did not bind on port 18789.',
   tailscale_serve_config_failed:
     'Bootstrap failed while configuring private gateway access via Tailscale Serve.',
+  data_volume_unlock_failed:
+    'Bootstrap failed because encrypted storage could not be unlocked.',
 }
 
 export const Route = createFileRoute('/api/vps/status')({

@@ -199,6 +199,25 @@ export const vpsInstance = pgTable('vps_instance', {
     .$onUpdate(() => new Date()),
 })
 
+export const vpsDataEncryption = pgTable('vps_data_encryption', {
+  id: text('id').primaryKey(),
+  userId: text('user_id')
+    .notNull()
+    .unique()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  wrappedDataKey: text('wrapped_data_key').notNull(),
+  unlockAuthSecret: text('unlock_auth_secret').notNull(),
+  keyVersion: integer('key_version').notNull().default(1),
+  state: text('state').notNull().default('active'),
+  lastUnlockAt: timestamp('last_unlock_at'),
+  lastUnlockIp: text('last_unlock_ip'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at')
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+})
+
 export const channelConnection = pgTable(
   'channel_connection',
   {
@@ -263,6 +282,7 @@ export const userRelations = relations(user, ({ many, one }) => ({
   creditWallet: one(creditWallet),
   creditLedgerEntries: many(creditLedger),
   vpsInstance: one(vpsInstance),
+  vpsDataEncryption: one(vpsDataEncryption),
   channelConnections: many(channelConnection),
   provisioningJobs: many(provisioningJob),
   auditLogs: many(auditLog),
@@ -321,6 +341,16 @@ export const creditLedgerRelations = relations(creditLedger, ({ one }) => ({
 export const vpsInstanceRelations = relations(vpsInstance, ({ one }) => ({
   user: one(user, { fields: [vpsInstance.userId], references: [user.id] }),
 }))
+
+export const vpsDataEncryptionRelations = relations(
+  vpsDataEncryption,
+  ({ one }) => ({
+    user: one(user, {
+      fields: [vpsDataEncryption.userId],
+      references: [user.id],
+    }),
+  }),
+)
 
 export const channelConnectionRelations = relations(
   channelConnection,

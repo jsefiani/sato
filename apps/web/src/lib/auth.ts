@@ -6,6 +6,7 @@ import { db } from '@/db'
 import { env } from '@/lib/env'
 
 export const auth = betterAuth({
+  baseURL: env.APP_URL,
   database: drizzleAdapter(db, {
     provider: 'pg',
   }),
