@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm'
+import { and, eq, inArray, sql } from 'drizzle-orm'
 import bootstrapTemplateRaw from '../../scripts/templates/vps-bootstrap.sh.tmpl?raw'
 import type { HetznerLabels } from '@/lib/hetzner'
 import { db } from '@/db'
@@ -22,6 +22,8 @@ import {
   createServer,
   deleteFirewall,
   deleteServer,
+  listFirewallsByLabels,
+  listServersByLabels,
   normalizeHetznerServerType,
   removeFirewallFromServer,
 } from '@/lib/hetzner'
@@ -41,17 +43,36 @@ const PROVISIONING_CLEANUP_PENDING_MESSAGE =
   'Assistant cleanup is taking longer than expected. Please retry shortly.'
 const PROVISIONING_APP_URL_UNREACHABLE_MESSAGE =
   'Provisioning requires APP_URL to be reachable from the VPS. Use a public URL (or tunnel URL), not localhost.'
+const PROVISION_STARTABLE_INSTANCE_STATUSES = [
+  'pending',
+  'failed',
+  'terminated',
+]
+const ACTIVE_PROVISIONING_JOB_STATUSES = [
+  'started',
+  'bootstrapping',
+  'cleanup_pending',
+]
+const PROVISION_LOCK_NAMESPACE = 77801
 
 interface ProvisionInput {
   userId: string
   region?: string
   serverType?: string
+  idempotencyKey?: string | null
 }
 
 interface CleanupOutcome {
   remainingServerId: string | null
   remainingFirewallId: string | null
   errors: Array<string>
+}
+
+interface ProvisioningStartState {
+  region: string
+  serverType: string
+  requestId: string
+  jobId: string
 }
 
 function buildResourceName(prefix: 'srv' | 'fw', userId: string): string {
@@ -219,6 +240,45 @@ function mapProvisioningErrorMessage(message: string): string {
   return message
 }
 
+function isUniqueViolationForConstraint({
+  error,
+  constraints,
+}: {
+  error: unknown
+  constraints: Array<string>
+}): boolean {
+  if (!error || typeof error !== 'object') {
+    return false
+  }
+
+  const dbError = error as { code?: string; constraint?: string }
+  if (dbError.code !== '23505') {
+    return false
+  }
+
+  if (!dbError.constraint) {
+    return true
+  }
+
+  return constraints.includes(dbError.constraint)
+}
+
+function resolveIdempotentProvisionResult({
+  status,
+  errorMessage,
+}: {
+  status: string
+  errorMessage: string | null
+}): { status: 'bootstrapping' } {
+  if (status === 'failed' || status === 'cleanup_pending') {
+    throw new Error(
+      errorMessage?.trim() || PROVISIONING_TEMPORARY_FAILURE_MESSAGE,
+    )
+  }
+
+  return { status: 'bootstrapping' }
+}
+
 function sanitizeLabelValue(value: string): string {
   const sanitized = value
     .toLowerCase()
@@ -332,7 +392,13 @@ async function cleanupProvisioningResources(
   }
 }
 
-async function cleanupStaleResourcesForUser(userId: string): Promise<void> {
+async function cleanupStaleResourcesForUser({
+  userId,
+  preserveProvisioningStatus = false,
+}: {
+  userId: string
+  preserveProvisioningStatus?: boolean
+}): Promise<void> {
   const instanceRows = await db
     .select({
       serverId: vpsInstance.hetznerServerId,
@@ -385,7 +451,11 @@ async function cleanupStaleResourcesForUser(userId: string): Promise<void> {
   await db
     .update(vpsInstance)
     .set({
-      status: hasCleanupErrors ? 'cleanup_pending' : 'pending',
+      status: hasCleanupErrors
+        ? 'cleanup_pending'
+        : preserveProvisioningStatus
+          ? 'provisioning'
+          : 'pending',
       hetznerServerId: cleanup.remainingServerId,
       hetznerFirewallId: cleanup.remainingFirewallId,
       ipv4Address: null,
@@ -405,82 +475,161 @@ async function cleanupStaleResourcesForUser(userId: string): Promise<void> {
   }
 }
 
-export async function provisionUserServer(input: ProvisionInput) {
-  const instanceRows = await db
-    .select({
-      id: vpsInstance.id,
-      status: vpsInstance.status,
-      region: vpsInstance.region,
-      serverType: vpsInstance.serverType,
-    })
-    .from(vpsInstance)
-    .where(eq(vpsInstance.userId, input.userId))
-    .limit(1)
-
-  const instanceRow = instanceRows.at(0)
-
-  if (
-    instanceRow &&
-    (instanceRow.status === 'provisioning' || instanceRow.status === 'active')
-  ) {
-    throw new Error('This account already has a VPS instance')
+async function cleanupOrphanProviderResourcesForUser({
+  userId,
+}: {
+  userId: string
+}): Promise<void> {
+  const labels: HetznerLabels = {
+    app: 'sato',
+    sato_user: sanitizeLabelValue(userId),
   }
 
-  await clearUserChannelConnections(input.userId)
-  assertProvisioningAppUrlReachable()
-
-  const region = (input.region ?? instanceRow?.region ?? 'nbg1')
-    .trim()
-    .toLowerCase()
-  const serverType = normalizeHetznerServerType(
-    input.serverType ?? instanceRow?.serverType ?? 'cpx22',
-  )
-  const snapshotId = env.HETZNER_SNAPSHOT_ID
-
-  await Promise.all([
-    cleanupStaleResourcesForUser(input.userId),
-    assertServerTypeAvailable(serverType, region),
-    assertSnapshotAvailable({ snapshotId }),
+  const [servers, firewalls] = await Promise.all([
+    listServersByLabels({ labels }),
+    listFirewallsByLabels({ labels }),
   ])
 
-  const now = new Date()
-  const requestId = createId()
-  const jobId = createId()
-  const instanceId = instanceRow?.id ?? createId()
+  if (servers.length === 0 && firewalls.length === 0) {
+    return
+  }
 
-  await db.insert(provisioningJob).values({
-    id: jobId,
-    userId: input.userId,
-    type: 'provision',
-    status: 'started',
-    requestId,
-    createdAt: now,
-  })
+  const cleanupErrors: Array<string> = []
 
-  await db
-    .insert(vpsInstance)
-    .values({
-      id: instanceId,
-      userId: input.userId,
-      region,
-      serverType,
-      status: 'provisioning',
-      hetznerServerId: null,
-      hetznerFirewallId: null,
-      ipv4Address: null,
-      tailscaleIp: null,
-      tailscaleHostname: null,
-      snapshotVersion: snapshotId,
-      openclawVersion: null,
-      lastUpdatedAt: null,
-      createdAt: now,
+  for (const server of servers) {
+    const cleanupError = await runCleanupWithRetries(async () => {
+      await deleteServer(server.id)
     })
-    .onConflictDoUpdate({
-      target: vpsInstance.userId,
-      set: {
-        status: 'provisioning',
+
+    if (cleanupError) {
+      cleanupErrors.push(`server:${server.id}: ${cleanupError}`)
+    }
+  }
+
+  for (const firewall of firewalls) {
+    const cleanupError = await runCleanupWithRetries(async () => {
+      await deleteFirewall(firewall.id)
+    })
+
+    if (cleanupError) {
+      cleanupErrors.push(`firewall:${firewall.id}: ${cleanupError}`)
+    }
+  }
+
+  if (cleanupErrors.length > 0) {
+    console.error(
+      '[vps-provision] Failed to clean up provider orphans:',
+      cleanupErrors.join(' | '),
+    )
+    throw new Error(PROVISIONING_CLEANUP_PENDING_MESSAGE)
+  }
+}
+
+async function beginProvisioningSession({
+  userId,
+  region: requestedRegion,
+  serverType: requestedServerType,
+  snapshotId,
+  idempotencyKey,
+}: {
+  userId: string
+  region?: string
+  serverType?: string
+  snapshotId: string
+  idempotencyKey?: string | null
+}): Promise<ProvisioningStartState | { status: 'bootstrapping' }> {
+  return db.transaction(async (tx) => {
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(${PROVISION_LOCK_NAMESPACE}, hashtext(${userId}))`,
+    )
+
+    if (idempotencyKey) {
+      const previousRequest = await tx.query.provisioningJob.findFirst({
+        where: and(
+          eq(provisioningJob.userId, userId),
+          eq(provisioningJob.idempotencyKey, idempotencyKey),
+        ),
+        columns: {
+          status: true,
+          errorMessage: true,
+        },
+      })
+
+      if (previousRequest) {
+        return resolveIdempotentProvisionResult({
+          status: previousRequest.status,
+          errorMessage: previousRequest.errorMessage,
+        })
+      }
+    }
+
+    const activeJob = await tx.query.provisioningJob.findFirst({
+      where: and(
+        eq(provisioningJob.userId, userId),
+        eq(provisioningJob.type, 'provision'),
+        inArray(provisioningJob.status, ACTIVE_PROVISIONING_JOB_STATUSES),
+      ),
+      columns: {
+        status: true,
+      },
+    })
+
+    if (activeJob) {
+      throw new Error('This account already has a VPS instance')
+    }
+
+    const instanceRow = await tx.query.vpsInstance.findFirst({
+      where: eq(vpsInstance.userId, userId),
+      columns: {
+        id: true,
+        status: true,
+        region: true,
+        serverType: true,
+      },
+    })
+
+    const region = (requestedRegion ?? instanceRow?.region ?? 'nbg1')
+      .trim()
+      .toLowerCase()
+    const serverType = normalizeHetznerServerType(
+      requestedServerType ?? instanceRow?.serverType ?? 'cpx22',
+    )
+    const now = new Date()
+    const requestId = createId()
+    const jobId = createId()
+    const instanceId = instanceRow?.id ?? createId()
+
+    if (instanceRow) {
+      const updatedRows = await tx
+        .update(vpsInstance)
+        .set({
+          status: 'provisioning',
+          region,
+          serverType,
+          snapshotVersion: snapshotId,
+          ipv4Address: null,
+          openclawVersion: null,
+          lastUpdatedAt: null,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(vpsInstance.userId, userId),
+            inArray(vpsInstance.status, PROVISION_STARTABLE_INSTANCE_STATUSES),
+          ),
+        )
+        .returning({ id: vpsInstance.id })
+
+      if (updatedRows.length === 0) {
+        throw new Error('This account already has a VPS instance')
+      }
+    } else {
+      await tx.insert(vpsInstance).values({
+        id: instanceId,
+        userId,
         region,
         serverType,
+        status: 'provisioning',
         hetznerServerId: null,
         hetznerFirewallId: null,
         ipv4Address: null,
@@ -489,14 +638,80 @@ export async function provisionUserServer(input: ProvisionInput) {
         snapshotVersion: snapshotId,
         openclawVersion: null,
         lastUpdatedAt: null,
-        updatedAt: now,
-      },
+        createdAt: now,
+      })
+    }
+
+    await tx.insert(provisioningJob).values({
+      id: jobId,
+      userId,
+      type: 'provision',
+      status: 'started',
+      requestId,
+      idempotencyKey: idempotencyKey ?? null,
+      createdAt: now,
     })
+
+    return {
+      region,
+      serverType,
+      requestId,
+      jobId,
+    }
+  })
+}
+
+export async function provisionUserServer(input: ProvisionInput) {
+  assertProvisioningAppUrlReachable()
+  const snapshotId = env.HETZNER_SNAPSHOT_ID
+
+  let startState: ProvisioningStartState | { status: 'bootstrapping' }
+  try {
+    startState = await beginProvisioningSession({
+      userId: input.userId,
+      region: input.region,
+      serverType: input.serverType,
+      snapshotId,
+      idempotencyKey: input.idempotencyKey ?? null,
+    })
+  } catch (error) {
+    if (
+      isUniqueViolationForConstraint({
+        error,
+        constraints: [
+          'provisioning_job_user_active_provision_idx',
+          'provisioning_job_user_idempotency_idx',
+        ],
+      })
+    ) {
+      throw new Error('This account already has a VPS instance')
+    }
+    throw error
+  }
+
+  if ('status' in startState) {
+    return startState
+  }
+
+  const { region, serverType, requestId, jobId } = startState
 
   let createdFirewallId: string | null = null
   let createdServerId: string | null = null
 
   try {
+    await clearUserChannelConnections(input.userId)
+    await cleanupStaleResourcesForUser({
+      userId: input.userId,
+      preserveProvisioningStatus: true,
+    })
+    await cleanupOrphanProviderResourcesForUser({
+      userId: input.userId,
+    })
+    await Promise.all([
+      assertServerTypeAvailable(serverType, region),
+      assertSnapshotAvailable({ snapshotId }),
+    ])
+
     const [openRouterApiKey, tailscaleAuth, userRow, dataEncryption] =
       await Promise.all([
         ensureUserOpenRouterApiKey(input.userId),
@@ -599,6 +814,7 @@ export async function provisionUserServer(input: ProvisionInput) {
         serverId: server.serverId,
         firewallId,
         requestId,
+        idempotencyKey: input.idempotencyKey ?? null,
         region,
         serverType,
         snapshotId,
@@ -645,6 +861,7 @@ export async function provisionUserServer(input: ProvisionInput) {
       action: 'vps.provisioning_failed',
       metadata: JSON.stringify({
         requestId,
+        idempotencyKey: input.idempotencyKey ?? null,
         message,
         rawError: getErrorMessage(error),
         snapshotId,

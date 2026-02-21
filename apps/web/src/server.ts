@@ -5,6 +5,9 @@ import {
   defineHandlerCallback,
 } from '@tanstack/react-start/server'
 import { createServerEntry } from '@tanstack/react-start/server-entry'
+import { startVpsOrphanSweeper } from '@/lib/vps-orphan-sweeper'
+
+startVpsOrphanSweeper()
 
 const handler = defineHandlerCallback(
   async ({ request, router, responseHeaders }) => {

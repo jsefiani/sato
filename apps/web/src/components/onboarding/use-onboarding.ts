@@ -162,9 +162,16 @@ export function useOnboarding({
 
   const provisionMutation = useMutation({
     mutationFn: async () => {
+      const idempotencyKey =
+        typeof crypto !== 'undefined' && 'randomUUID' in crypto
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(36).slice(2)}`
       const res = await fetch('/api/vps/provision', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': idempotencyKey,
+        },
         body: JSON.stringify({}),
       })
       const payload = (await res.json()) as { error?: string }

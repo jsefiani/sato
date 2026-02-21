@@ -7,6 +7,8 @@ import { provisionUserServer } from '@/lib/provisioning'
 import { assertRateLimit } from '@/lib/rate-limit'
 import { requireSession } from '@/lib/session'
 
+const IDEMPOTENCY_KEY_REGEX = /^[A-Za-z0-9:_-]{8,128}$/
+
 export const Route = createFileRoute('/api/vps/provision')({
   server: {
     handlers: {
@@ -16,6 +18,15 @@ export const Route = createFileRoute('/api/vps/provision')({
 
         try {
           const session = await requireSession()
+          const idempotencyKeyRaw = request.headers.get('idempotency-key')
+          const idempotencyKey = idempotencyKeyRaw?.trim() || null
+
+          if (idempotencyKey && !IDEMPOTENCY_KEY_REGEX.test(idempotencyKey)) {
+            return Response.json(
+              { error: 'Invalid Idempotency-Key header' },
+              { status: 400 },
+            )
+          }
 
           const rateLimited = assertRateLimit(
             request,
@@ -49,6 +60,7 @@ export const Route = createFileRoute('/api/vps/provision')({
 
           const result = await provisionUserServer({
             userId: session.user.id,
+            idempotencyKey,
           })
 
           return Response.json({ ok: result.status === 'bootstrapping' })

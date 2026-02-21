@@ -1,4 +1,4 @@
-import { relations } from 'drizzle-orm'
+import { relations, sql } from 'drizzle-orm'
 import {
   boolean,
   integer,
@@ -250,21 +250,37 @@ export const channelConnection = pgTable(
   }),
 )
 
-export const provisioningJob = pgTable('provisioning_job', {
-  id: text('id').primaryKey(),
-  userId: text('user_id')
-    .notNull()
-    .references(() => user.id, { onDelete: 'cascade' }),
-  type: text('type').notNull(),
-  status: text('status').notNull(),
-  requestId: text('request_id').notNull().unique(),
-  errorMessage: text('error_message'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at')
-    .notNull()
-    .defaultNow()
-    .$onUpdate(() => new Date()),
-})
+export const provisioningJob = pgTable(
+  'provisioning_job',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    type: text('type').notNull(),
+    status: text('status').notNull(),
+    requestId: text('request_id').notNull().unique(),
+    idempotencyKey: text('idempotency_key'),
+    errorMessage: text('error_message'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at')
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => ({
+    userActiveProvisionUnique: uniqueIndex(
+      'provisioning_job_user_active_provision_idx',
+    )
+      .on(table.userId)
+      .where(
+        sql`${table.type} = 'provision' and ${table.status} in ('started', 'bootstrapping', 'cleanup_pending')`,
+      ),
+    userIdempotencyKeyUnique: uniqueIndex(
+      'provisioning_job_user_idempotency_idx',
+    ).on(table.userId, table.idempotencyKey),
+  }),
+)
 
 export const auditLog = pgTable('audit_log', {
   id: text('id').primaryKey(),

@@ -2,10 +2,14 @@ import { env } from '@/lib/env'
 
 interface HetznerFirewall {
   id: number
+  name?: string
+  labels?: Record<string, string>
 }
 
 interface HetznerServer {
   id: number
+  name?: string
+  labels?: Record<string, string>
   public_net?: {
     ipv4?: {
       ip?: string
@@ -19,6 +23,22 @@ interface HetznerServerCreateResponse {
 
 interface HetznerFirewallCreateResponse {
   firewall: HetznerFirewall
+}
+
+interface HetznerPaginationMeta {
+  pagination?: {
+    next_page: number | null
+  }
+}
+
+interface HetznerServersListResponse {
+  servers: Array<HetznerServer>
+  meta?: HetznerPaginationMeta
+}
+
+interface HetznerFirewallsListResponse {
+  firewalls: Array<HetznerFirewall>
+  meta?: HetznerPaginationMeta
 }
 
 interface HetznerServerTypeLocation {
@@ -52,6 +72,12 @@ interface HetznerImageResponse {
 
 export interface HetznerLabels {
   [key: string]: string
+}
+
+export interface HetznerLabeledResource {
+  id: string
+  name: string | null
+  labels: Record<string, string>
 }
 
 interface HetznerCreateFirewallInput {
@@ -97,6 +123,12 @@ function buildFirewallRules(): Array<HetznerFirewallRule> {
   }
 
   return rules
+}
+
+function toLabelSelector(labels: HetznerLabels): string {
+  return Object.entries(labels)
+    .map(([key, value]) => `${key}=${value}`)
+    .join(',')
 }
 
 async function hetznerRequest<T>(
@@ -293,4 +325,64 @@ export async function deleteServer(serverId: string): Promise<void> {
 
 export async function deleteFirewall(firewallId: string): Promise<void> {
   await hetznerRequest(`/firewalls/${firewallId}`, 'DELETE')
+}
+
+export async function listServersByLabels({
+  labels,
+}: {
+  labels: HetznerLabels
+}): Promise<Array<HetznerLabeledResource>> {
+  const resources: Array<HetznerLabeledResource> = []
+  const labelSelector = encodeURIComponent(toLabelSelector(labels))
+  let nextPage: number | null = 1
+
+  while (nextPage !== null) {
+    const response: HetznerServersListResponse =
+      await hetznerRequest<HetznerServersListResponse>(
+        `/servers?per_page=50&page=${nextPage}&label_selector=${labelSelector}`,
+        'GET',
+      )
+
+    resources.push(
+      ...response.servers.map((server: HetznerServer) => ({
+        id: String(server.id),
+        name: server.name ?? null,
+        labels: server.labels ?? {},
+      })),
+    )
+
+    nextPage = response.meta?.pagination?.next_page ?? null
+  }
+
+  return resources
+}
+
+export async function listFirewallsByLabels({
+  labels,
+}: {
+  labels: HetznerLabels
+}): Promise<Array<HetznerLabeledResource>> {
+  const resources: Array<HetznerLabeledResource> = []
+  const labelSelector = encodeURIComponent(toLabelSelector(labels))
+  let nextPage: number | null = 1
+
+  while (nextPage !== null) {
+    const response: HetznerFirewallsListResponse =
+      await hetznerRequest<HetznerFirewallsListResponse>(
+        `/firewalls?per_page=50&page=${nextPage}&label_selector=${labelSelector}`,
+        'GET',
+      )
+
+    resources.push(
+      ...response.firewalls.map((firewall: HetznerFirewall) => ({
+        id: String(firewall.id),
+        name: firewall.name ?? null,
+        labels: firewall.labels ?? {},
+      })),
+    )
+
+    nextPage = response.meta?.pagination?.next_page ?? null
+  }
+
+  return resources
 }
