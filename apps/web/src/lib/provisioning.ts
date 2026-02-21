@@ -22,8 +22,6 @@ import {
   createServer,
   deleteFirewall,
   deleteServer,
-  listFirewallsByLabels,
-  listServersByLabels,
   normalizeHetznerServerType,
   removeFirewallFromServer,
 } from '@/lib/hetzner'
@@ -475,56 +473,6 @@ async function cleanupStaleResourcesForUser({
   }
 }
 
-async function cleanupOrphanProviderResourcesForUser({
-  userId,
-}: {
-  userId: string
-}): Promise<void> {
-  const labels: HetznerLabels = {
-    app: 'sato',
-    sato_user: sanitizeLabelValue(userId),
-  }
-
-  const [servers, firewalls] = await Promise.all([
-    listServersByLabels({ labels }),
-    listFirewallsByLabels({ labels }),
-  ])
-
-  if (servers.length === 0 && firewalls.length === 0) {
-    return
-  }
-
-  const cleanupErrors: Array<string> = []
-
-  for (const server of servers) {
-    const cleanupError = await runCleanupWithRetries(async () => {
-      await deleteServer(server.id)
-    })
-
-    if (cleanupError) {
-      cleanupErrors.push(`server:${server.id}: ${cleanupError}`)
-    }
-  }
-
-  for (const firewall of firewalls) {
-    const cleanupError = await runCleanupWithRetries(async () => {
-      await deleteFirewall(firewall.id)
-    })
-
-    if (cleanupError) {
-      cleanupErrors.push(`firewall:${firewall.id}: ${cleanupError}`)
-    }
-  }
-
-  if (cleanupErrors.length > 0) {
-    console.error(
-      '[vps-provision] Failed to clean up provider orphans:',
-      cleanupErrors.join(' | '),
-    )
-    throw new Error(PROVISIONING_CLEANUP_PENDING_MESSAGE)
-  }
-}
-
 async function beginProvisioningSession({
   userId,
   region: requestedRegion,
@@ -703,9 +651,6 @@ export async function provisionUserServer(input: ProvisionInput) {
     await cleanupStaleResourcesForUser({
       userId: input.userId,
       preserveProvisioningStatus: true,
-    })
-    await cleanupOrphanProviderResourcesForUser({
-      userId: input.userId,
     })
     await Promise.all([
       assertServerTypeAvailable(serverType, region),

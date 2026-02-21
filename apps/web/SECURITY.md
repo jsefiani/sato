@@ -96,8 +96,6 @@ Key points:
 
 - **Database uniqueness guardrails for provisioning jobs**: `provisioning_job` enforces at most one in-progress `provision` job per user (partial unique index), plus unique `(user_id, idempotency_key)` for non-null keys.
 
-- **Provider orphan mitigation**: Provisioning preflight cleans up lingering Hetzner resources by label (`app=sato`, `sato_user=<user>`) before creating new resources. A background sweeper periodically scans labeled resources against DB ownership and removes confirmed orphans.
-
 - **API error sanitization**: Allowlist-based error message filtering (`api-error.ts`). Only pre-approved error messages are returned to clients; all others are replaced with `"Something went wrong"` and logged server-side. Applies to REST JSON responses, SSE error events, and nested fields like `lastError` inside successful response payloads.
 
 - **Response data minimization**: Client-facing API payloads intentionally exclude infrastructure/provider details (for example server IDs, public/private IPs, region/server type, and low-level gateway probe diagnostics). Responses return only fields required for the current UI state.
@@ -147,7 +145,6 @@ Key points:
 
 - **Audit logging**: Key events are written to the `audit_log` table with structured JSON metadata:
   - `vps.provisioned`, `vps.provisioning_failed`, `vps.destroyed`
-  - `vps.orphan_sweep_succeeded`, `vps.orphan_sweep_partially_failed`
   - `vps.data_volume_unlocked`, `vps.data_volume_unlock_denied`
   - `vps.maintenance_succeeded`, `vps.maintenance_failed` (admin-triggered VPS maintenance)
   - Billing events (subscription changes, top-up purchases)
