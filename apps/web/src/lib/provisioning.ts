@@ -390,89 +390,6 @@ async function cleanupProvisioningResources(
   }
 }
 
-async function cleanupStaleResourcesForUser({
-  userId,
-  preserveProvisioningStatus = false,
-}: {
-  userId: string
-  preserveProvisioningStatus?: boolean
-}): Promise<void> {
-  const instanceRows = await db
-    .select({
-      serverId: vpsInstance.hetznerServerId,
-      firewallId: vpsInstance.hetznerFirewallId,
-      tailscaleHostname: vpsInstance.tailscaleHostname,
-      tailscaleIp: vpsInstance.tailscaleIp,
-    })
-    .from(vpsInstance)
-    .where(eq(vpsInstance.userId, userId))
-    .limit(1)
-
-  const instance = instanceRows.at(0)
-
-  if (!instance) {
-    return
-  }
-
-  if (
-    !instance.serverId &&
-    !instance.firewallId &&
-    !instance.tailscaleHostname &&
-    !instance.tailscaleIp
-  ) {
-    return
-  }
-
-  const cleanupErrors: Array<string> = []
-
-  if (instance.tailscaleHostname || instance.tailscaleIp) {
-    const tailscaleCleanupError = await runCleanupWithRetries(async () => {
-      await deleteDeviceByHostname({
-        hostname: instance.tailscaleHostname,
-        tailscaleIp: instance.tailscaleIp,
-      })
-    })
-
-    if (tailscaleCleanupError) {
-      cleanupErrors.push(`tailscale: ${tailscaleCleanupError}`)
-    }
-  }
-
-  const cleanup = await cleanupProvisioningResources(
-    instance.serverId,
-    instance.firewallId,
-  )
-  cleanupErrors.push(...cleanup.errors)
-
-  const hasCleanupErrors = cleanupErrors.length > 0
-
-  await db
-    .update(vpsInstance)
-    .set({
-      status: hasCleanupErrors
-        ? 'cleanup_pending'
-        : preserveProvisioningStatus
-          ? 'provisioning'
-          : 'pending',
-      hetznerServerId: cleanup.remainingServerId,
-      hetznerFirewallId: cleanup.remainingFirewallId,
-      ipv4Address: null,
-      tailscaleIp: hasCleanupErrors ? instance.tailscaleIp : null,
-      tailscaleHostname: hasCleanupErrors ? instance.tailscaleHostname : null,
-      openclawVersion: null,
-      lastUpdatedAt: null,
-    })
-    .where(eq(vpsInstance.userId, userId))
-
-  if (hasCleanupErrors) {
-    console.error(
-      '[vps-provision] Failed to clean up stale resources:',
-      cleanupErrors.join(' | '),
-    )
-    throw new Error(PROVISIONING_CLEANUP_PENDING_MESSAGE)
-  }
-}
-
 async function beginProvisioningSession({
   userId,
   region: requestedRegion,
@@ -648,10 +565,6 @@ export async function provisionUserServer(input: ProvisionInput) {
 
   try {
     await clearUserChannelConnections(input.userId)
-    await cleanupStaleResourcesForUser({
-      userId: input.userId,
-      preserveProvisioningStatus: true,
-    })
     await Promise.all([
       assertServerTypeAvailable(serverType, region),
       assertSnapshotAvailable({ snapshotId }),
