@@ -4,6 +4,7 @@ import { user } from '@/db/schema'
 import { getGatewayAuthToken } from '@/lib/gateway-auth'
 import { DEFAULT_MODEL, normalizeModel } from '@/lib/models'
 import { isTcpPortReachable } from '@/lib/readiness'
+import { waitForOpenClawGateway } from '@/lib/vps-probes'
 import { runVpsSshCommand } from '@/lib/vps-ssh'
 
 const GATEWAY_PORT = 18789
@@ -191,13 +192,12 @@ export async function ensureChatEndpointEnabled({
 
   await restartOpenClawGateway({ tailscaleIp, waitForReady: true })
 
-  // Wait for the gateway to accept connections before returning
-  for (let i = 0; i < GATEWAY_READY_ATTEMPTS; i++) {
-    if (await isTcpPortReachable(tailscaleIp, GATEWAY_PORT)) return
-    await new Promise((resolve) =>
-      setTimeout(resolve, GATEWAY_READY_INTERVAL_MS),
-    )
-  }
+  await waitForOpenClawGateway({
+    gatewayHost: tailscaleIp,
+    gatewayAuthToken: gatewayToken,
+    attempts: GATEWAY_READY_ATTEMPTS,
+    intervalMs: GATEWAY_READY_INTERVAL_MS,
+  })
 }
 
 export async function applyModelConfig({

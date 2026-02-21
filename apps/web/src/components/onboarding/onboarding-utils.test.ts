@@ -61,6 +61,15 @@ describe('deriveStep', () => {
     ).toBe('launch')
   })
 
+  it('returns launch when gateway state is restarting', () => {
+    expect(
+      deriveStep({
+        ...baseState,
+        gatewayState: 'restarting',
+      }),
+    ).toBe('launch')
+  })
+
   it('returns trial when user has no access', () => {
     expect(
       deriveStep({

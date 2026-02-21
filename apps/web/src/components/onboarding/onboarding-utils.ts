@@ -80,6 +80,8 @@ export interface ChannelSetupSummary {
 export interface SetupState {
   hasPersonalized: boolean
   preferredModel?: string | null
+  gatewayState?: 'ready' | 'restarting' | 'degraded'
+  gatewayRestartStartedAt?: string | null
   access: AccessState
   credits: CreditState
   creditPolicy?: CreditPolicy
@@ -135,7 +137,10 @@ export function deriveStep(state: SetupState | null): OnboardingStep {
     return 'launch'
   }
 
-  if (vps.status === 'active' && state.openClawReady !== true) {
+  if (
+    vps.status === 'active' &&
+    (state.openClawReady !== true || state.gatewayState === 'restarting')
+  ) {
     return 'launch'
   }
 

@@ -54,6 +54,24 @@ export const Route = createFileRoute('/api/model')({
           })
 
           if (instance?.status === 'active' && instance.tailscaleIp) {
+            const now = new Date()
+
+            console.info('[model-switch] Restart requested', {
+              userId: session.user.id,
+              model: normalizedModel,
+              requestedAt: now.toISOString(),
+            })
+
+            await db
+              .update(vpsInstance)
+              .set({
+                gatewayState: 'restarting',
+                gatewayRestartStartedAt: now,
+                gatewayReadyConfirmedAt: null,
+                lastUpdatedAt: now,
+              })
+              .where(eq(vpsInstance.userId, session.user.id))
+
             await applyModelConfig({
               tailscaleIp: instance.tailscaleIp,
               model: normalizedModel,

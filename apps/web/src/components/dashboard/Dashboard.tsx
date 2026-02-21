@@ -106,9 +106,6 @@ const item = {
   },
 }
 
-const MODEL_RESTART_WATCH_TIMEOUT_MS = 45_000
-const MODEL_RESTART_QUERY_POLL_MS = 2_000
-
 export default function Dashboard() {
   const { data: session } = authClient.useSession()
   const queryClient = useQueryClient()
@@ -129,12 +126,6 @@ export default function Dashboard() {
   const [stripeLoading, setStripeLoading] = useState(false)
   const [isModelDialogOpen, setIsModelDialogOpen] = useState(false)
   const [isModelMenuOpen, setIsModelMenuOpen] = useState(false)
-  const [isModelRestartWatchActive, setIsModelRestartWatchActive] =
-    useState(false)
-  const [hasSeenModelRestartDown, setHasSeenModelRestartDown] = useState(false)
-  const [modelRestartWatchStartedAt, setModelRestartWatchStartedAt] = useState<
-    number | null
-  >(null)
   const [preferredModelOverride, setPreferredModelOverride] = useState<
     string | null
   >(null)
@@ -215,13 +206,16 @@ export default function Dashboard() {
       const previous = queryClient.getQueryData<SetupState>(['setup-status'])
       queryClient.setQueryData<SetupState>(['setup-status'], (old) =>
         old
-          ? { ...old, preferredModel: modelLabel, openClawReady: false }
+          ? {
+              ...old,
+              preferredModel: modelLabel,
+              openClawReady: false,
+              gatewayState: 'restarting',
+              gatewayRestartStartedAt: new Date().toISOString(),
+            }
           : old,
       )
       setPreferredModelOverride(modelValue)
-      setIsModelRestartWatchActive(true)
-      setHasSeenModelRestartDown(false)
-      setModelRestartWatchStartedAt(Date.now())
       return { previous }
     },
     onSuccess: () => {
@@ -229,9 +223,6 @@ export default function Dashboard() {
     },
     onError: (_err, _vars, context) => {
       setPreferredModelOverride(null)
-      setIsModelRestartWatchActive(false)
-      setHasSeenModelRestartDown(false)
-      setModelRestartWatchStartedAt(null)
       if (context?.previous) {
         queryClient.setQueryData(['setup-status'], context.previous)
       }
@@ -265,73 +256,10 @@ export default function Dashboard() {
     }
   }, [isModelDialogOpen, modelMutation.isPending])
 
-  useEffect(() => {
-    if (!isModelRestartWatchActive) return
-
-    if (state?.vps?.status !== 'active') {
-      setIsModelRestartWatchActive(false)
-      setHasSeenModelRestartDown(false)
-      setModelRestartWatchStartedAt(null)
-      return
-    }
-
-    if (!hasSeenModelRestartDown && state.openClawReady === false) {
-      setHasSeenModelRestartDown(true)
-      return
-    }
-
-    if (
-      hasSeenModelRestartDown &&
-      !modelMutation.isPending &&
-      state.openClawReady === true
-    ) {
-      setIsModelRestartWatchActive(false)
-      setHasSeenModelRestartDown(false)
-      setModelRestartWatchStartedAt(null)
-    }
-  }, [
-    hasSeenModelRestartDown,
-    isModelRestartWatchActive,
-    modelMutation.isPending,
-    state?.openClawReady,
-    state?.vps?.status,
-  ])
-
-  useEffect(() => {
-    if (!isModelRestartWatchActive || !modelRestartWatchStartedAt) return
-
-    const remainingMs =
-      modelRestartWatchStartedAt + MODEL_RESTART_WATCH_TIMEOUT_MS - Date.now()
-
-    if (remainingMs <= 0) {
-      setIsModelRestartWatchActive(false)
-      setHasSeenModelRestartDown(false)
-      setModelRestartWatchStartedAt(null)
-      return
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      setIsModelRestartWatchActive(false)
-      setHasSeenModelRestartDown(false)
-      setModelRestartWatchStartedAt(null)
-    }, remainingMs)
-
-    return () => window.clearTimeout(timeoutId)
-  }, [isModelRestartWatchActive, modelRestartWatchStartedAt])
-
-  useEffect(() => {
-    if (!isModelRestartWatchActive) return
-
-    const intervalId = window.setInterval(() => {
-      void queryClient.invalidateQueries({ queryKey: ['setup-status'] })
-    }, MODEL_RESTART_QUERY_POLL_MS)
-
-    return () => window.clearInterval(intervalId)
-  }, [isModelRestartWatchActive, queryClient])
-
+  const gatewayState = state?.gatewayState ?? 'ready'
   const needsStatusStream =
     modelMutation.isPending ||
-    isModelRestartWatchActive ||
+    gatewayState === 'restarting' ||
     (!!state?.vps &&
       (state.vps.status === 'provisioning' ||
         state.vps.status === 'bootstrapping' ||
@@ -352,14 +280,12 @@ export default function Dashboard() {
 
   const isAssistantLive =
     !modelMutation.isPending &&
-    !isModelRestartWatchActive &&
+    gatewayState === 'ready' &&
     state?.vps?.status === 'active' &&
     state.openClawReady === true
   const isAssistantRestarting =
     state?.vps?.status === 'active' &&
-    (modelMutation.isPending ||
-      isModelRestartWatchActive ||
-      state.openClawReady === false)
+    (modelMutation.isPending || gatewayState === 'restarting')
 
   const telegramBotHandle = persistedTelegramBotUsername
     ? `@${persistedTelegramBotUsername}`
@@ -369,13 +295,15 @@ export default function Dashboard() {
     telegramConnected || telegramSetup?.setupState === 'configuring'
 
   const statusLabel = state?.vps
-    ? ({
-        provisioning: 'Setting up your server…',
-        bootstrapping: 'Installing software…',
-        failed: 'Setup failed',
-        cleanup_pending: 'Being removed…',
-        terminated: 'No server provisioned',
-      }[state.vps.status] ?? state.vps.status)
+    ? state.vps.status === 'active' && gatewayState === 'degraded'
+      ? 'Assistant health is degraded. Please retry in a minute.'
+      : ({
+          provisioning: 'Setting up your server…',
+          bootstrapping: 'Installing software…',
+          failed: 'Setup failed',
+          cleanup_pending: 'Being removed…',
+          terminated: 'No server provisioned',
+        }[state.vps.status] ?? state.vps.status)
     : 'No server provisioned'
 
   const canSetupAssistant =
@@ -460,7 +388,7 @@ export default function Dashboard() {
                     {isAssistantLive
                       ? 'Everything looks good'
                       : isAssistantRestarting
-                        ? 'Applying model change. This should take a few seconds.'
+                        ? 'Applying model change. This can take up to a minute.'
                         : statusLabel}
                   </p>
                 </div>

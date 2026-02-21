@@ -109,6 +109,7 @@ export function useOnboarding({
     !!setupState?.vps &&
     (setupState.vps.status === 'provisioning' ||
       setupState.vps.status === 'bootstrapping' ||
+      setupState.gatewayState === 'restarting' ||
       (setupState.vps.status === 'active' &&
         setupState.openClawReady === false))
 
@@ -128,7 +129,9 @@ export function useOnboarding({
     hasFreshSetup && telegramSetup?.setupState === 'connected'
 
   const isAssistantLive =
-    setupState?.vps?.status === 'active' && setupState.openClawReady === true
+    setupState?.vps?.status === 'active' &&
+    setupState.gatewayState !== 'restarting' &&
+    setupState.openClawReady === true
 
   const telegramStatusKey = ['telegram-status'] as const
 

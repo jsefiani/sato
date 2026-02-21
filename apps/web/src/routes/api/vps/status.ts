@@ -22,6 +22,8 @@ import { probeOpenClawGateway } from '@/lib/vps-probes'
 import { verifyVpsBootstrapToken } from '@/lib/vps-bootstrap-token'
 import { createId } from '@/lib/ids'
 import { getModelLabel } from '@/lib/models'
+import { getGatewayAuthToken } from '@/lib/gateway-auth'
+import { resolveGatewayLifecycle } from '@/lib/gateway-state'
 
 const TAILSCALE_JOIN_TIMEOUT_MS = 3 * 60 * 1000
 const BOOTSTRAP_TIMEOUT_MS = 10 * 60 * 1000
@@ -388,6 +390,9 @@ export async function computeVpsProbeState({ userId }: { userId: string }) {
           ipv4Address: true,
           tailscaleIp: true,
           tailscaleHostname: true,
+          gatewayState: true,
+          gatewayRestartStartedAt: true,
+          gatewayReadyConfirmedAt: true,
           lastUpdatedAt: true,
           provisionedAt: true,
           updatedAt: true,
@@ -407,6 +412,7 @@ export async function computeVpsProbeState({ userId }: { userId: string }) {
 
   const instanceRow = userWithVps?.vpsInstance ?? null
   const latestProvisionJob = userWithVps?.provisioningJobs[0] ?? null
+  const gatewayAuthToken = getGatewayAuthToken({ userId })
 
   let instance: typeof instanceRow | null = instanceRow
   let openClawReady = false
@@ -417,6 +423,8 @@ export async function computeVpsProbeState({ userId }: { userId: string }) {
     ? safeErrorMessage(new Error(rawProvisioningFailure))
     : null
   let vpsFailureReason = safeProvisioningFailure
+  let gatewayState: 'ready' | 'restarting' | 'degraded' = 'ready'
+  let gatewayRestartStartedAt: string | null = null
 
   if (instance?.status === 'terminated') {
     instance = null
@@ -450,9 +458,64 @@ export async function computeVpsProbeState({ userId }: { userId: string }) {
     }
 
     const gatewayProbeHost = instance.tailscaleIp
-    openClawReady = gatewayProbeHost
-      ? await probeOpenClawGateway(gatewayProbeHost)
+    const probeReady = gatewayProbeHost
+      ? await probeOpenClawGateway({
+          gatewayHost: gatewayProbeHost,
+          gatewayAuthToken,
+        })
       : false
+
+    const lifecycle = resolveGatewayLifecycle({
+      gatewayState: instance.gatewayState,
+      restartStartedAt: instance.gatewayRestartStartedAt,
+      probeReady,
+    })
+
+    gatewayState = lifecycle.gatewayState
+    gatewayRestartStartedAt = instance.gatewayRestartStartedAt
+      ? instance.gatewayRestartStartedAt.toISOString()
+      : null
+    openClawReady = lifecycle.openClawReady
+
+    if (lifecycle.shouldMarkReady) {
+      const readyAt = new Date()
+
+      await db
+        .update(vpsInstance)
+        .set({
+          gatewayState: 'ready',
+          gatewayReadyConfirmedAt: readyAt,
+        })
+        .where(eq(vpsInstance.userId, userId))
+
+      console.info('[gateway-state] Transitioned to ready', {
+        userId,
+        readyAt: readyAt.toISOString(),
+      })
+
+      instance = {
+        ...instance,
+        gatewayState: 'ready',
+        gatewayReadyConfirmedAt: readyAt,
+      }
+      gatewayState = 'ready'
+    } else if (lifecycle.shouldMarkDegraded) {
+      await db
+        .update(vpsInstance)
+        .set({ gatewayState: 'degraded' })
+        .where(eq(vpsInstance.userId, userId))
+
+      console.warn('[gateway-state] Transitioned to degraded', {
+        userId,
+        restartStartedAt: gatewayRestartStartedAt,
+      })
+
+      instance = {
+        ...instance,
+        gatewayState: 'degraded',
+      }
+      gatewayState = 'degraded'
+    }
 
     if (
       !openClawReady &&
@@ -492,9 +555,12 @@ export async function computeVpsProbeState({ userId }: { userId: string }) {
       openClawReady &&
       (isBootstrapPhase(instance.status) || instance.status === 'failed')
     ) {
+      const activatedAt = new Date()
       const activationFields: Record<string, unknown> = {
         status: 'active',
-        provisionedAt: new Date(),
+        provisionedAt: activatedAt,
+        gatewayState: 'ready',
+        gatewayReadyConfirmedAt: activatedAt,
       }
 
       const sshHost = instance.tailscaleIp
@@ -520,7 +586,10 @@ export async function computeVpsProbeState({ userId }: { userId: string }) {
       instance = {
         ...instance,
         status: 'active',
+        gatewayState: 'ready',
+        gatewayReadyConfirmedAt: activatedAt,
       }
+      gatewayState = 'ready'
       bootstrapError = null
       vpsFailureReason = null
     }
@@ -534,6 +603,8 @@ export async function computeVpsProbeState({ userId }: { userId: string }) {
   return {
     hasPersonalized: !!userWithVps?.assistantName,
     preferredModel: getModelLabel(userWithVps?.preferredModel),
+    gatewayState,
+    gatewayRestartStartedAt,
     openClawReady,
     bootstrappingError: bootstrapError,
     vpsFailureReason,

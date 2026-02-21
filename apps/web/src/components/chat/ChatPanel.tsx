@@ -11,12 +11,13 @@ import {
   PromptInputToolbar,
   Response,
 } from '@/components/ai-elements'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 
 export default function ChatPanel() {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [input, setInput] = useState('')
 
-  const { messages, sendMessage, status } = useChat({
+  const { messages, sendMessage, status, error } = useChat({
     transport: new DefaultChatTransport({ api: '/api/vps/chat' }),
     messages: [
       {
@@ -34,6 +35,12 @@ export default function ChatPanel() {
   })
 
   const isLoading = status === 'streaming' || status === 'submitted'
+  const rawErrorMessage = error?.message.trim() ?? null
+  const chatErrorMessage = rawErrorMessage
+    ? rawErrorMessage.includes('Assistant is still restarting')
+      ? 'Assistant is restarting; message will work once warm-up finishes.'
+      : rawErrorMessage
+    : null
 
   useEffect(() => {
     scrollRef.current?.scrollTo({
@@ -86,6 +93,12 @@ export default function ChatPanel() {
             </Message>
           )}
       </Conversation>
+
+      {chatErrorMessage && (
+        <Alert variant="warning" className="mt-2">
+          <AlertDescription>{chatErrorMessage}</AlertDescription>
+        </Alert>
+      )}
 
       <PromptInput onSubmit={handleSubmit}>
         <PromptInputTextarea

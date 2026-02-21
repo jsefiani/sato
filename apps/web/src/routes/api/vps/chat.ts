@@ -6,6 +6,7 @@ import type { UIMessage } from 'ai'
 import { db } from '@/db'
 import { vpsInstance } from '@/db/schema'
 import { safeApiResponse } from '@/lib/api-error'
+import { resolveChatGatewayReadiness } from '@/lib/chat-readiness'
 import { assertSameOrigin } from '@/lib/csrf'
 import { getGatewayAuthToken } from '@/lib/gateway-auth'
 import { assertRateLimit } from '@/lib/rate-limit'
@@ -35,15 +36,14 @@ export const Route = createFileRoute('/api/vps/chat')({
             return Response.json({ error: 'Invalid input' }, { status: 400 })
           }
 
-          const rows = await db
-            .select({
-              tailscaleIp: vpsInstance.tailscaleIp,
-              status: vpsInstance.status,
-            })
-            .from(vpsInstance)
-            .where(eq(vpsInstance.userId, session.user.id))
-            .limit(1)
-          const instance = rows.at(0)
+          const instance = await db.query.vpsInstance.findFirst({
+            where: eq(vpsInstance.userId, session.user.id),
+            columns: {
+              tailscaleIp: true,
+              status: true,
+              gatewayState: true,
+            },
+          })
 
           if (!instance || !instance.tailscaleIp) {
             return Response.json(
@@ -70,9 +70,27 @@ export const Route = createFileRoute('/api/vps/chat')({
             }),
           ])
 
+          const gatewayToken = getGatewayAuthToken({ userId: session.user.id })
+          const readiness = await resolveChatGatewayReadiness({
+            gatewayHost: instance.tailscaleIp,
+            gatewayAuthToken: gatewayToken,
+            gatewayState: instance.gatewayState,
+            userId: session.user.id,
+          })
+
+          if (!readiness.ready) {
+            return Response.json(
+              {
+                error:
+                  'Assistant is still restarting. Please try again in about a minute.',
+              },
+              { status: 409 },
+            )
+          }
+
           const openclawGateway = createOpenAI({
             baseURL: `http://${instance.tailscaleIp}:18789/v1`,
-            apiKey: getGatewayAuthToken({ userId: session.user.id }),
+            apiKey: gatewayToken,
           })
 
           const result = streamText({
